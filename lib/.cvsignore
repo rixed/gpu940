@@ -1,0 +1,8 @@
+.deps
+.libs
+Makefile
+Makefile.in
+gpu940.lo
+libgpu940.la
+fixmath.lo
+text.lo

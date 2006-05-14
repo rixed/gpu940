@@ -1,0 +1,13 @@
+.deps
+.libs
+Makefile
+Makefile.in
+gpu940
+deftext.c
+writeoffs
+script.ld
+do_ld_script
+940.raw
+gpu940.elf
+gpu940.source
+load940

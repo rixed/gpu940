@@ -1,0 +1,55 @@
+/* This file is part of gpu940.
+ *
+ * Copyright (C) 2006 Cedric Cellier.
+ *
+ * Gpu940 is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation; version 2.
+ *
+ * Gpu940 is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with gpu940; if not, write to the Free Software
+ * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
+ */
+#ifndef FIXMAT_H_060330
+#define FIXMAT_H_060330
+
+#include <stdint.h>
+#include <stdbool.h>
+
+typedef struct {
+	int32_t c[3], xy ;  // 3d coordinates
+} FixVec;
+
+typedef struct {
+	int32_t rot[3][3]; // openGl like order -> [row][line]
+	int32_t ab[3];  // rot[0][i]*rot[1][i]
+	int32_t trans[3];  // translation T[i]
+} FixMat;
+
+void FixMat_x_Vec(int32_t dest[3], FixMat const *mat, FixVec const *src, bool translate);
+
+static inline bool Fix_same_sign(int32_t v0, int32_t v1) {
+	return (v0&0x80000000)==(v1&0x80000000);
+}
+static inline int32_t Fix_abs(int32_t v) {
+	int32_t m=v>>31;
+	return (v^m)-m;
+}
+static inline int32_t Fix_inv(int32_t v) {
+	if (v>0) return ((uint32_t)~0U)/(uint32_t)v;
+	else return -((uint32_t)~0U)/(uint32_t)-v;
+}
+
+void Fix_proj(int32_t c2d[2], int32_t const c3d[3], int dproj);
+
+int64_t Fix_mul64x64(int64_t v, int64_t w);
+void Fix_trig_init(void);
+int32_t Fix_cos(int32_t ang);
+int32_t Fix_sin(int32_t ang);
+
+#endif

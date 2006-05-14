@@ -1,0 +1,18 @@
+* GPU940
+
+Gpu940 is a soft 3D renderer that can do many rendering type, including true
+perspective texture mapping. The software is designed to operate as a separate 
+process. It's mainly targeted at GPH's GP2X (http://www.gp2x.com) but can be 
+used on other platforms as well.
+
+Commands are sent to the "GPU" using a cyclic buffer. On PC, this buffer is 
+mmapped and shared by the "GPU" and the client.
+
+The GPU performs clipping, projection and drawing.
+
+Geometry can be drawn onto as many video buffers as you need (not limited to 
+2). Textures and Z-buffers are like video buffers, so that any texture or 
+z-buffer can be drawed onto, and that any previous video buffer can serve as a 
+texture or z-buffer.
+
+
