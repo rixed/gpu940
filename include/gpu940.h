@@ -164,4 +164,13 @@ gpuErr gpuWritev(const struct iovec *cmdvec, size_t count);
 uint32_t gpuReadErr(void);
 gpuErr gpuLoadImg(struct buffer_loc const *loc, uint8_t (*rgb)[3], unsigned lod);
 
+struct gpuBuf *gpuAlloc(unsigned width_log, unsigned height);
+void gpuFree(struct gpuBuf *buf);
+void gpuFreeFC(struct gpuBuf *buf, unsigned fc);
+gpuErr gpuSetOutBuf(struct gpuBuf *buf);
+gpuErr gpuSetTxtBuf(struct gpuBuf *buf);
+gpuErr gpuSetZBuf(struct gpuBuf *buf);
+gpuErr gpuShowBuf(struct gpuBuf *buf);
+struct buffer_loc const *gpuBuf_get_loc(struct gpuBuf const *buf);
+
 #endif

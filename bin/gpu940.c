@@ -82,6 +82,7 @@ static void display(struct buffer_loc const *loc) {
 	if (SDL_MUSTLOCK(sdl_screen)) SDL_UnlockSurface(sdl_screen);
 	SDL_UpdateRect(sdl_screen, 0, 0, ctx.view.winWidth, ctx.view.winHeight);
 #endif
+	shared->frame_count ++;
 //	perftime_leave();
 }
 
@@ -126,8 +127,10 @@ static void ctx_reset(void) {
 	ctx.view.nb_clipPlanes = 5;
 }
 
-static void cmd_reset(void) {
+static void shared_reset(void) {
 	shared->cmds_begin = shared->cmds_end = 0;
+	shared->frame_count = 0;
+	shared->error_flags = 0;
 }
 
 // All unsigned sizes are in words
@@ -274,7 +277,7 @@ static void __unused play_div_anim(void) {
 }
 
 static void run(void) {
-	cmd_reset();
+	shared_reset();
 	//play_div_anim();
 	//play_nodiv_anim();
 	while (1) {

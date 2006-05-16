@@ -1,6 +1,7 @@
 #ifndef KERNLIST_H_060514
 #define KERNLIST_H_060514
 
+/* This is taken from linux kernel sources */
 /*
  * Simple doubly linked list implementation.
  *
@@ -181,9 +182,8 @@ static inline void list_splice_init(struct list_head *list,
  * @member:	the name of the member within the struct.
  *
  */
-#define container_of(ptr, type, member) ({			\
-        const typeof( ((type *)0)->member ) *__mptr = (ptr);	\
-        (type *)( (char *)__mptr - offsetof(type,member) );})
+#define container_of(ptr, type, member) \
+        ((type *)( (char *)(ptr) - offsetof(type,member) ))
 
 /**
  * list_entry - get the struct for this entry
@@ -227,9 +227,9 @@ static inline void list_splice_init(struct list_head *list,
  * @member:	the name of the list_struct within the struct.
  */
 #define list_for_each_entry(pos, head, member)				\
-	for (pos = list_entry((head)->next, typeof(*pos), member);	\
+	for (pos = list_entry((head)->next, __typeof__(*pos), member);	\
 	     &pos->member != (head); 					\
-	     pos = list_entry(pos->member.next, typeof(*pos), member))
+	     pos = list_entry(pos->member.next, __typeof__(*pos), member))
 
 /**
  * list_for_each_entry_reverse - iterate backwards over list of given type.
@@ -238,9 +238,9 @@ static inline void list_splice_init(struct list_head *list,
  * @member:	the name of the list_struct within the struct.
  */
 #define list_for_each_entry_reverse(pos, head, member)			\
-	for (pos = list_entry((head)->prev, typeof(*pos), member);	\
+	for (pos = list_entry((head)->prev, __typeof__(*pos), member);	\
 	     &pos->member != (head); 					\
-	     pos = list_entry(pos->member.prev, typeof(*pos), member))
+	     pos = list_entry(pos->member.prev, __typeof__(*pos), member))
 
 /**
  * list_for_each_entry_continue -	iterate over list of given type
@@ -250,9 +250,9 @@ static inline void list_splice_init(struct list_head *list,
  * @member:	the name of the list_struct within the struct.
  */
 #define list_for_each_entry_continue(pos, head, member) 		\
-	for (pos = list_entry(pos->member.next, typeof(*pos), member);	\
+	for (pos = list_entry(pos->member.next, __typeof__(*pos), member);	\
 	     &pos->member != (head);					\
-	     pos = list_entry(pos->member.next, typeof(*pos), member))
+	     pos = list_entry(pos->member.next, __typeof__(*pos), member))
 
 /**
  * list_for_each_entry_safe - iterate over list of given type safe against removal of list entry
@@ -262,9 +262,9 @@ static inline void list_splice_init(struct list_head *list,
  * @member:	the name of the list_struct within the struct.
  */
 #define list_for_each_entry_safe(pos, n, head, member)			\
-	for (pos = list_entry((head)->next, typeof(*pos), member),	\
-		n = list_entry(pos->member.next, typeof(*pos), member);	\
+	for (pos = list_entry((head)->next, __typeof__(*pos), member),	\
+		n = list_entry(pos->member.next, __typeof__(*pos), member);	\
 	     &pos->member != (head); 					\
-	     pos = n, n = list_entry(n->member.next, typeof(*n), member))
+	     pos = n, n = list_entry(n->member.next, __typeof__(*n), member))
 
 #endif

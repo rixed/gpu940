@@ -40,28 +40,17 @@ int main(void) {
 	lseek(fd, 18, SEEK_SET);
 	read(fd, pascale, sizeof(pascale));
 	close(fd);
-	gpuCmdSetTxtBuf setTxtBuf = {
-		.opcode = gpuSETTXTBUF,
-		.loc = {
-			.address = 0,
-			.width_log = 8,
-			.height = 256,
-		},
-	};
-	gpuCmdSetOutBuf setOutBuf = {
-		.opcode = gpuSETOUTBUF,
-		.loc = {
-			.address = 0x10000,	// after the only texture
-			.width_log = 9,
-			.height = 300,
-		},
-	};
-	if (gpuOK != gpuLoadImg(&setTxtBuf.loc, pascale, 0)) {
+	struct gpuBuf *txtBuf = gpuAlloc(8, 256);
+	if (! txtBuf) {
+		fprintf(stderr, "Cannot alloc buf for texture\n");
+		return EXIT_FAILURE;
+	}
+	if (gpuOK != gpuLoadImg(gpuBuf_get_loc(txtBuf), pascale, 0)) {
 		fprintf(stderr, "Cannot load texture.\n");
 		return EXIT_FAILURE;
 	}
-	if (gpuOK != gpuWrite(&setTxtBuf, sizeof(setTxtBuf)) || gpuOK != gpuWrite(&setOutBuf, sizeof(setOutBuf))) {
-		fprintf(stderr, "Cannot set location buffers.\n");
+	if (gpuOK != gpuSetTxtBuf(txtBuf)) {
+		fprintf(stderr, "Cannot set texture buffer.\n");
 		return EXIT_FAILURE;
 	}
 #define LEN (300<<16)
@@ -89,17 +78,12 @@ int main(void) {
 		.color = 0x4567,
 		.rendering_type = rendering_uv,
 	};
-	gpuCmdShowBuf show = {
-		.opcode = gpuSHOWBUF,
-		.loc = setOutBuf.loc,
-	};
 	struct iovec cmdvec[1+sizeof_array(vectors)+1] = {
 		{ .iov_base = &facet, .iov_len = sizeof(facet) },
 		{ .iov_base = vectors+0, .iov_len = sizeof(*vectors) },
 		{ .iov_base = vectors+1, .iov_len = sizeof(*vectors) },
 		{ .iov_base = vectors+2, .iov_len = sizeof(*vectors) },
 		{ .iov_base = vectors+3, .iov_len = sizeof(*vectors) },
-		{ .iov_base = &show, .iov_len = sizeof(show) },
 	};
 	Fix_trig_init();
 	int32_t ang1 = 123;
@@ -123,7 +107,22 @@ int main(void) {
 		for (unsigned v=0; v<sizeof_array(vec3d); v++) {
 			FixMat_x_Vec(vectors[v].geom.c3d, &mat, vec3d+v, true);
 		}
-//		if (gpuOK != gpuWritev(cmdvec, sizeof_array(cmdvec))) break;
+		struct gpuBuf *outBuf;
+		do {
+			outBuf = gpuAlloc(9, 300);
+			if (outBuf) break;
+			(void)sched_yield();
+		} while ( 1 );
+		switch (gpuSetOutBuf(outBuf)) {
+			case gpuOK:
+				break;
+			case gpuENOSPC:
+				(void)sched_yield();
+				break;
+			default:
+				fprintf(stderr, "Cannot set outbuf\n");
+				goto quit;
+		}
 		switch (gpuWritev(cmdvec, sizeof_array(cmdvec))) {
 			case gpuOK:
 				break;
@@ -131,10 +130,22 @@ int main(void) {
 				(void)sched_yield();
 				break;
 			default:
+				fprintf(stderr, "Cannot write facet\n");
+				goto quit;
+		}
+		switch (gpuShowBuf(outBuf)) {
+			case gpuOK:
+				break;
+			case gpuENOSPC:
+				(void)sched_yield();
+				break;
+			default:
+				fprintf(stderr, "Cannot show outbuf\n");
 				goto quit;
 		}
 	}
 quit:
+	gpuFree(txtBuf);
 	gpuClose();
 	return EXIT_SUCCESS;
 }
