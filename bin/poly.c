@@ -40,7 +40,6 @@ typedef void (*draw_line_t)(void);
 
 #ifdef GP2X
 extern void draw_line_c(void);
-extern void draw_line_uv(void);
 #else
 static void draw_line_c(void) {
 	do {
@@ -52,7 +51,7 @@ static void draw_line_c(void) {
 		ctx.line.count --;
 	} while (ctx.line.count >= 0);
 }
-
+#endif
 static void draw_line_ci(void) {
 	do {
 		uint16_t color = ctx.poly.cmdFacet.color;
@@ -74,7 +73,7 @@ static void draw_line_ci(void) {
 
 static void draw_line_uv(void) {
 	do {
-		uint16_t color = texture_color(ctx.line.param[0], ctx.line.param[1]);
+		uint16_t color = texture_color(&ctx.location.txt, ctx.line.param[0], ctx.line.param[1]);
 //		if (start_poly) color |= ctx.poly.scan_dir ? 0x3e0 : 0xf800;
 		uint16_t *w = (uint16_t *)(ctx.line.w + ((ctx.line.decliv>>16)<<ctx.poly.nc_scale));
 		*w = color;
@@ -85,10 +84,10 @@ static void draw_line_uv(void) {
 		ctx.line.count --;
 	} while (ctx.line.count >= 0);
 }
-#endif
+
 static void draw_line_uvi(void) {
 	do {
-		uint16_t color = texture_color(ctx.line.param[0], ctx.line.param[1]);
+		uint16_t color = texture_color(&ctx.location.txt, ctx.line.param[0], ctx.line.param[1]);
 //		if (start_poly) color |= ctx.poly.scan_dir ? 0x3e0 : 0xf800;
 		uint32_t const i = ctx.line.param[2]>>16;	// we use 32 bits to get a carry flag in bit 16
 		uint32_t color_i = color + i;
@@ -114,6 +113,7 @@ static void draw_line_rgb(void) {
 		uint8_t g = ctx.line.param[1]>>(16+2);
 		uint8_t b = ctx.line.param[2]>>(16+3);
 		int16_t color = (b<<11)|(g<<5)|r;
+//		if (start_poly) color |= ctx.poly.scan_dir ? 0x3e0 : 0xf800;
 		uint16_t *w = (uint16_t *)(ctx.line.w + ((ctx.line.decliv>>16)<<ctx.poly.nc_scale));
 		*w = color;
 		ctx.line.w += ctx.line.dw;
@@ -170,10 +170,10 @@ static void draw_line(void) {
 	}
 	ctx.line.decliv = ctx.poly.decliveness*c_start;	// 16.16
 	if (ctx.poly.scan_dir == 0) {
-		ctx.line.w = (uint8_t *)&shared->videoBuffers[shared->workingBuffer + ((ctx.poly.nc_declived+ctx.view.winPos[1])<<shared->screenWidth_log) + c_start+ctx.view.winPos[0]];
+		ctx.line.w = (uint8_t *)&shared->buffers[ctx.location.out.address + ((ctx.poly.nc_declived+ctx.view.winPos[1])<<ctx.location.out.width_log) + c_start+ctx.view.winPos[0]];
 	} else {
-		ctx.line.w = (uint8_t *)&shared->videoBuffers[shared->workingBuffer + ((c_start+ctx.view.winPos[1])<<shared->screenWidth_log) + ctx.poly.nc_declived + ctx.view.winPos[0]];
-		ctx.line.dw <<= shared->screenWidth_log;
+		ctx.line.w = (uint8_t *)&shared->buffers[ctx.location.out.address + ((c_start+ctx.view.winPos[1])<<ctx.location.out.width_log) + ctx.poly.nc_declived + ctx.view.winPos[0]];
+		ctx.line.dw <<= ctx.location.out.width_log;
 	}
 	static draw_line_t const draw_lines[NB_RENDERING_TYPES] = {
 		draw_line_c, draw_line_ci, draw_line_uv, draw_line_uvi, draw_line_rgb, draw_line_rgbi,
@@ -194,7 +194,7 @@ void draw_poly(void) {
 	start_poly = 6;
 	ctx.poly.decliveness = 0;
 	ctx.poly.scan_dir = 0;
-	ctx.poly.nc_scale = shared->screenWidth_log+1;
+	ctx.poly.nc_scale = ctx.location.out.width_log+1;
 	// bounding box
 	{
 		unsigned v=ctx.poly.first_vector;

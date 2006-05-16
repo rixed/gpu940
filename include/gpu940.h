@@ -69,17 +69,17 @@ typedef struct {
 
 extern struct gpuShared {
 	// All integer members are supposed to have the same property as sig_atomic_t.
-	volatile uint32_t int_cmds;	// interrupt like pending commands flag (reset, chop)
-	volatile uint32_t error_flags;	// use a special swap instruction to read&reset it, as a whole or bit by bit depending of available hardware !
 	volatile int32_t cmds_begin;	// first word beeing actually used by the gpu. let libgpu read in there.
 	volatile int32_t cmds_end;	// last word + 1 beeing actually used by the gpu. let libgpu write in there.
+	volatile uint32_t error_flags;	// use a special swap instruction to read&reset it, as a whole or bit by bit depending of available hardware !
 	volatile int32_t frame_count;
-	uint8_t cmds[0x40000];	// 1Mbytes of asynchronous commands
-	uint16_t buffers[0xF00000];	// 30Mbytes of buffers
+	uint32_t cmds[0x10000];	// 1Mbytes for commands
+	uint16_t buffers[0xF00000];	// 30Mbytes for buffers
 } *shared;
 #define SHARED_PHYSICAL_ADDR 0x2010000	// this is from 920T or for the video controler.
 
 typedef enum {
+	gpuSETVIEW,
 	gpuSETOUTBUF,	// change view parameters
 	gpuSETTXTBUF,
 	gpuSETZBUF,
@@ -96,24 +96,31 @@ struct buffer_loc {
 };
 
 typedef struct {
-	gpuOpcode opcode;
-	struct buffer_loc loc;
 	uint32_t dproj;
 	int32_t clipMin[2], clipMax[2];	// (0,0) = center of projection
 	int32_t winPos[2];	// coordinate of the lower left corner where to draw the window ((0,0) = center of screen)
+} gpuCmdSetView;
+
+typedef struct {
+	gpuOpcode opcode;
+	struct buffer_loc loc;
 } gpuCmdSetOutBuf;
+
 typedef struct {
 	gpuOpcode opcode;
 	struct buffer_loc loc;
 } gpuCmdSetTxtBuf;
+
 typedef struct {
 	gpuOpcode opcode;
 	struct buffer_loc loc;
 } gpuCmdSetZBuf;
+
 typedef struct {
 	gpuOpcode opcode;
 	struct buffer_loc loc;
 } gpuCmdShowBuf;
+
 typedef struct {
 	gpuOpcode opcode;
 	uint32_t size;	// >=3
@@ -128,7 +135,7 @@ typedef struct {
 		rendering_rgbi,	// use vectors param r, g, b, i
 		NB_RENDERING_TYPES
 	} rendering_type;
-} gpuCmdDrawFacet;
+} gpuCmdFacet;
 
 typedef union {
 	// No opcode: it must follow a point/line/facet
@@ -151,12 +158,10 @@ typedef struct gpuBuffer gpuBuffer;
 gpuErr gpuOpen(void);
 void gpuClose(void);
 
-gpuErr gpuWrite(void *cmd, size_t size, unsigned syn);
-gpuErr gpuWritev(const struct iovec *cmdvec, size_t count, unsigned syn);
+gpuErr gpuWrite(void *cmd, size_t size);
+gpuErr gpuWritev(const struct iovec *cmdvec, size_t count);
 
-uint32_t gpuRead_err(void);
-gpuBuffer *gpuAlloc(unsigned width_loc, unsigned height);
-gpuErr gpuFree(gpuBuffer *buf);
-gpuErr gpuLoad_img(gpuBuffer *buf, uint8_t (*rgb)[3]);
+uint32_t gpuReadErr(void);
+gpuErr gpuLoadImg(struct buffer_loc const *loc, uint8_t (*rgb)[3], unsigned lod);
 
 #endif

@@ -20,8 +20,9 @@
 
 #include "gpu940i.h"
 
-static inline uint16_t texture_color(int32_t u, int32_t v) {
-	return shared->textures[ctx.poly.cmdFacet.texture][((u>>16)&0xff)+((v>>8)&0xff00)];
+static inline uint16_t texture_color(struct buffer_loc const *loc, int32_t u, int32_t v) {
+	// height of a texture location must be a power of two
+	return shared->buffers[loc->address + ((u>>16)&((1<<loc->width_log)-1)) + (((v>>16)&(loc->height-1))<<loc->width_log)];
 }
 
 #endif

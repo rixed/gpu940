@@ -28,7 +28,7 @@
 uint8_t pascale[256*256][3];
 
 int main(void) {
-	if (gpu940_OK != gpu940_open()) {
+	if (gpuOK != gpuOpen()) {
 		fprintf(stderr, "Cannot open gpu940.\n");
 		return EXIT_FAILURE;
 	}
@@ -40,8 +40,28 @@ int main(void) {
 	lseek(fd, 18, SEEK_SET);
 	read(fd, pascale, sizeof(pascale));
 	close(fd);
-	if (gpu940_OK != gpu940_load_img(0, pascale)) {
+	gpuCmdSetTxtBuf setTxtBuf = {
+		.opcode = gpuSETTXTBUF,
+		.loc = {
+			.address = 0,
+			.width_log = 8,
+			.height = 256,
+		},
+	};
+	gpuCmdSetOutBuf setOutBuf = {
+		.opcode = gpuSETOUTBUF,
+		.loc = {
+			.address = 0x10000,	// after the only texture
+			.width_log = 9,
+			.height = 300,
+		},
+	};
+	if (gpuOK != gpuLoadImg(&setTxtBuf.loc, pascale, 0)) {
 		fprintf(stderr, "Cannot load texture.\n");
+		return EXIT_FAILURE;
+	}
+	if (gpuOK != gpuWrite(&setTxtBuf, sizeof(setTxtBuf)) || gpuOK != gpuWrite(&setOutBuf, sizeof(setOutBuf))) {
+		fprintf(stderr, "Cannot set location buffers.\n");
 		return EXIT_FAILURE;
 	}
 #define LEN (300<<16)
@@ -52,7 +72,7 @@ int main(void) {
 		{ .c = { -LEN, LEN, LEN/4 }, .xy = -LEN2 },
 		{ .c = { -LEN, -LEN, LEN/4 }, .xy = LEN2 },
 	};
-	gpu940_cmdVector vectors[sizeof_array(vec3d)] = {
+	gpuCmdVector vectors[sizeof_array(vec3d)] = {
 		{ .uvi_params = { .u=0, .v=0, .i=16<<16 }, },
 		{ .uvi_params = { .u=255<<16, .v=0, .i=0<<16 }, },
 		{ .uvi_params = { .u=255<<16, .v=255<<16, .i=16<<16 }, },
@@ -62,20 +82,24 @@ int main(void) {
 		{ .rgbi_params = { .r=255<<16, .g= 255<<16, .b=0, .i=16<<16 }, },
 		{ .rgbi_params = { .r=0, .g=255<<16, .b=0, .i=32<<16 }, },*/
 	};
-	gpu940_cmdFacet facet = {
+	gpuCmdFacet facet = {
+		.opcode = gpuFACET,
 		.size = sizeof_array(vectors),
 		.texture = 0,
 		.color = 0x4567,
 		.rendering_type = rendering_uv,
 	};
-	gpu940_cmdSwap swap = { .one = 1, };
+	gpuCmdShowBuf show = {
+		.opcode = gpuSHOWBUF,
+		.loc = setOutBuf.loc,
+	};
 	struct iovec cmdvec[1+sizeof_array(vectors)+1] = {
 		{ .iov_base = &facet, .iov_len = sizeof(facet) },
 		{ .iov_base = vectors+0, .iov_len = sizeof(*vectors) },
 		{ .iov_base = vectors+1, .iov_len = sizeof(*vectors) },
 		{ .iov_base = vectors+2, .iov_len = sizeof(*vectors) },
 		{ .iov_base = vectors+3, .iov_len = sizeof(*vectors) },
-		{ .iov_base = &swap, .iov_len = sizeof(swap) },
+		{ .iov_base = &show, .iov_len = sizeof(show) },
 	};
 	Fix_trig_init();
 	int32_t ang1 = 123;
@@ -99,12 +123,19 @@ int main(void) {
 		for (unsigned v=0; v<sizeof_array(vec3d); v++) {
 			FixMat_x_Vec(vectors[v].geom.c3d, &mat, vec3d+v, true);
 		}
-//		if (gpu940_OK != gpu940_writev(cmdvec, sizeof_array(cmdvec))) break;
-		while (gpu940_OK != gpu940_writev(cmdvec, sizeof_array(cmdvec))) {
-			(void)sched_yield();
+//		if (gpuOK != gpuWritev(cmdvec, sizeof_array(cmdvec))) break;
+		switch (gpuWritev(cmdvec, sizeof_array(cmdvec))) {
+			case gpuOK:
+				break;
+			case gpuENOSPC:
+				(void)sched_yield();
+				break;
+			default:
+				goto quit;
 		}
 	}
-	gpu940_close();
+quit:
+	gpuClose();
 	return EXIT_SUCCESS;
 }
 

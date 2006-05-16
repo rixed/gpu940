@@ -41,10 +41,7 @@
  * Global Datas
  */
 
-struct gpu940_shared *shared = (void *)(SHARED_PHYSICAL_ADDR-0x2000000U);	// from the 940T
-#define screenLen (shared->screenSize[1]<<shared->screenWidth_log)
-#define nbMaxVideoBuffers (sizeof_array(shared->videoBuffers)/ScreenLen)
-
+struct gpuShared *shared = (void *)(SHARED_PHYSICAL_ADDR-0x2000000U);	// from the 940T
 struct ctx ctx;
 
 #ifdef GP2X
@@ -60,14 +57,14 @@ static SDL_Surface *sdl_screen;
  * Private Functions
  */
 
-static void display(void) {
+static void display(struct buffer_loc const *loc) {
 	// display current workingBuffer
 //	perftime_enter(PERF_DISPLAY, "display");
 #ifdef GP2X
 	uint16_t vsync = gp2x_regs16[0x2804>>1] & 1;
 	while (gp2x_regs16[0x1182>>1] & (1<<4) == !vsync) ;
 	while ((gp2x_regs16[0x1182>>1]&(1<<4)) == vsync) ;
-	uint32_t screen_addr = (uint32_t)&((struct gpu940_shared *)SHARED_PHYSICAL_ADDR)->videoBuffers[shared->workingBuffer+(ctx.view.winPos[1]<<shared->screenWidth_log)+ctx.view.winPos[0]];
+	uint32_t screen_addr = (uint32_t)&((struct gpuShared *)SHARED_PHYSICAL_ADDR)->buffers[ctx.location.out.address+(ctx.view.winPos[1]<<ctx.location.out.width_log)+ctx.view.winPos[0]];
 	gp2x_regs16[0x290e>>1] = screen_addr&0xffff; gp2x_regs16[0x2912>>1] = screen_addr&0xffff;
 	gp2x_regs16[0x2910>>1] = screen_addr>>16; gp2x_regs16[0x2914>>1] = screen_addr>>16;
 #else
@@ -77,13 +74,13 @@ static void display(void) {
 		return;
 	}
 	// draw...
-	for (y = shared->screenSize[1]; y--; ) {
-		Uint16 *restrict dst = (Uint16 *)((Uint8 *)sdl_screen->pixels + y*(shared->screenSize[0]<<1));
-		uint16_t *restrict src = &shared->videoBuffers[shared->workingBuffer + ((y+ctx.view.winPos[1])<<shared->screenWidth_log) + ctx.view.winPos[0]];
-		memcpy(dst, src, shared->screenSize[0]<<1);
+	for (y = ctx.view.winHeight; y--; ) {
+		Uint16 *restrict dst = (Uint16*)((Uint8*)sdl_screen->pixels + y*sdl_screen->pitch);
+		uint16_t *restrict src = &shared->buffers[loc->address + ((y+ctx.view.winPos[1])<<loc->width_log) + ctx.view.winPos[0]];
+		memcpy(dst, src, ctx.view.winWidth<<1);
 	}
 	if (SDL_MUSTLOCK(sdl_screen)) SDL_UnlockSurface(sdl_screen);
-	SDL_UpdateRect(sdl_screen, 0, 0, shared->screenSize[0], shared->screenSize[1]);
+	SDL_UpdateRect(sdl_screen, 0, 0, ctx.view.winWidth, ctx.view.winHeight);
 #endif
 //	perftime_leave();
 }
@@ -104,6 +101,7 @@ static void reset_clipPlanes(void) {
 }
 
 static int32_t next_power_of_2(int32_t x) {
+	// TODO: on ARM use CLZ
 	int32_t ret = 0;
 	while ((1<<ret) < x) ret ++;
 	return ret;
@@ -113,16 +111,16 @@ static void ctx_reset(void) {
 #	define SCREEN_WIDTH 320
 #	define SCREEN_HEIGHT 240
 	my_memset(&ctx, 0, sizeof ctx);
-	shared->screenSize[0] = SCREEN_WIDTH;
-	shared->screenSize[1] = SCREEN_HEIGHT;
-	shared->screenWidth_log = next_power_of_2(shared->screenSize[0]);
-	shared->workingBuffer = 0;
-	ctx.view.winPos[0] = ((1<<shared->screenWidth_log)-shared->screenSize[0])>>1;
+	ctx.location.out.width_log = next_power_of_2(SCREEN_WIDTH);
+	ctx.location.out.height = SCREEN_HEIGHT;
+	ctx.view.winPos[0] = ((1<<ctx.location.out.width_log)-SCREEN_WIDTH)>>1;
 	ctx.view.winPos[1] = 1;
-	ctx.view.clipMin[0] = (-shared->screenSize[0]>>1)-1;
-	ctx.view.clipMin[1] = (-shared->screenSize[1]>>1);
-	ctx.view.clipMax[0] = (shared->screenSize[0]>>1);
-	ctx.view.clipMax[1] = (shared->screenSize[1]>>1)-2;
+	ctx.view.clipMin[0] = (-SCREEN_WIDTH>>1)-1;
+	ctx.view.clipMin[1] = (-SCREEN_HEIGHT>>1);
+	ctx.view.clipMax[0] = (SCREEN_WIDTH>>1);
+	ctx.view.clipMax[1] = (SCREEN_HEIGHT>>1)-2;
+	ctx.view.winWidth = SCREEN_WIDTH;
+	ctx.view.winHeight = SCREEN_HEIGHT;
 	ctx.view.dproj = GPU_DEFAULT_DPROJ;
 	reset_clipPlanes();
 	ctx.view.nb_clipPlanes = 5;
@@ -132,14 +130,9 @@ static void cmd_reset(void) {
 	shared->cmds_begin = shared->cmds_end = 0;
 }
 
-static void copy_32(void *restrict dest_, void const *restrict src_, size_t size) {
-	int32_t *restrict dest = (int32_t *)dest_;
-	int32_t const *restrict src = (int32_t const*)src_;
-	assert(0 == (size&3));
-	if (! size) return;
-	for (unsigned i=(size>>2); i--; ) {
-		dest[i] = src[i];
-	}
+// All unsigned sizes are in words
+static inline void copy32(uint32_t *restrict dest, uint32_t const *restrict src, unsigned size) {
+	for ( ; size--; ) dest[size] = src[size];
 }
 
 static void flush_shared(void) {
@@ -150,15 +143,16 @@ static void flush_shared(void) {
 #endif
 }
 
-static void read_from_cmdBuf(void *dest, size_t size) {
-	ssize_t overrun = (shared->cmds_begin+size) - sizeof(shared->cmds);
+static void read_from_cmdBuf(void *dest, size_t size_) {
+	unsigned size = size_/sizeof(uint32_t);
+	int overrun = (shared->cmds_begin+size) - sizeof_array(shared->cmds);
 	if (overrun < 0) {
-		copy_32(dest, shared->cmds+shared->cmds_begin, size);
+		copy32(dest, shared->cmds+shared->cmds_begin, size);
 		shared->cmds_begin += size;
 	} else {
 		size_t chunk = size - overrun;
-		copy_32(dest, shared->cmds+shared->cmds_begin, chunk);
-		copy_32((char *)dest+chunk, shared->cmds, overrun);
+		copy32(dest, shared->cmds+shared->cmds_begin, chunk);
+		copy32((uint32_t*)dest+chunk, shared->cmds, overrun);
 		shared->cmds_begin = overrun;
 	}
 	flush_shared();
@@ -168,33 +162,55 @@ static void read_from_cmdBuf(void *dest, size_t size) {
  * Command processing
  */
 
-static void do_reconfigure(void) {
-	static gpu940_cmdCfg cmd;
-	read_from_cmdBuf(&cmd, sizeof(cmd));
-	// TODO
-}
+static union {
+	gpuCmdSetView setView;
+	gpuCmdSetOutBuf setOutBuf;
+	gpuCmdSetTxtBuf setTxtBuf;
+	gpuCmdSetZBuf setZBuf;
+	gpuCmdShowBuf showBuf;
+} allCmds;
 
-static void do_swap_buffers(void) {
-	// TODO: distinguer le swap de buffer et l'affichage : il doit y avoir un working buffer et un displayed buffer,
-	// displayed buffer avancant au rithme des VBLs (si possible)
-	static gpu940_cmdSwap cmd;
-	read_from_cmdBuf(&cmd, sizeof(cmd));
-	display();
-	uint32_t new_wb = shared->workingBuffer + screenLen;
-	if (new_wb+screenLen > sizeof_array(shared->videoBuffers)) new_wb = 0;
-	shared->workingBuffer = new_wb;
+static void do_setView(void) {
+	read_from_cmdBuf(&allCmds.setView, sizeof(allCmds.setView));
+	ctx.view.dproj = allCmds.setView.dproj;
+	ctx.view.clipMin[0] = allCmds.setView.clipMin[0];
+	ctx.view.clipMin[1] = allCmds.setView.clipMin[1];
+	ctx.view.clipMax[0] = allCmds.setView.clipMax[0];
+	ctx.view.clipMax[1] = allCmds.setView.clipMax[1];
+	ctx.view.winPos[0] = allCmds.setView.winPos[0];
+	ctx.view.winPos[1] = allCmds.setView.winPos[1];
+	ctx.view.winWidth = ctx.view.clipMax[0] - ctx.view.clipMin[0];
+	ctx.view.winHeight = ctx.view.clipMax[1] - ctx.view.clipMin[1];
 }
-
-static void do_draw_facet(void) {
-	read_from_cmdBuf(&ctx.poly.cmdFacet, sizeof ctx.poly.cmdFacet);
+static void do_setOutBuf(void) {
+	read_from_cmdBuf(&allCmds.setOutBuf, sizeof(allCmds.setOutBuf));
+	memcpy(&ctx.location.out, &allCmds.setOutBuf.loc, sizeof(ctx.location.out));
+}
+static void do_setTxtBuf(void) {
+	read_from_cmdBuf(&allCmds.setTxtBuf, sizeof(allCmds.setTxtBuf));
+	memcpy(&ctx.location.txt, &allCmds.setTxtBuf.loc, sizeof(ctx.location.txt));
+}
+static void do_setZBuf(void) {
+	read_from_cmdBuf(&allCmds.setZBuf, sizeof(allCmds.setZBuf));
+	memcpy(&ctx.location.z, &allCmds.setZBuf.loc, sizeof(ctx.location.z));
+}
+static void do_showBuf(void) {
+	read_from_cmdBuf(&allCmds.showBuf, sizeof(allCmds.showBuf));
+	// quick hack, no sync
+	display(&allCmds.showBuf.loc);
+}
+static void do_point(void) {}
+static void do_line(void) {}
+static void do_facet(void) {
+	read_from_cmdBuf(&ctx.poly.cmdFacet, sizeof(ctx.poly.cmdFacet));
 	// sanity checks
 	if (ctx.poly.cmdFacet.size > sizeof_array(ctx.poly.vectors)) {
-		set_error_flag(gpu940_EINT);
+		set_error_flag(gpuEINT);
 		return;
 	}
 	// fetch vectors informations
 	for (unsigned v=0; v<ctx.poly.cmdFacet.size; v++) {
-		read_from_cmdBuf(&ctx.poly.vectors[v].cmdVector, sizeof(gpu940_cmdVector));
+		read_from_cmdBuf(&ctx.poly.vectors[v].cmdVector, sizeof(gpuCmdVector));
 	}
 	if (clip_poly()) {
 		draw_poly();
@@ -203,16 +219,34 @@ static void do_draw_facet(void) {
 
 static void fetch_command(void) {
 	uint32_t first_word;
-	copy_32(&first_word, shared->cmds+shared->cmds_begin, sizeof(first_word));
-	if (0 == first_word) {
-		do_reconfigure();
-	} else if (1 == first_word) {
-		do_swap_buffers();
-	} else if (first_word < MAX_FACET_SIZE) {	// it's a facet
-		do_draw_facet();
-	} else {	// WTF ?
-		set_error_flag(gpu940_EPARSE);
-		// we stay in place : gpu must be reseted.
+	copy32(&first_word, shared->cmds+shared->cmds_begin, 1);
+	switch (first_word) {
+		case gpuSETVIEW:
+			do_setView();
+			break;
+		case gpuSETOUTBUF:
+			do_setOutBuf();
+			break;
+		case gpuSETTXTBUF:
+			do_setTxtBuf();
+			break;
+		case gpuSETZBUF:
+			do_setZBuf();
+			break;
+		case gpuSHOWBUF:
+			do_showBuf();
+			break;
+		case gpuPOINT:
+			do_point();
+			break;
+		case gpuLINE:
+			do_line();
+			break;
+		case gpuFACET:
+			do_facet();
+			break;
+		default:
+			set_error_flag(gpuEPARSE);
 	}
 }
 
@@ -220,38 +254,37 @@ static void __unused play_nodiv_anim(void) {
 	int x = ctx.view.clipMin[0], y = ctx.view.clipMin[1];
 	int dx = 1, dy = 1;
 	while (1) {
-		uint16_t *w = &shared->videoBuffers[shared->workingBuffer + ((y+ctx.view.winPos[1]+(shared->screenSize[1]>>1))<<shared->screenWidth_log) + x+ctx.view.winPos[0]+(shared->screenSize[0]>>1)];
+		uint16_t *w = &shared->buffers[ctx.location.out.address + ((y+ctx.view.winPos[1]+ctx.view.winHeight/2)<<ctx.location.out.width_log) + x+ctx.view.winPos[0]+ctx.view.winWidth/2];
 		*w = 0xffff;
-		display();
+		display(&ctx.location.out);
 		x += dx;
 		y += dy;
 		if (x >= ctx.view.clipMax[0] || x <= ctx.view.clipMin[0]) dx = -dx;
 		if (y >= ctx.view.clipMax[1] || y <= ctx.view.clipMin[1]) dy = -dy;
 	}
-	
 }
 
 static void __unused play_div_anim(void) {
 	for (int64_t x = ctx.view.clipMin[0]; x<ctx.view.clipMax[0]; x++) {
 		int64_t y = x? ctx.view.clipMax[1]/x : 0;
-		uint16_t *w = &shared->videoBuffers[shared->workingBuffer + ((y+ctx.view.winPos[1]+(shared->screenSize[1]>>1))<<shared->screenWidth_log) + x+ctx.view.winPos[0]+(shared->screenSize[0]>>1)];
+		uint16_t *w = &shared->buffers[ctx.location.out.address + ((y+ctx.view.winPos[1]+ctx.view.winHeight/2)<<ctx.location.out.width_log) + x+ctx.view.winPos[0]+ctx.view.winWidth/2];
 		*w = 0xffff;
-		display();
+		display(&ctx.location.out);
 	}
 }
 
 static void run(void) {
 	cmd_reset();
-	//play_nodiv_anim();
 	//play_div_anim();
+	//play_nodiv_anim();
 	while (1) {
 #ifndef GP2X
 		if (SDL_QuitRequested()) return;
 #endif
 #ifdef GP2X
-		if (! (gp2x_regs16[0x1184>>1] & 0x0100)) {
+//		if (! (gp2x_regs16[0x1184>>1] & 0x0100)) {
 //			perftime_stat_print_all(1);
-		}
+//		}
 #endif
 		if (shared->cmds_end == shared->cmds_begin) {
 #ifdef GP2X
@@ -265,10 +298,7 @@ static void run(void) {
 	}
 }
 
-void set_error_flag(unsigned err_mask) {
-	shared->error_flags |= err_mask;	// TODO : use a bit atomic set instruction
-}
-//static inline void set_error_flag(unsigned err_mask);
+static inline void set_error_flag(unsigned err_mask);
 
 #ifdef GP2X
 void mymain(void) {	// to please autoconf, we call this 'main'
@@ -284,30 +314,9 @@ void mymain(void) {	// to please autoconf, we call this 'main'
 //quit:;
 	// halt the 940
 }
-#if 0
-dans un autre fichier objet, faire un main qui lui sera exécuté sur le 920, avec dans un section à part le code
-complet du 940,avec un symbole donnant le début et la fin
-quit:; // quit
-	perftime_stat_print_all(1);
-	perftime_end();
-	char *menuDir = "/usr/gp2x";
-	char *menuCmd = "/usr/gp2x/gp2xmenu";
-	__asm__ volatile (
-		"mov r0, %0\n"      // directory
-		"swi #0x90000C\n"   // chdir
-		"mov r0, %1\n"      // program to execute
-		"mov r1, #0\n"      // arg 2 = NULL
-		"mov r2, #0\n"      // arg 3 = NULL
-		"swi #0x90000B\n"   // execve
-		:   // no output
-		: "r"(menuDir), "r"(menuCmd)  // %0 and %1 inputs
-		: "r0", "r1", "r2"     // registers we clobber
-	);	
-}
-#endif
 #else
 int main(void) {
-	if (-1 == perftime_begin(0, NULL, 0)) return EXIT_FAILURE;
+//	if (-1 == perftime_begin(0, NULL, 0)) return EXIT_FAILURE;
 	int fd = open(CMDFILE, O_RDWR|O_CREAT|O_TRUNC, 0644);
 	if (-1 == fd ||
 		-1 == lseek(fd, sizeof(*shared)-1, SEEK_SET) ||
@@ -324,12 +333,12 @@ int main(void) {
 	ctx_reset();
 	// Open SDL screen of default window size
 	if (0 != SDL_Init(SDL_INIT_VIDEO)) return EXIT_FAILURE;
-	sdl_screen = SDL_SetVideoMode(shared->screenSize[0], shared->screenSize[1], 16, SDL_SWSURFACE);
+	sdl_screen = SDL_SetVideoMode(ctx.view.winWidth, ctx.view.winHeight, 16, SDL_SWSURFACE);
 	if (! sdl_screen) return EXIT_FAILURE;
 	run();
 	SDL_Quit();
-	perftime_stat_print_all(1);
-	perftime_end();
+//	perftime_stat_print_all(1);
+//	perftime_end();
 	return 0;
 }
 #endif

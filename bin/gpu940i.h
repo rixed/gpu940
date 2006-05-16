@@ -36,7 +36,7 @@ enum {
 };
 
 typedef struct {
-	gpu940_cmdVector cmdVector;
+	gpuCmdVector cmdVector;
 	int32_t c2d[2];
 	int32_t h;	// dist with a clipPlane
 	int32_t nc_declived;
@@ -51,13 +51,19 @@ extern struct ctx {
 		int32_t clipMin[2];
 		int32_t clipMax[2];
 		int32_t winPos[2];	// position of the clipped window in the internal image buffer (0,0 meaning lower left corner in bottom left)
-		gpu940_plane clipPlanes[GPU940_NB_CLIPPLANES];
+		int32_t winHeight;	// computed from clipMin/Max
+		int32_t winWidth;
+		gpuPlane clipPlanes[GPU940_NB_CLIPPLANES];
 		uint32_t nb_clipPlanes;
 		uint32_t dproj;
 	} view;
+	// Buffer
+	struct {
+		struct buffer_loc out, txt, z;
+	} location;
 	// Current Polygon
 	struct {
-		gpu940_cmdFacet cmdFacet;
+		gpuCmdFacet cmdFacet;
 		gpuVector vectors[MAX_FACET_SIZE+2*GPU940_NB_CLIPPLANES];
 		int32_t z_alpha;
 		int32_t nc_declived;
@@ -94,9 +100,8 @@ extern struct ctx {
 	} line;
 } ctx;
 
-void set_error_flag(unsigned err_mask);
-//static inline void set_error_flag(unsigned err_mask) {
-//	shared->error_flags |= err_mask;	// TODO : use a bit atomic set instruction
-//}
+static inline void set_error_flag(unsigned err_mask) {
+	shared->error_flags |= err_mask;	// TODO : use a bit atomic set instruction
+}
 
 #endif

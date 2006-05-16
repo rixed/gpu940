@@ -28,12 +28,8 @@
  * Data Definitions
  */
 
-struct gpu940_shared *shared;
+struct gpuShared *shared;
 static int shared_fd;
-static struct bufPrm {
-	struct cmdPtrs *ptrs;
-	uint32_t *start, *stop;
-} bufPrms[2];
 
 /*
  * Private Functions
@@ -41,31 +37,31 @@ static struct bufPrm {
 
 // All unsigned sizes are in words
 static inline void copy32(uint32_t *restrict dest, uint32_t const *restrict src, unsigned size) {
-	for ( ; size--; ) dest[size] = src[size]
+	for ( ; size--; ) dest[size] = src[size];
 }
 
 // we do not check for available space
-static int32_t append_to_cmdbuf(int32_t end, uint32_t const *restrict src, unsigned size, struct bufPrm const *buf) {
-	int overrun = &buf->start[dst+size] - buf->stop;
+static int32_t append_to_cmdbuf(unsigned end, uint32_t const *restrict src, unsigned size) {
+	int overrun = end+size - sizeof_array(shared->cmds);
 	if (overrun < 0) {
-		copy_32(buf->start+end, src, size);
+		copy32(shared->cmds+end, src, size);
 		return end+size;
 	} else {
 		size_t chunk = size - overrun;
-		copy_32(buf->start+end, src, chunk);
-		copy_32(buf->start, src+chunk, overrun);
+		copy32(shared->cmds+end, src, chunk);
+		copy32(shared->cmds, src+chunk, overrun);
 		return overrun;
 	}
 }
 
-static inline unsigned avail_cmd_space(struct bufPrm const *buf) {
-	int begin = buf->ptrs->begin;	// this is not a problem if begin is incremented while we use this value,
+static inline unsigned avail_cmd_space(void) {
+	int begin = shared->cmds_begin;	// this is not a problem if begin is incremented while we use this value,
 	// but this would be a problem if it's incremented and wrap around between the if and the computation of available space !
 	// as for cmds_end, we are the only one that increment it.
-	if (begin > buf->ptrs->end) {
-		return begin - buf->ptrs->end -1;
+	if (begin > shared->cmds_end) {
+		return begin - shared->cmds_end -1;
 	} else {
-		return size - buf->ptrs->end + begin -1;
+		return sizeof_array(shared->cmds) - shared->cmds_end + begin -1;
 	}
 }
 
@@ -81,60 +77,55 @@ static void flush_writes(void) {
  * Public Functions
  */
 
-gpu940Err gpu940_open(void) {
+gpuErr gpuOpen(void) {
 #	ifdef GP2X
 	shared_fd = open("/dev/mem", O_RDWR);
+#	define MMAP_OFFSET SHARED_PHYSICALL_ADDR 
 #	else
 	shared_fd = open(CMDFILE, O_RDWR);
+#	define MMAP_OFFSET 0
 #	endif
-	if (-1 == shared_fd) return gpu940_ESYS;
+	if (-1 == shared_fd) return gpuESYS;
 	int pg_size = getpagesize();
-	shared = mmap(NULL, ((sizeof(*shared)/pg_size)+1)*pg_size, PROT_READ|PROT_WRITE, MAP_SHARED, devmem_fd, SHARED_PHYSICAL_ADDR);
+	shared = mmap(NULL, ((sizeof(*shared)/pg_size)+1)*pg_size, PROT_READ|PROT_WRITE, MAP_SHARED, shared_fd, MMAP_OFFSET);
 	if (MAP_FAILED == shared) {
 		perror("mmap /dev/mem");
 		fprintf(stderr, "  @%x\n", (unsigned)SHARED_PHYSICAL_ADDR);
-		return gpu940_ESYS;
+		return gpuESYS;
 	}
-	bufPrms[0].ptrs = &shared->asyn_ptrs;
-	bufPrms[0].start = &shared->asyn_cmds;
-	bufPrms[0].stop= &shared->asyn_cmds+sizeof_array(shared->asyn_cmds);
-	bufPrms[1].ptrs = &shared->syn_ptrs;
-	bufPrms[1].start = &shared->syn_cmds;
-	bufPrms[1].stop= &shared->syn_cmds+sizeof_array(shared->syn_cmds);
-	return gpu940_OK;
+	return gpuOK;
+#	undef MMAP_OFFSET
 }
 
-void gpu940_close(void) {
+void gpuClose(void) {
 	(void)munmap(shared, sizeof(*shared));
 	(void)close(shared_fd);
 }
 
-gpu940Err gpu940_write(void *cmd, size_t size, unsigned buf) {
-	assert(buf<sizeof_array(bufPrms));
+gpuErr gpuWrite(void *cmd/* must be word aligned*/, size_t size) {
 	assert(!(size&3));
 	size >>= 2;
-	if (avail_cmd_space(bufPrms+buf) < size) return gpu940_ENOSPC;
-	bufPrms[buf].ptrs->end = append_to_cmdbuf(bufPrms[buf].ptrs->end, cmd, size);
+	if (avail_cmd_space() < size) return gpuENOSPC;
+	shared->cmds_end = append_to_cmdbuf(shared->cmds_end, cmd, size);
 	flush_writes();
-	return gpu940_OK;
+	return gpuOK;
 }
 
-gpu940Err gpu940_writev(const struct iovec *cmdvec, size_t count, unsigned buf) {
-	assert(buf<sizeof_array(bufPrms));
+gpuErr gpuWritev(const struct iovec *cmdvec, size_t count) {
 	size_t size = 0;
 	for (unsigned c=0; c<count; c++) size += cmdvec[c].iov_len;
 	assert(!(size&3));
-	if (avail_cmd_space(bufPrms+buf) < size>>2) return gpu940_ENOSPC;
-	int end = bufPrms[buf].ptrs->end;
+	if (avail_cmd_space() < size>>2) return gpuENOSPC;
+	int end = shared->cmds_end;
 	for (unsigned c=0; c<count; c++) {
 		end = append_to_cmdbuf(end, cmdvec[c].iov_base, cmdvec[c].iov_len>>2);
 	}
-	bufPrms[buf].ptrs->end = end;
+	shared->cmds_end = end;
 	flush_writes();
-	return gpu940_OK;
+	return gpuOK;
 }
 
-uint32_t gpu940_read_err(void) {
+uint32_t gpuReadErr(void) {
 	uint32_t err = shared->error_flags;	// do both atomically (xchg)
 	shared->error_flags = 0;
 	return err;

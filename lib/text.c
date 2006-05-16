@@ -21,16 +21,14 @@
  * Public Functions
  */
 
-gpu940Err gpu940_load_texture(unsigned idx, uint8_t (*rgb)[3], unsigned nb_lod) {
+gpuErr gpuLoadImg(struct buffer_loc const *loc, uint8_t (*rgb)[3], unsigned nb_lod) {
 	(void)nb_lod;
-	if (idx >= 1<<GPU940_NB_MAX_TEXTURES_LOG) return gpu940_EPARAM;
-	for (unsigned c=256*256; c--; ) {
+	for (unsigned c=loc->height<<loc->width_log; c--; ) {
 		unsigned r = rgb[c][0]>>3;
 		unsigned g = rgb[c][1]>>2;
 		unsigned b = rgb[c][2]>>3;
-		shared->textures[idx][c] = (b<<11)|(g<<5)|r;
+		shared->buffers[loc->address + c] = (b<<11)|(g<<5)|r;
 	}
-	return gpu940_OK;
+	return gpuOK;
 }
-
 

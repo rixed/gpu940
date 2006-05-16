@@ -93,10 +93,10 @@ static void proj_vec(unsigned v) {
 			c2d = ctx.view.clipMin[0];
 			break;
 		default:
-			c2d = (((int64_t)x<<dproj)/(-z));
+			c2d = ((int64_t)x<<dproj)/-z;
 			break;
 	}
-	ctx.poly.vectors[v].c2d[0] = c2d + (shared->screenSize[0]>>1);
+	ctx.poly.vectors[v].c2d[0] = c2d + ctx.view.winWidth/2;
 	switch (ctx.poly.vectors[v].clipFlag & 0x14) {
 		case 0x4:	// up
 			c2d = ctx.view.clipMax[1];
@@ -105,10 +105,10 @@ static void proj_vec(unsigned v) {
 			c2d = ctx.view.clipMin[1];
 			break;
 		default:
-			c2d = (((int64_t)y<<dproj)/(-z));
+			c2d = ((int64_t)y<<dproj)/-z;
 			break;
 	}
-	ctx.poly.vectors[v].c2d[1] = c2d + (shared->screenSize[1]>>1);
+	ctx.poly.vectors[v].c2d[1] = c2d + ctx.view.winHeight/2;
 }
 
 /*
@@ -140,7 +140,7 @@ int clip_poly(void) {
 			ctx.poly.nb_params = 4;
 			break;
 		default:
-			set_error_flag(gpu940_EPARAM);
+			set_error_flag(gpuEPARAM);
 			return 0;
 	}
 	// init vectors
