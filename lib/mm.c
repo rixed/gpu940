@@ -149,7 +149,7 @@ gpuErr gpuSetTxtBuf(struct gpuBuf *buf) {
 }
 gpuErr gpuSetZBuf(struct gpuBuf *buf) {
 	static gpuCmdSetZBuf setZBuf = {
-		.opcode = gpuSETOUTBUF,
+		.opcode = gpuSETZBUF,
 	};
 	assert(buf);
 	setZBuf.loc = buf->loc;
@@ -159,6 +159,8 @@ gpuErr gpuShowBuf(struct gpuBuf *buf) {
 	static gpuCmdShowBuf show = {
 		.opcode = gpuSHOWBUF,
 	};
+	assert(my_frame_count >= shared->frame_count);
+	if (my_frame_count-shared->frame_count >= GPU940_DISPLIST_SIZE) return gpuENOSPC;
 	show.loc = buf->loc;
 	gpuErr err = gpuWrite(&show, sizeof(show));
 	if (gpuOK != err) goto sb_quit;

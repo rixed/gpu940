@@ -35,6 +35,8 @@
 #	include <stdio.h>
 #	include <sched.h>
 #	include <SDL/SDL.h>
+#	include <sys/time.h>
+#	include <signal.h>
 #endif
 
 /*
@@ -52,6 +54,8 @@ static volatile uint32_t *gp2x_regs = (void *)(0xC0000000U-0x2000000U);	// 32-bi
 #else
 static SDL_Surface *sdl_screen;
 #endif
+static struct buffer_loc displist[GPU940_DISPLIST_SIZE+1];
+static unsigned displist_begin = 0, displist_end = 0;	// same convention than for shared->cmds
 
 /*
  * Private Functions
@@ -61,9 +65,15 @@ static void display(struct buffer_loc const *loc) {
 	// display current workingBuffer
 //	perftime_enter(PERF_DISPLAY, "display");
 #ifdef GP2X
-	uint16_t vsync = gp2x_regs16[0x2804>>1] & 1;
-	while (gp2x_regs16[0x1182>>1] & (1<<4) == !vsync) ;
-	while ((gp2x_regs16[0x1182>>1]&(1<<4)) == vsync) ;
+//	TODO: use vertical interrupt instead 
+//	uint16_t vsync = gp2x_regs16[0x2804>>1] & 1;
+//	while (gp2x_regs16[0x1182>>1] & (1<<4) == !vsync) ;
+//	while ((gp2x_regs16[0x1182>>1]&(1<<4)) == vsync) ;
+	static unsigned previous_width = 0;
+	unsigned width = 1<<(1+loc->width_log);
+	if (width != previous_width) {
+		gp2x_regs16[0x290c>>1] = previous_width = width;
+	}
 	uint32_t screen_addr = (uint32_t)&((struct gpuShared *)SHARED_PHYSICAL_ADDR)->buffers[ctx.location.out.address+(ctx.view.winPos[1]<<ctx.location.out.width_log)+ctx.view.winPos[0]];
 	gp2x_regs16[0x290e>>1] = screen_addr&0xffff; gp2x_regs16[0x2912>>1] = screen_addr&0xffff;
 	gp2x_regs16[0x2910>>1] = screen_addr>>16; gp2x_regs16[0x2914>>1] = screen_addr>>16;
@@ -82,8 +92,17 @@ static void display(struct buffer_loc const *loc) {
 	if (SDL_MUSTLOCK(sdl_screen)) SDL_UnlockSurface(sdl_screen);
 	SDL_UpdateRect(sdl_screen, 0, 0, ctx.view.winWidth, ctx.view.winHeight);
 #endif
-	shared->frame_count ++;
 //	perftime_leave();
+}
+
+static void vertical_interrupt(void) {
+	if (displist_begin == displist_end) {
+		shared->frame_miss ++;
+	} else {
+		display(displist+displist_begin);
+		if (++ displist_begin >= sizeof_array(displist)) displist_begin = 0;
+		shared->frame_count ++;
+	}
 }
 
 static void reset_clipPlanes(void) {
@@ -130,6 +149,7 @@ static void ctx_reset(void) {
 static void shared_reset(void) {
 	shared->cmds_begin = shared->cmds_end = 0;
 	shared->frame_count = 0;
+	shared->frame_miss = 0;
 	shared->error_flags = 0;
 }
 
@@ -199,8 +219,14 @@ static void do_setZBuf(void) {
 }
 static void do_showBuf(void) {
 	read_from_cmdBuf(&allCmds.showBuf, sizeof(allCmds.showBuf));
-	// quick hack, no sync
-	display(&allCmds.showBuf.loc);
+	unsigned next_displist_end = displist_end + 1;
+	if (next_displist_end >= sizeof_array(displist)) next_displist_end = 0;
+	if (next_displist_end == displist_begin) {
+		set_error_flag(gpuEDLIST);
+		return;
+	}
+	displist[displist_end] = allCmds.showBuf.loc;
+	displist_end = next_displist_end;
 }
 static void do_point(void) {}
 static void do_line(void) {}
@@ -308,7 +334,6 @@ void mymain(void) {	// to please autoconf, we call this 'main'
 	ctx_reset();
 	// set video mode
 	gp2x_regs16[0x28da>>1] = 0x004AB; // 16bpp, only region 1 activated
-	gp2x_regs16[0x290c>>1] = 1<<(1+shared->screenWidth_log);	// width
 //	gp2x_regs16[0x2906>>1] = 1024;
 //	gp2x_regs32[0x2908>>2] = 1<<(shared->screenWidth_log+1);	// aparently, scale-factors are reset to width ?
 	my_memset(shared->videoBuffers, 0x84108410, sizeof(shared->videoBuffers));
@@ -318,6 +343,10 @@ void mymain(void) {	// to please autoconf, we call this 'main'
 	// halt the 940
 }
 #else
+static void alrm_handler(int dummy) {
+	(void)dummy;
+	vertical_interrupt();
+}
 int main(void) {
 //	if (-1 == perftime_begin(0, NULL, 0)) return EXIT_FAILURE;
 	int fd = open(CMDFILE, O_RDWR|O_CREAT|O_TRUNC, 0644);
@@ -338,6 +367,25 @@ int main(void) {
 	if (0 != SDL_Init(SDL_INIT_VIDEO)) return EXIT_FAILURE;
 	sdl_screen = SDL_SetVideoMode(ctx.view.winWidth, ctx.view.winHeight, 16, SDL_SWSURFACE);
 	if (! sdl_screen) return EXIT_FAILURE;
+	// use itimer for simulation of vertical interrupt
+	if (0 != sigaction(SIGALRM, &(struct sigaction){ .sa_handler = alrm_handler }, NULL)) {
+		perror("sigaction");
+		return EXIT_FAILURE;
+	}
+	struct itimerval itimer = {
+		.it_interval = {
+			.tv_sec = 0,
+			.tv_usec = 50000,
+		},
+		.it_value = {
+			.tv_sec = 0,
+			.tv_usec = 50000,
+		},
+	};
+	if (0 != setitimer(ITIMER_REAL, &itimer, NULL)) {
+		perror("setitimer");
+		return EXIT_FAILURE;
+	}
 	run();
 	SDL_Quit();
 //	perftime_stat_print_all(1);

@@ -53,10 +53,12 @@ typedef enum {	// also used for err_flags
 	gpuEPARAM = 4,
 	gpuEPARSE = 8,
 	gpuESYS = 16,
+	gpuEDLIST = 32,
 } gpuErr;
 
 #define GPU940_NB_PARAMS 4
 #define GPU940_NB_CLIPPLANES (5+2)
+#define GPU940_DISPLIST_SIZE 64
 
 // Types
 
@@ -71,8 +73,10 @@ extern struct gpuShared {
 	// All integer members are supposed to have the same property as sig_atomic_t.
 	volatile int32_t cmds_begin;	// first word beeing actually used by the gpu. let libgpu read in there.
 	volatile int32_t cmds_end;	// last word + 1 beeing actually used by the gpu. let libgpu write in there.
+	// when cmds_begin == cmds_end, its empty
 	volatile uint32_t error_flags;	// use a special swap instruction to read&reset it, as a whole or bit by bit depending of available hardware !
-	volatile int32_t frame_count;
+	volatile uint32_t frame_count;
+	volatile uint32_t frame_miss;
 	uint32_t cmds[0x10000];	// 1Mbytes for commands
 	uint16_t buffers[0xF00000];	// 30Mbytes for buffers
 } *shared;

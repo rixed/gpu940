@@ -76,7 +76,7 @@ int main(void) {
 		.size = sizeof_array(vectors),
 		.texture = 0,
 		.color = 0x4567,
-		.rendering_type = rendering_uv,
+		.rendering_type = rendering_uvi,
 	};
 	struct iovec cmdvec[1+sizeof_array(vectors)+1] = {
 		{ .iov_base = &facet, .iov_len = sizeof(facet) },
@@ -108,43 +108,31 @@ int main(void) {
 			FixMat_x_Vec(vectors[v].geom.c3d, &mat, vec3d+v, true);
 		}
 		struct gpuBuf *outBuf;
-		do {
+		gpuErr err;
+		while (1) {
 			outBuf = gpuAlloc(9, 300);
 			if (outBuf) break;
 			(void)sched_yield();
-		} while ( 1 );
-		switch (gpuSetOutBuf(outBuf)) {
-			case gpuOK:
-				break;
-			case gpuENOSPC:
-				(void)sched_yield();
-				break;
-			default:
-				fprintf(stderr, "Cannot set outbuf\n");
-				goto quit;
 		}
-		switch (gpuWritev(cmdvec, sizeof_array(cmdvec))) {
-			case gpuOK:
-				break;
-			case gpuENOSPC:
-				(void)sched_yield();
-				break;
-			default:
-				fprintf(stderr, "Cannot write facet\n");
-				goto quit;
+		while (1) {
+			err = gpuSetOutBuf(outBuf);
+			if (gpuOK == err) break;
+			else if (gpuENOSPC == err) (void)sched_yield();
+			else return EXIT_FAILURE;
 		}
-		switch (gpuShowBuf(outBuf)) {
-			case gpuOK:
-				break;
-			case gpuENOSPC:
-				(void)sched_yield();
-				break;
-			default:
-				fprintf(stderr, "Cannot show outbuf\n");
-				goto quit;
+		while (1) {
+			err = gpuWritev(cmdvec, sizeof_array(cmdvec));
+			if (gpuOK == err) break;
+			else if (gpuENOSPC == err) (void)sched_yield();
+			else return EXIT_FAILURE;
+		}	
+		while (1) {
+			err = gpuShowBuf(outBuf);
+			if (gpuOK == err) break;
+			else if  (gpuENOSPC == err) (void)sched_yield();
+			else return EXIT_FAILURE;
 		}
 	}
-quit:
 	gpuFree(txtBuf);
 	gpuClose();
 	return EXIT_SUCCESS;
