@@ -80,7 +80,7 @@ static void flush_writes(void) {
 gpuErr gpuOpen(void) {
 #	ifdef GP2X
 	shared_fd = open("/dev/mem", O_RDWR);
-#	define MMAP_OFFSET SHARED_PHYSICALL_ADDR 
+#	define MMAP_OFFSET SHARED_PHYSICAL_ADDR 
 #	else
 	shared_fd = open(CMDFILE, O_RDWR);
 #	define MMAP_OFFSET 0

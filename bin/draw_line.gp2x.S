@@ -31,7 +31,7 @@ draw_line_c:
 	ldr r3, [lr, #OFF_ctx.line.dw]
 	ldr r4, [lr, #OFF_ctx.line.decliv]
 	ldr r5, [lr, #OFF_ctx.line.ddecliv]
-	ldrh lr, [lr, #OFF_ctx.poly.cmdFacet.color]
+	ldr lr, [lr, #OFF_ctx.poly.cmdFacet.color]
 0:
 	mov r6, r4, asr #16	// r6 = decliv>>16
 	mov r6, r6, asl r1	// r6 <<= nc_scale
@@ -43,8 +43,8 @@ draw_line_c:
 	ldmfd	sp!, {r4-r6, pc}
 	
 .align 4
-.globl draw_line_uv
-draw_line_uv:
+.globl draw_line_uv_OLD
+draw_line_uv_OLD:
 	stmfd	sp!, {r4-r11, lr}
 	ldr lr, .ctx
 	ldr r0, [lr, #OFF_ctx.line.count]
@@ -57,10 +57,10 @@ draw_line_uv:
 	ldr r7, [lr, #OFF_ctx.line.dparam]	// du
 	ldr r8, [lr, #(OFF_ctx.line.param+4)]	// v
 	ldr r9, [lr, #(OFF_ctx.line.dparam+4)]	// dv
-	ldrb lr, [lr, #OFF_ctx.poly.cmdFacet.texture]
+	ldr lr, [lr, #OFF_ctx.poly.cmdFacet.texture]
 	ldr r11, .shared
 	ldr r11, [r11]
-	add r11, r11, #OFF_shared.textures
+//	add r11, r11, #OFF_shared.textures
 	add r11, r11, lr, lsl #9	// points to the chosen texture
 	// lr is free
 0:

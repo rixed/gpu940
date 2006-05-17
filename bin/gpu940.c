@@ -95,7 +95,7 @@ static void display(struct buffer_loc const *loc) {
 //	perftime_leave();
 }
 
-static void vertical_interrupt(void) {
+void vertical_interrupt(void) {
 	if (displist_begin == displist_end) {
 		shared->frame_miss ++;
 	} else {
@@ -207,15 +207,15 @@ static void do_setView(void) {
 }
 static void do_setOutBuf(void) {
 	read_from_cmdBuf(&allCmds.setOutBuf, sizeof(allCmds.setOutBuf));
-	memcpy(&ctx.location.out, &allCmds.setOutBuf.loc, sizeof(ctx.location.out));
+	my_memcpy(&ctx.location.out, &allCmds.setOutBuf.loc, sizeof(ctx.location.out));
 }
 static void do_setTxtBuf(void) {
 	read_from_cmdBuf(&allCmds.setTxtBuf, sizeof(allCmds.setTxtBuf));
-	memcpy(&ctx.location.txt, &allCmds.setTxtBuf.loc, sizeof(ctx.location.txt));
+	my_memcpy(&ctx.location.txt, &allCmds.setTxtBuf.loc, sizeof(ctx.location.txt));
 }
 static void do_setZBuf(void) {
 	read_from_cmdBuf(&allCmds.setZBuf, sizeof(allCmds.setZBuf));
-	memcpy(&ctx.location.z, &allCmds.setZBuf.loc, sizeof(ctx.location.z));
+	my_memcpy(&ctx.location.z, &allCmds.setZBuf.loc, sizeof(ctx.location.z));
 }
 static void do_showBuf(void) {
 	read_from_cmdBuf(&allCmds.showBuf, sizeof(allCmds.showBuf));
@@ -336,7 +336,7 @@ void mymain(void) {	// to please autoconf, we call this 'main'
 	gp2x_regs16[0x28da>>1] = 0x004AB; // 16bpp, only region 1 activated
 //	gp2x_regs16[0x2906>>1] = 1024;
 //	gp2x_regs32[0x2908>>2] = 1<<(shared->screenWidth_log+1);	// aparently, scale-factors are reset to width ?
-	my_memset(shared->videoBuffers, 0x84108410, sizeof(shared->videoBuffers));
+	my_memset(shared->buffers, 0, sizeof(shared->buffers));
 //	if (-1 == perftime_begin(0, NULL, 0)) goto quit;
 	run();
 //quit:;

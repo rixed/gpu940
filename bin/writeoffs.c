@@ -20,7 +20,7 @@
 #include "gpu940i.h"
 
 #define printctxoff(x) printf("OFF_ctx."#x"=%d\n", offsetof(struct ctx, x))
-#define printshroff(x) printf("OFF_shared."#x"=%d\n", offsetof(struct gpu940_shared, x))
+#define printshroff(x) printf("OFF_shared."#x"=%d\n", offsetof(struct gpuShared, x))
 
 int main(void) {
 	printctxoff(view.clipMin);
@@ -48,6 +48,6 @@ int main(void) {
 	printctxoff(line.ddecliv);
 	printctxoff(line.param);
 	printctxoff(line.dparam);
-	printshroff(textures);
+	printshroff(buffers);
 	return 0;
 }
