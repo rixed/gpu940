@@ -1,7 +1,9 @@
 AM_CFLAGS = -I $(top_srcdir)/include -fstrict-aliasing -D_GNU_SOURCE -std=c99 -Wall -W -pedantic -pipe
 
-noinst_PROGRAMS = sample1
+noinst_PROGRAMS = sample1 sample2
 sample1_SOURCES = sample1.c
+sample2_SOURCES = sample2.c
 
 sample1_LDADD = ../lib/libgpu940.la
+sample2_LDADD = ../lib/libgpu940.la
 

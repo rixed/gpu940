@@ -25,7 +25,7 @@
 #include <sched.h>
 #include "fixmath.h"
 
-uint8_t pascale[256*256][3];
+static uint8_t pascale[256*256][3];
 
 int main(void) {
 	if (gpuOK != gpuOpen()) {
@@ -76,7 +76,7 @@ int main(void) {
 		.size = sizeof_array(vectors),
 		.texture = 0,
 		.color = 0x4567,
-		.rendering_type = rendering_uvi,
+		.rendering_type = rendering_uv,
 	};
 	struct iovec cmdvec[1+sizeof_array(vectors)+1] = {
 		{ .iov_base = &facet, .iov_len = sizeof(facet) },

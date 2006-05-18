@@ -14,7 +14,7 @@
 
 @SET_MAKE@
 
-SOURCES = $(sample1_SOURCES)
+SOURCES = $(sample1_SOURCES) $(sample2_SOURCES)
 
 srcdir = @srcdir@
 top_srcdir = @top_srcdir@
@@ -38,7 +38,7 @@ PRE_UNINSTALL = :
 POST_UNINSTALL = :
 build_triplet = @build@
 host_triplet = @host@
-noinst_PROGRAMS = sample1$(EXEEXT)
+noinst_PROGRAMS = sample1$(EXEEXT) sample2$(EXEEXT)
 subdir = sample
 DIST_COMMON = $(srcdir)/Makefile.am $(srcdir)/Makefile.in
 ACLOCAL_M4 = $(top_srcdir)/aclocal.m4
@@ -52,6 +52,9 @@ PROGRAMS = $(noinst_PROGRAMS)
 am_sample1_OBJECTS = sample1.$(OBJEXT)
 sample1_OBJECTS = $(am_sample1_OBJECTS)
 sample1_DEPENDENCIES = ../lib/libgpu940.la
+am_sample2_OBJECTS = sample2.$(OBJEXT)
+sample2_OBJECTS = $(am_sample2_OBJECTS)
+sample2_DEPENDENCIES = ../lib/libgpu940.la
 DEFAULT_INCLUDES = -I. -I$(srcdir) -I$(top_builddir)
 depcomp = $(SHELL) $(top_srcdir)/depcomp
 am__depfiles_maybe = depfiles
@@ -63,8 +66,8 @@ LTCOMPILE = $(LIBTOOL) --tag=CC --mode=compile $(CC) $(DEFS) \
 CCLD = $(CC)
 LINK = $(LIBTOOL) --tag=CC --mode=link $(CCLD) $(AM_CFLAGS) $(CFLAGS) \
 	$(AM_LDFLAGS) $(LDFLAGS) -o $@
-SOURCES = $(sample1_SOURCES)
-DIST_SOURCES = $(sample1_SOURCES)
+SOURCES = $(sample1_SOURCES) $(sample2_SOURCES)
+DIST_SOURCES = $(sample1_SOURCES) $(sample2_SOURCES)
 ETAGS = etags
 CTAGS = ctags
 DISTFILES = $(DIST_COMMON) $(DIST_SOURCES) $(TEXINFOS) $(EXTRA_DIST)
@@ -170,7 +173,9 @@ sysconfdir = @sysconfdir@
 target_alias = @target_alias@
 AM_CFLAGS = -I $(top_srcdir)/include -fstrict-aliasing -D_GNU_SOURCE -std=c99 -Wall -W -pedantic -pipe
 sample1_SOURCES = sample1.c
+sample2_SOURCES = sample2.c
 sample1_LDADD = ../lib/libgpu940.la
+sample2_LDADD = ../lib/libgpu940.la
 all: all-am
 
 .SUFFIXES:
@@ -214,6 +219,9 @@ clean-noinstPROGRAMS:
 sample1$(EXEEXT): $(sample1_OBJECTS) $(sample1_DEPENDENCIES) 
 	@rm -f sample1$(EXEEXT)
 	$(LINK) $(sample1_LDFLAGS) $(sample1_OBJECTS) $(sample1_LDADD) $(LIBS)
+sample2$(EXEEXT): $(sample2_OBJECTS) $(sample2_DEPENDENCIES) 
+	@rm -f sample2$(EXEEXT)
+	$(LINK) $(sample2_LDFLAGS) $(sample2_OBJECTS) $(sample2_LDADD) $(LIBS)
 
 mostlyclean-compile:
 	-rm -f *.$(OBJEXT)
@@ -222,6 +230,7 @@ distclean-compile:
 	-rm -f *.tab.c
 
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/sample1.Po@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/sample2.Po@am__quote@
 
 .c.o:
 @am__fastdepCC_TRUE@	if $(COMPILE) -MT $@ -MD -MP -MF "$(DEPDIR)/$*.Tpo" -c -o $@ $<; \
