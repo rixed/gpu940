@@ -18,26 +18,17 @@
 #ifndef GPU940_h_051229
 #define GPU940_h_051229
 
-/* TODO: 
- * Optimiser le type de rendu _c pour tracer en X, avec 2 pixels par write, afin d'avoir un memset rapide.
- * Ensuite, embarquer directement le perftime dans shared, et ajouter à la lib les fonctions pour le lire. Et faire
- *   disparaitre la dépendance sur libperftime.
- * Ajouter la possibilité d'avoir un zbuffer (valeurs sur 16 bits dans un buffer distinct, avec un type de rendu distinct, _z).
- *   Ce buffer ne serait pas 'displayable' -> il faut donc que l'utilisateur spécifie, pour chaque rendu, s'il est destiné
- *   au display. Ce serait un argument de la commande swap : dire si le buffer qu'on clos doit être afiché ou pas.
- *   Ensuite, ajouter à chaque routine de rendu un flag pour savoir si on utilise un zbuffer, et lequel (supposément de la même
- *   taille que le nouveau buffer)
- * Ensuite, optimiser ;>
- */
 #include <stdint.h>
 #include <stdbool.h>
 #include <stdlib.h>
 #include <sys/uio.h>
-#include <gcc.h>
+#include "gcc.h"
 #include <fixmath.h>
 #ifndef GP2X
 #	define CMDFILE "/tmp/gpu940_buf"
 #endif
+#define SCREEN_WIDTH 320
+#define SCREEN_HEIGHT 240
 
 #ifndef sizeof_array
 #	define sizeof_array(x) (sizeof(x)/sizeof(*x))

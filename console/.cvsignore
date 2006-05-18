@@ -1,0 +1,5 @@
+.deps
+.libs
+Makefile
+console.lo
+libconsole.la

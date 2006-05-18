@@ -205,7 +205,7 @@ int main(void) {
 	Fix_trig_init();
 	int32_t ang1 = 123;
 	int32_t ang2 = 245;
-	for ( ; ang1<=100<<16; ang1+=33, ang2+=51) {
+	for ( ; ang1<=100<<16; ang1+=73, ang2+=151) {
 		// build matrix
 		int32_t c1 = Fix_cos(ang1);
 		int32_t s1 = Fix_sin(ang1);

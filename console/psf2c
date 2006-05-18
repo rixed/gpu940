@@ -1,0 +1,23 @@
+#!/usr/bin/env perl
+
+die "psf2c psffile\n" if $#ARGV != 0;
+
+open(PSF, "<$ARGV[0]") or die "Cannot open $ARGV[0] : $!\n";
+
+read(PSF, $magik, 2);
+read(PSF, $mode, 1);
+read(PSF, $charsize, 1);
+$charsize = ord($charsize);
+
+print "#include <stdint.h>\n\n";
+print "static uint8_t consolefont[256][$charsize] = {\n";
+for ($c=0; $c<256; $c++) {
+	print "	{ ";
+	for ($h=0; $h<$charsize; $h++) {
+		read(PSF, $v, 1);
+		printf("0x%02x, ", ord($v));
+	}
+	print "},\n";
+}
+print "};\n";
+

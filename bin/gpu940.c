@@ -21,6 +21,7 @@
 
 #include "gpu940i.h"
 #include "gpu940.h"
+#include "console/console.h"
 #include "gcc.h"
 #include <sys/types.h>
 #include <sys/stat.h>
@@ -90,6 +91,7 @@ static void display(struct buffer_loc const *loc) {
 		memcpy(dst, src, ctx.view.winWidth<<1);
 	}
 	if (SDL_MUSTLOCK(sdl_screen)) SDL_UnlockSurface(sdl_screen);
+	SDL_BlitSurface(sdl_console, NULL, sdl_screen, NULL);
 	SDL_UpdateRect(sdl_screen, 0, 0, ctx.view.winWidth, ctx.view.winHeight);
 #endif
 //	perftime_leave();
@@ -128,8 +130,6 @@ static int32_t next_power_of_2(int32_t x) {
 }
 
 static void ctx_reset(void) {
-#	define SCREEN_WIDTH 320
-#	define SCREEN_HEIGHT 240
 	my_memset(&ctx, 0, sizeof ctx);
 	ctx.location.out.width_log = next_power_of_2(SCREEN_WIDTH);
 	ctx.location.out.height = SCREEN_HEIGHT;
@@ -386,7 +386,11 @@ int main(void) {
 		perror("setitimer");
 		return EXIT_FAILURE;
 	}
+	console_begin();
+	console_clear();
+	console_write(0, 0, "GPU940");
 	run();
+	console_end();
 	SDL_Quit();
 //	perftime_stat_print_all(1);
 //	perftime_end();

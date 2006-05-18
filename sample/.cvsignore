@@ -4,3 +4,4 @@ Makefile
 Makefile.am
 Makefile.in
 sample1
+sample2

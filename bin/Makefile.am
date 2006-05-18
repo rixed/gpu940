@@ -15,6 +15,7 @@ gpu940_SOURCES = \
 	draw_line.gp2x.S \
 	crt0.S \
 	mydiv.c
+gpu940_LDADD = ../console/libconsole.la
 #AM_CFLAGS += -fno-pic -ffreestanding
 load940_SOURCES = load940.c
 
@@ -42,6 +43,4 @@ clean-local:
 	rm -f writeoffs offsets.S gpu940.elf
 
 endif
-
-gpu940_LDADD = -lperftime
 

@@ -9,18 +9,6 @@ AC_ARG_ENABLE(gp2x,compile specifically for gp2x,[CFLAGS="$CFLAGS -DGP2X"],[
 	AC_CHECK_LIB(SDL, SDL_Init,, AC_MSG_ERROR([SDL is required]))
 ])
 AM_CONDITIONAL(GP2X, [echo $CFLAGS|grep '\-DGP2X'>/dev/null])
-AC_ARG_WITH(
-	perftime,
-	AC_HELP_STRING([--with-perftime=path], [Set libperftime path]),
-	[case "$withval" in
-		(yes|no|"") ;;
-		(*)
-			LDFLAGS="-L$withval/lib $LDFLAGS"
-			CPPFLAGS="-I$withval/include $CPPFLAGS"
-			;;
-	esac
-	],
-)
 
 # Checks for programs.
 AM_PROG_LIBTOOL
@@ -55,5 +43,7 @@ AC_CONFIG_FILES([
 	lib/Makefile
 	sample/Makefile
 	include/Makefile
+	perftime/Makefile
+	console/Makefile
 ])
 AC_OUTPUT
