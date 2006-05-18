@@ -131,14 +131,14 @@ static int32_t next_power_of_2(int32_t x) {
 
 static void ctx_reset(void) {
 	my_memset(&ctx, 0, sizeof ctx);
-	ctx.location.out.width_log = next_power_of_2(SCREEN_WIDTH);
-	ctx.location.out.height = SCREEN_HEIGHT;
+	ctx.location.out.width_log = next_power_of_2(SCREEN_WIDTH+2);
+	ctx.location.out.height = SCREEN_HEIGHT+2;
 	ctx.view.winPos[0] = ((1<<ctx.location.out.width_log)-SCREEN_WIDTH)>>1;
 	ctx.view.winPos[1] = 1;
 	ctx.view.clipMin[0] = (-SCREEN_WIDTH>>1)-1;
-	ctx.view.clipMin[1] = (-SCREEN_HEIGHT>>1);
-	ctx.view.clipMax[0] = (SCREEN_WIDTH>>1);
-	ctx.view.clipMax[1] = (SCREEN_HEIGHT>>1)-2;
+	ctx.view.clipMin[1] = (-SCREEN_HEIGHT>>1)-1;
+	ctx.view.clipMax[0] = (SCREEN_WIDTH>>1)+1;
+	ctx.view.clipMax[1] = (SCREEN_HEIGHT>>1)+1;
 	ctx.view.winWidth = SCREEN_WIDTH;
 	ctx.view.winHeight = SCREEN_HEIGHT;
 	ctx.view.dproj = GPU_DEFAULT_DPROJ;
