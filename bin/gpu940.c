@@ -48,10 +48,7 @@ struct gpuShared *shared = (void *)(SHARED_PHYSICAL_ADDR-0x2000000U);	// from th
 struct ctx ctx;
 
 #ifdef GP2X
-static volatile uint32_t *gp2x_regs = (void *)(0xC0000000U-0x2000000U);	// 32-bit version of the MMSP2 registers, from the 940T
-#	define gp2x_regs32 gp2x_regs
-#	define gp2x_regs16 ((volatile uint16_t *)gp2x_regs)	// don't forgot volatile here or be prepared to strange GCC "optims"
-#	define gp2x_regs8 ((volatile uint8_t *)gp2x_regs)	// don't forgot volatile here or be prepared to strange GCC "optims"
+volatile uint32_t *gp2x_regs = (void *)(0xC0000000U-0x2000000U);	// 32-bit version of the MMSP2 registers, from the 940T
 #else
 static SDL_Surface *sdl_screen;
 #endif
@@ -68,16 +65,24 @@ static void display(struct buffer_loc const *loc) {
 #ifdef GP2X
 //	TODO: use vertical interrupt instead 
 //	uint16_t vsync = gp2x_regs16[0x2804>>1] & 1;
-//	while (gp2x_regs16[0x1182>>1] & (1<<4) == !vsync) ;
+//	while ((gp2x_regs16[0x1182>>1]&(1<<4)) == !vsync) ;
 //	while ((gp2x_regs16[0x1182>>1]&(1<<4)) == vsync) ;
 	static unsigned previous_width = 0;
 	unsigned width = 1<<(1+loc->width_log);
 	if (width != previous_width) {
-		gp2x_regs16[0x290c>>1] = previous_width = width;
+//		gp2x_regs16[0x290c>>1] = width;
+		gp2x_regs16[0x288a>>1] = width&0xffff;	// V scale ratio
+		gp2x_regs16[0x288c>>1] = width>>16;
+		gp2x_regs16[0x2892>>1] = (width<<1);
+		previous_width = width;
 	}
 	uint32_t screen_addr = (uint32_t)&((struct gpuShared *)SHARED_PHYSICAL_ADDR)->buffers[ctx.location.out.address+(ctx.view.winPos[1]<<ctx.location.out.width_log)+ctx.view.winPos[0]];
-	gp2x_regs16[0x290e>>1] = screen_addr&0xffff; gp2x_regs16[0x2912>>1] = screen_addr&0xffff;
-	gp2x_regs16[0x2910>>1] = screen_addr>>16; gp2x_regs16[0x2914>>1] = screen_addr>>16;
+//	gp2x_regs16[0x290e>>1] = screen_addr&0xffff; gp2x_regs16[0x2912>>1] = screen_addr&0xffff;
+//	gp2x_regs16[0x2910>>1] = screen_addr>>16; gp2x_regs16[0x2914>>1] = screen_addr>>16;
+	gp2x_regs16[0x28a0>>1] = screen_addr&0xffff;	// odd
+	gp2x_regs16[0x28a2>>1] = screen_addr>>16;	// odd
+	gp2x_regs16[0x28a4>>1] = screen_addr&0xffff;	// even
+	gp2x_regs16[0x28a6>>1] = screen_addr>>16;	// even
 #else
 	int32_t y;
 	if (SDL_MUSTLOCK(sdl_screen) && SDL_LockSurface(sdl_screen) < 0) {
@@ -86,9 +91,9 @@ static void display(struct buffer_loc const *loc) {
 	}
 	// draw...
 	for (y = ctx.view.winHeight; y--; ) {
-		Uint16 *restrict dst = (Uint16*)((Uint8*)sdl_screen->pixels + y*sdl_screen->pitch);
-		uint16_t *restrict src = &shared->buffers[loc->address + ((y+ctx.view.winPos[1])<<loc->width_log) + ctx.view.winPos[0]];
-		memcpy(dst, src, ctx.view.winWidth<<1);
+		Uint32 *restrict dst = (Uint32*)((Uint8*)sdl_screen->pixels + y*sdl_screen->pitch);
+		uint32_t *restrict src = &shared->buffers[loc->address + ((y+ctx.view.winPos[1])<<loc->width_log) + ctx.view.winPos[0]];
+		memcpy(dst, src, ctx.view.winWidth<<2);
 	}
 	if (SDL_MUSTLOCK(sdl_screen)) SDL_UnlockSurface(sdl_screen);
 	SDL_BlitSurface(sdl_console, NULL, sdl_screen, NULL);
@@ -151,6 +156,14 @@ static void shared_reset(void) {
 	shared->frame_count = 0;
 	shared->frame_miss = 0;
 	shared->error_flags = 0;
+#ifdef GP2X
+	shared->osd_head[0] = 0;
+	// FIXME: use SCREEN_WIDTH / SCREEN_HEIGHT
+	shared->osd_head[1] = 0x87c000efU;	// 1000 0111 1100 0000 0000 0000 1110 1111
+	shared->osd_head[2] = 0x4000013fU;	// 0100 0000 0000 0000 0000 0001 0011 1111
+	my_memset(shared->osd_data, 1, sizeof(shared->osd_data));
+#endif
+	my_memset(shared->buffers, 0, sizeof(shared->buffers));
 }
 
 // All unsigned sizes are in words
@@ -227,6 +240,9 @@ static void do_showBuf(void) {
 	}
 	displist[displist_end] = allCmds.showBuf.loc;
 	displist_end = next_displist_end;
+#ifdef GP2X	// quick hack
+	vertical_interrupt();
+#endif
 }
 static void do_point(void) {}
 static void do_line(void) {}
@@ -283,7 +299,7 @@ static void __unused play_nodiv_anim(void) {
 	int x = ctx.view.clipMin[0], y = ctx.view.clipMin[1];
 	int dx = 1, dy = 1;
 	while (1) {
-		uint16_t *w = &shared->buffers[ctx.location.out.address + ((y+ctx.view.winPos[1]+ctx.view.winHeight/2)<<ctx.location.out.width_log) + x+ctx.view.winPos[0]+ctx.view.winWidth/2];
+		uint32_t *w = &shared->buffers[ctx.location.out.address + ((y+ctx.view.winPos[1]+ctx.view.winHeight/2)<<ctx.location.out.width_log) + x+ctx.view.winPos[0]+ctx.view.winWidth/2];
 		*w = 0xffff;
 		display(&ctx.location.out);
 		x += dx;
@@ -296,14 +312,13 @@ static void __unused play_nodiv_anim(void) {
 static void __unused play_div_anim(void) {
 	for (int64_t x = ctx.view.clipMin[0]; x<ctx.view.clipMax[0]; x++) {
 		int64_t y = x? ctx.view.clipMax[1]/x : 0;
-		uint16_t *w = &shared->buffers[ctx.location.out.address + ((y+ctx.view.winPos[1]+ctx.view.winHeight/2)<<ctx.location.out.width_log) + x+ctx.view.winPos[0]+ctx.view.winWidth/2];
+		uint32_t *w = &shared->buffers[ctx.location.out.address + ((y+ctx.view.winPos[1]+ctx.view.winHeight/2)<<ctx.location.out.width_log) + x+ctx.view.winPos[0]+ctx.view.winWidth/2];
 		*w = 0xffff;
 		display(&ctx.location.out);
 	}
 }
 
 static void run(void) {
-	shared_reset();
 	//play_div_anim();
 	//play_nodiv_anim();
 	while (1) {
@@ -332,13 +347,55 @@ static inline void set_error_flag(unsigned err_mask);
 #ifdef GP2X
 void mymain(void) {	// to please autoconf, we call this 'main'
 	ctx_reset();
+	shared_reset();
 	// set video mode
-	gp2x_regs16[0x28da>>1] = 0x004AB; // 16bpp, only region 1 activated
-//	gp2x_regs16[0x2906>>1] = 1024;
-//	gp2x_regs32[0x2908>>2] = 1<<(shared->screenWidth_log+1);	// aparently, scale-factors are reset to width ?
-	my_memset(shared->buffers, 0, sizeof(shared->buffers));
+//	gp2x_regs16[0x28da>>1] = 0x4ab; // 16bpp, only region 1 activated
+//	Try YUV mode
+	// MLC_OVLAY_CNTR
+	uint16_t v = gp2x_regs16[0x2880>>1];
+	v &= 0x0400;	// keep reserved bit
+	v |= 0x1001;	// bypath RGB gamma table and enable YUV region A
+	gp2x_regs16[0x2880>>1] = v;
+	// MLC_YUV_EFECT
+	gp2x_regs16[0x2882>>1] = 0x0;	// no division between top and bottom
+	// MLC_YUV_CNTL
+	v = gp2x_regs16[0x2884>>1];
+	v &= 0x3f;	// keep lower 10 bits, reserved
+//	v |= 0x2000;	// skip alpha blending of region A
+	gp2x_regs16[0x2884>>1] = v;
+	// H Scaling of top region A
+	gp2x_regs16[0x2886>>1] = 1024<<1;
+	// Coordinates of region A
+	gp2x_regs16[0x2896>>1] = 0;
+	gp2x_regs16[0x2898>>1] = 319;
+	gp2x_regs16[0x289a>>1] = 0;
+	gp2x_regs16[0x289c>>1] = 239;
+	gp2x_regs16[0x28e9>>1] = 239;	// not sure if it uses top's or bottom's vertical end
+	// Disable all RGB layers
+	v = gp2x_regs16[0x28da>>1];
+	v &= 0x80;
+	v |= 0x2a;
+	gp2x_regs16[0x28da>>1] = v;
+	// enable dithering
+	gp2x_regs8[0x2946] = 1;
+	// enhance contrast and brightness
+	gp2x_regs16[0x2934>>1] = 0x033f;
+	
 //	if (-1 == perftime_begin(0, NULL, 0)) goto quit;
+	// enable the vertical interrupt only
+//	gp2x_regs32[0x0808>>2] = 0xfffffffe;	// mask all but DISPINT
+	// and now, enable IRQs
+//	__asm__ volatile (
+//		"mrs r0, cpsr\n"
+//		"bic r0, r0, #0x80\n"
+//		"msr cpsr_c, r0\n"
+//		:::"r0"
+//	);
+	console_begin();
+	console_clear();
+	console_write(0, 0, "GPU940 v" VERSION);
 	run();
+	console_end();
 //quit:;
 	// halt the 940
 }
@@ -363,9 +420,10 @@ int main(void) {
 		return EXIT_FAILURE;
 	}
 	ctx_reset();
+	shared_reset();
 	// Open SDL screen of default window size
 	if (0 != SDL_Init(SDL_INIT_VIDEO)) return EXIT_FAILURE;
-	sdl_screen = SDL_SetVideoMode(ctx.view.winWidth, ctx.view.winHeight, 16, SDL_SWSURFACE);
+	sdl_screen = SDL_SetVideoMode(ctx.view.winWidth, ctx.view.winHeight, 32, SDL_SWSURFACE);
 	if (! sdl_screen) return EXIT_FAILURE;
 	// use itimer for simulation of vertical interrupt
 	if (0 != sigaction(SIGALRM, &(struct sigaction){ .sa_handler = alrm_handler }, NULL)) {
@@ -388,7 +446,7 @@ int main(void) {
 	}
 	console_begin();
 	console_clear();
-	console_write(0, 0, "GPU940");
+	console_write(0, 0, "GPU940 v" VERSION);
 	run();
 	console_end();
 	SDL_Quit();

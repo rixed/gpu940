@@ -1,3 +1,7 @@
+2005-05-21 rixed@free.fr
+	* Now GP2X rendering uses YUV (better lightning)
+	* OSD OK on PC, not working (yet) on GP2X for unknown reason.
+
 2005-05-14 rixed@free.fr
 
 	* Initial submission at gna.org

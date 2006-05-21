@@ -17,6 +17,15 @@
  */
 #include "gpu940.h"
 
+#ifdef GP2X
+static uint32_t rgb2yuv(unsigned r, unsigned g, unsigned b) {
+	uint32_t y = ((r<<9)+(g<<8)+(b<<8)+(r<<14)+(g<<15)+(b<<11)+(b<<12)+0x108000U)&0xFF0000U;
+	uint32_t u = ((b<<7)-(b<<4)-(r<<5)-(r<<2)-(r<<1)-(g<<6)-(g<<3)-(g<<1)+0x8080U)&0xFF00U;
+	uint32_t v = ((r<<23)-(r<<20)-(g<<21)-(g<<22)+(g<<17)-(b<<20)-(b<<17)+0x80800000U)&0xFF000000U;
+	return (v|y|u|(y>>16));
+}
+#endif
+
 /*
  * Public Functions
  */
@@ -24,10 +33,14 @@
 gpuErr gpuLoadImg(struct buffer_loc const *loc, uint8_t (*rgb)[3], unsigned nb_lod) {
 	(void)nb_lod;
 	for (unsigned c=loc->height<<loc->width_log; c--; ) {
-		unsigned r = rgb[c][0]>>3;
-		unsigned g = rgb[c][1]>>2;
-		unsigned b = rgb[c][2]>>3;
-		shared->buffers[loc->address + c] = (b<<11)|(g<<5)|r;
+		unsigned b = rgb[c][0];
+		unsigned g = rgb[c][1];
+		unsigned r = rgb[c][2];
+#ifdef GP2X
+		shared->buffers[loc->address + c] = rgb2yuv(r, g, b);
+#else
+		shared->buffers[loc->address + c] = (r<<16)|(g<<8)|b;
+#endif
 	}
 	return gpuOK;
 }

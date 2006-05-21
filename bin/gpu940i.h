@@ -29,6 +29,13 @@
 #	include <assert.h>
 #endif
 
+#ifdef GP2X
+extern volatile uint32_t *gp2x_regs;	// 32-bit version of the MMSP2 registers, from the 940T
+//#	define gp2x_regs32 gp2x_regs for some reason this does not work most of the time
+#	define gp2x_regs16 ((volatile uint16_t *)gp2x_regs)	// don't forgot volatile here or be prepared to strange GCC "optims"
+#	define gp2x_regs8 ((volatile uint8_t *)gp2x_regs)	// don't forgot volatile here or be prepared to strange GCC "optims"
+#endif
+
 enum {
 	PERF_DISPLAY,
 	PERF_POLY,
@@ -73,7 +80,7 @@ extern struct ctx {
 		int32_t nc_dir;
 		uint32_t first_vector;
 		uint32_t nb_params;	// from cmdFacet rendering_type
-		uint32_t nc_scale;	// used to shift-left dw in line drawing routine.
+		uint32_t nc_log;	// used to shift-left dw in line drawing routines.
 		uint32_t nb_vectors;	// gives how many vectors are in vectors. For the size of facet, see cmdFacet.size.
 	} poly;
 	// Current trapeze

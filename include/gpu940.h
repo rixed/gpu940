@@ -27,15 +27,21 @@
 #ifndef GP2X
 #	define CMDFILE "/tmp/gpu940_buf"
 #endif
+#define TOSTRX(X) #X
+#define TOSTR(X) TOSTRX(X)
 #define SCREEN_WIDTH 320
 #define SCREEN_HEIGHT 240
+#define MAX_FACET_SIZE 16
+#define GPU_DEFAULT_DPROJ 8
+#define GPU940_NB_PARAMS 3
+#define GPU940_NB_CLIPPLANES (5+2)
+#define GPU940_DISPLIST_SIZE 64
+#define SHARED_PHYSICAL_ADDR 0x2010000	// this is from 920T or for the video controler.
+#define CONSOLE_PHYSICAL_ADDR (SHARED_PHYSICAL_ADDR+sizeof(*shared))	// from 920T or video controler.
 
 #ifndef sizeof_array
 #	define sizeof_array(x) (sizeof(x)/sizeof(*x))
 #endif
-
-#define MAX_FACET_SIZE 16
-#define GPU_DEFAULT_DPROJ 8
 
 typedef enum {	// also used for err_flags
 	gpuOK = 0,
@@ -46,10 +52,6 @@ typedef enum {	// also used for err_flags
 	gpuESYS = 16,
 	gpuEDLIST = 32,
 } gpuErr;
-
-#define GPU940_NB_PARAMS 4
-#define GPU940_NB_CLIPPLANES (5+2)
-#define GPU940_DISPLIST_SIZE 64
 
 // Types
 
@@ -68,10 +70,14 @@ extern struct gpuShared {
 	volatile uint32_t error_flags;	// use a special swap instruction to read&reset it, as a whole or bit by bit depending of available hardware !
 	volatile uint32_t frame_count;
 	volatile uint32_t frame_miss;
+#ifdef GP2X
+	uint32_t osd_head[3];
+	uint8_t osd_data[SCREEN_WIDTH*SCREEN_HEIGHT/4];
+#endif
 	uint32_t cmds[0x10000];	// 1Mbytes for commands
-	uint16_t buffers[0xF00000];	// 30Mbytes for buffers
+	uint32_t buffers[0x770000];	// 30Mbytes for buffers
 } *shared;
-#define SHARED_PHYSICAL_ADDR 0x2010000	// this is from 920T or for the video controler.
+// there must be enought room after this for the video console, and 64Kb before for code+stack
 
 typedef enum {
 	gpuSETVIEW,
@@ -126,8 +132,6 @@ typedef struct {
 		rendering_ci,	// use color and vectors param i
 		rendering_uv,	// use vectors param u, v
 		rendering_uvi,	// use vectors param u, v, i
-		rendering_rgb,	// use vectors param r, g, b
-		rendering_rgbi,	// use vectors param r, g, b, i
 		NB_RENDERING_TYPES
 	} rendering_type;
 } gpuCmdFacet;
@@ -139,16 +143,11 @@ typedef union {
 		int32_t x, y, z, u, v, i;
 	} uvi_params;
 	struct {
-		int32_t x, y, z, r, b, g, i;
-	} rgbi_params;
-	struct {
 		int32_t c3d[3], param[GPU940_NB_PARAMS];
 	} geom;
 } gpuCmdVector;
 
 /* Client Functions */
-
-typedef struct gpuBuffer gpuBuffer;
 
 gpuErr gpuOpen(void);
 void gpuClose(void);

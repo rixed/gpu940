@@ -68,7 +68,7 @@ static int randc(void) {
 }
 static void gen_img(void) {
 	memset(img, 28, 256*256*3);
-	for (unsigned i=400; i--; ) {
+	for (unsigned i=500; i--; ) {
 		pass(randi(), randi(), randu(), randu(), randc(), randc(), randc());
 	}
 }
@@ -85,69 +85,69 @@ static void load_img(void) {
 }
 
 #define LEN (100<<16)
-#define ZLEN (100<<16)
+#define DL (70<<16)
 #define LEN2 (10000<<16)
 static FixVec vec3d[] = {
-	{ .c = { LEN, -LEN, ZLEN }, .xy = -LEN2 },
-	{ .c = { LEN, LEN, ZLEN }, .xy = LEN2 },
-	{ .c = { -LEN, LEN, ZLEN }, .xy = -LEN2 },
-	{ .c = { -LEN, -LEN, ZLEN }, .xy = LEN2 },
+	{ .c = {  LEN, -LEN,  LEN+DL }, .xy = -LEN2 },
+	{ .c = {  LEN,  LEN,  LEN+DL }, .xy = LEN2 },
+	{ .c = { -LEN,  LEN,  LEN+DL }, .xy = -LEN2 },
+	{ .c = { -LEN, -LEN,  LEN+DL }, .xy = LEN2 },
 
-	{ .c = { LEN, LEN, -ZLEN }, .xy = LEN2 },
-	{ .c = { LEN, LEN, ZLEN }, .xy = LEN2 },
-	{ .c = { -LEN, LEN, ZLEN }, .xy = -LEN2 },
-	{ .c = { -LEN, LEN, -ZLEN }, .xy = -LEN2 },
+	{ .c = {  LEN,  LEN, -LEN+DL }, .xy = LEN2 },
+	{ .c = {  LEN,  LEN,  LEN+DL }, .xy = LEN2 },
+	{ .c = { -LEN,  LEN,  LEN+DL }, .xy = -LEN2 },
+	{ .c = { -LEN,  LEN, -LEN+DL }, .xy = -LEN2 },
 	
-	{ .c = { LEN, LEN, -ZLEN }, .xy = LEN2 },
-	{ .c = { LEN, LEN, ZLEN }, .xy = LEN2 },
-	{ .c = { LEN, -LEN, ZLEN }, .xy = -LEN2 },
-	{ .c = { LEN, -LEN, -ZLEN }, .xy = -LEN2 },
+	{ .c = {  LEN,  LEN, -LEN+DL }, .xy = LEN2 },
+	{ .c = {  LEN,  LEN,  LEN+DL }, .xy = LEN2 },
+	{ .c = {  LEN, -LEN,  LEN+DL }, .xy = -LEN2 },
+	{ .c = {  LEN, -LEN, -LEN+DL }, .xy = -LEN2 },
 	
-	{ .c = { LEN, -LEN, -ZLEN }, .xy = -LEN2 },
-	{ .c = { LEN, LEN, -ZLEN }, .xy = LEN2 },
-	{ .c = { -LEN, LEN, -ZLEN }, .xy = -LEN2 },
-	{ .c = { -LEN, -LEN, -ZLEN }, .xy = LEN2 },
+	{ .c = {  LEN, -LEN, -LEN+DL }, .xy = -LEN2 },
+	{ .c = {  LEN,  LEN, -LEN+DL }, .xy = LEN2 },
+	{ .c = { -LEN,  LEN, -LEN+DL }, .xy = -LEN2 },
+	{ .c = { -LEN, -LEN, -LEN+DL }, .xy = LEN2 },
 
-	{ .c = { LEN, -LEN, -ZLEN }, .xy = -LEN2 },
-	{ .c = { LEN, -LEN, ZLEN }, .xy = -LEN2 },
-	{ .c = { -LEN, -LEN, ZLEN }, .xy = LEN2 },
-	{ .c = { -LEN, -LEN, -ZLEN }, .xy = LEN2 },
+	{ .c = {  LEN, -LEN, -LEN+DL }, .xy = -LEN2 },
+	{ .c = {  LEN, -LEN,  LEN+DL }, .xy = -LEN2 },
+	{ .c = { -LEN, -LEN,  LEN+DL }, .xy = LEN2 },
+	{ .c = { -LEN, -LEN, -LEN+DL }, .xy = LEN2 },
 	
-	{ .c = { -LEN, LEN, -ZLEN }, .xy = -LEN2 },
-	{ .c = { -LEN, LEN, ZLEN }, .xy = -LEN2 },
-	{ .c = { -LEN, -LEN, ZLEN }, .xy = LEN2 },
-	{ .c = { -LEN, -LEN, -ZLEN }, .xy = LEN2 },
+	{ .c = { -LEN,  LEN, -LEN+DL }, .xy = -LEN2 },
+	{ .c = { -LEN,  LEN,  LEN+DL }, .xy = -LEN2 },
+	{ .c = { -LEN, -LEN,  LEN+DL }, .xy = LEN2 },
+	{ .c = { -LEN, -LEN, -LEN+DL }, .xy = LEN2 },
 };
 static gpuCmdVector vectors[sizeof_array(vec3d)] = {
-	{ .uvi_params = { .u=0, .v=0, .i=16<<16 }, },
+	{ .uvi_params = { .u=0, .v=0, .i=125<<16 }, },
 	{ .uvi_params = { .u=255<<16, .v=0, .i=0<<16 }, },
-	{ .uvi_params = { .u=255<<16, .v=255<<16, .i=16<<16 }, },
-	{ .uvi_params = { .u=0, .v=255<<16, .i=32<<16 }, },
+	{ .uvi_params = { .u=255<<16, .v=255<<16, .i=125<<16 }, },
+	{ .uvi_params = { .u=0, .v=255<<16, .i=250<<16 }, },
 
-	{ .uvi_params = { .u=0, .v=0, .i=16<<16 }, },
+	{ .uvi_params = { .u=0, .v=0, .i=125<<16 }, },
 	{ .uvi_params = { .u=255<<16, .v=0, .i=0<<16 }, },
-	{ .uvi_params = { .u=255<<16, .v=255<<16, .i=16<<16 }, },
-	{ .uvi_params = { .u=0, .v=255<<16, .i=32<<16 }, },
+	{ .uvi_params = { .u=255<<16, .v=255<<16, .i=125<<16 }, },
+	{ .uvi_params = { .u=0, .v=255<<16, .i=250<<16 }, },
 
-	{ .uvi_params = { .u=0, .v=0, .i=16<<16 }, },
+	{ .uvi_params = { .u=0, .v=0, .i=125<<16 }, },
 	{ .uvi_params = { .u=255<<16, .v=0, .i=0<<16 }, },
-	{ .uvi_params = { .u=255<<16, .v=255<<16, .i=16<<16 }, },
-	{ .uvi_params = { .u=0, .v=255<<16, .i=32<<16 }, },
+	{ .uvi_params = { .u=255<<16, .v=255<<16, .i=125<<16 }, },
+	{ .uvi_params = { .u=0, .v=255<<16, .i=250<<16 }, },
 	
-	{ .uvi_params = { .u=0, .v=0, .i=16<<16 }, },
+	{ .uvi_params = { .u=0, .v=0, .i=125<<16 }, },
 	{ .uvi_params = { .u=255<<16, .v=0, .i=0<<16 }, },
-	{ .uvi_params = { .u=255<<16, .v=255<<16, .i=16<<16 }, },
-	{ .uvi_params = { .u=0, .v=255<<16, .i=32<<16 }, },
+	{ .uvi_params = { .u=255<<16, .v=255<<16, .i=125<<16 }, },
+	{ .uvi_params = { .u=0, .v=255<<16, .i=250<<16 }, },
 
-	{ .uvi_params = { .u=0, .v=0, .i=16<<16 }, },
+	{ .uvi_params = { .u=0, .v=0, .i=125<<16 }, },
 	{ .uvi_params = { .u=255<<16, .v=0, .i=0<<16 }, },
-	{ .uvi_params = { .u=255<<16, .v=255<<16, .i=16<<16 }, },
-	{ .uvi_params = { .u=0, .v=255<<16, .i=32<<16 }, },
+	{ .uvi_params = { .u=255<<16, .v=255<<16, .i=125<<16 }, },
+	{ .uvi_params = { .u=0, .v=255<<16, .i=250<<16 }, },
 
-	{ .uvi_params = { .u=0, .v=0, .i=16<<16 }, },
+	{ .uvi_params = { .u=0, .v=0, .i=125<<16 }, },
 	{ .uvi_params = { .u=255<<16, .v=0, .i=0<<16 }, },
-	{ .uvi_params = { .u=255<<16, .v=255<<16, .i=16<<16 }, },
-	{ .uvi_params = { .u=0, .v=255<<16, .i=32<<16 }, },
+	{ .uvi_params = { .u=255<<16, .v=255<<16, .i=125<<16 }, },
+	{ .uvi_params = { .u=0, .v=255<<16, .i=250<<16 }, },
 };
 
 static void send_facet(unsigned v0) {
@@ -218,12 +218,12 @@ int main(void) {
 				{ ((int64_t)s1*c2)>>16, -s2, ((int64_t)c1*c2)>>16 },
 			},
 			.ab = { (c1*(int64_t)(((int64_t)s1*s2)>>16))>>16, 0, (-s1*(((int64_t)c1*s2)>>16))>>16 },
-			.trans = { 0, 0, -ZLEN, },
+			.trans = { 0, 0, -LEN/10, },
 		};
 		// rotate all vecs
 		for (unsigned v=0; v<sizeof_array(vectors); v++) {
 			FixMat_x_Vec(vectors[v].geom.c3d, &mat, vec3d+v, true);
-			vectors[v].uvi_params.i = (16<<16)+((vectors[v].geom.c3d[2]-mat.trans[2])>>4);
+			vectors[v].uvi_params.i = vectors[v].geom.c3d[2]-mat.trans[2];
 		}
 		struct gpuBuf *outBuf;
 		gpuErr err;

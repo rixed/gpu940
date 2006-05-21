@@ -31,9 +31,9 @@ void console_end(void);
 unsigned console_width(void);
 unsigned console_height(void);
 
-void console_setcolor(uint8_t r, uint8_t g, uint8_t b);
+void console_setcolor(uint8_t c);
 void console_write(int x, int y, char const *str);
 void console_clear_rect(unsigned x, unsigned y, unsigned width, unsigned height); // if width=0, use console_width ; idem for height.
-inline void console_clear(void) { console_clear_rect(0, 0, 0, 0); }
+static inline void console_clear(void) { console_clear_rect(0, 0, 0, 0); }
 
 #endif

@@ -26,7 +26,7 @@ draw_line_c:
 	stmfd sp!, {r4-r6, lr}
 	ldr lr, .ctx
 	ldr r0, [lr, #OFF_ctx.line.count]
-	ldr r1, [lr, #OFF_ctx.poly.nc_scale]
+	ldr r1, [lr, #OFF_ctx.poly.nc_log]
 	ldr r2, [lr, #OFF_ctx.line.w]
 	ldr r3, [lr, #OFF_ctx.line.dw]
 	ldr r4, [lr, #OFF_ctx.line.decliv]
@@ -34,7 +34,7 @@ draw_line_c:
 	ldr lr, [lr, #OFF_ctx.poly.cmdFacet.color]
 0:
 	mov r6, r4, asr #16	// r6 = decliv>>16
-	mov r6, r6, asl r1	// r6 <<= nc_scale
+	mov r6, r6, asl r1	// r6 <<= nc_log
 	strh lr, [r2, r6]		// write color into that addy
 	add r2, r2, r3			// w += dw
 	add r4, r4, r5			// decliv += ddecliv
@@ -48,7 +48,7 @@ draw_line_uv_OLD:
 	stmfd	sp!, {r4-r11, lr}
 	ldr lr, .ctx
 	ldr r0, [lr, #OFF_ctx.line.count]
-	ldr r1, [lr, #OFF_ctx.poly.nc_scale]
+	ldr r1, [lr, #OFF_ctx.poly.nc_log]
 	ldr r2, [lr, #OFF_ctx.line.w]
 	ldr r3, [lr, #OFF_ctx.line.dw]
 	ldr r4, [lr, #OFF_ctx.line.decliv]
@@ -74,7 +74,7 @@ draw_line_uv_OLD:
 	add r8, r8, r9				// v += dv								1
 	// poke
 	mov lr, r4, asr #16		// lr = decliv>>16					1
-	mov lr, lr, asl r1		// lr <<= nc_scale					2 (register controled shift)
+	mov lr, lr, asl r1		// lr <<= nc_log					2 (register controled shift)
 	strh r10, [r2, lr]			// write color into that addy		1
 	add r2, r2, r3				// w += dw								1
 	add r4, r4, r5				// decliv += ddecliv					1

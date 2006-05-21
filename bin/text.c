@@ -30,7 +30,7 @@
  * Private Functions
  */
 
-static uint16_t texture_color(struct buffer_loc const *loc, int32_t u, int32_t v);
+static uint32_t texture_color(struct buffer_loc const *loc, int32_t u, int32_t v);
 
 /*
  * Public Functions

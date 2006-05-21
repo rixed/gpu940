@@ -44,7 +44,7 @@ extern void draw_line_c(void);
 static void draw_line_c(void) {
 	do {
 //		if (start_poly) color |= ctx.poly.scan_dir ? 0x3e0 : 0xf800;
-		uint16_t *w = (uint16_t *)(ctx.line.w + ((ctx.line.decliv>>16)<<ctx.poly.nc_scale));
+		uint32_t *w = (uint32_t *)(ctx.line.w + ((ctx.line.decliv>>16)<<ctx.poly.nc_log));
 		*w = ctx.poly.cmdFacet.color;
 		ctx.line.w += ctx.line.dw;
 		ctx.line.decliv += ctx.line.ddecliv;
@@ -54,7 +54,7 @@ static void draw_line_c(void) {
 #endif
 static void draw_line_ci(void) {
 	do {
-		uint16_t color = ctx.poly.cmdFacet.color;
+		uint32_t color = ctx.poly.cmdFacet.color;
 //		if (start_poly) color |= ctx.poly.scan_dir ? 0x3e0 : 0xf800;
 		uint32_t const i = ctx.line.param[0]>>16;	// we use 32 bits to get a carry flag in bit 16
 		uint32_t color_i = color + i;
@@ -63,7 +63,7 @@ static void draw_line_ci(void) {
 		if ((color_i^color)&0x800) color_i |= 0x7e0;	// saturate green
 		color_i += i<<11;
 		if ((color_i^color)&0x10000) color_i |= 0xf800;	// saturate red
-		uint16_t *w = (uint16_t *)(ctx.line.w + ((ctx.line.decliv>>16)<<ctx.poly.nc_scale));
+		uint32_t *w = (uint32_t *)(ctx.line.w + ((ctx.line.decliv>>16)<<ctx.poly.nc_log));
 		*w = color_i;
 		ctx.line.w += ctx.line.dw;
 		ctx.line.decliv += ctx.line.ddecliv;
@@ -73,9 +73,9 @@ static void draw_line_ci(void) {
 
 static void draw_line_uv(void) {
 	do {
-		uint16_t color = texture_color(&ctx.location.txt, ctx.line.param[0], ctx.line.param[1]);
+		uint32_t color = texture_color(&ctx.location.txt, ctx.line.param[0], ctx.line.param[1]);
 //		if (start_poly) color |= ctx.poly.scan_dir ? 0x3e0 : 0xf800;
-		uint16_t *w = (uint16_t *)(ctx.line.w + ((ctx.line.decliv>>16)<<ctx.poly.nc_scale));
+		uint32_t *w = (uint32_t *)(ctx.line.w + ((ctx.line.decliv>>16)<<ctx.poly.nc_log));
 		*w = color;
 		ctx.line.w += ctx.line.dw;
 		ctx.line.decliv += ctx.line.ddecliv;
@@ -85,68 +85,32 @@ static void draw_line_uv(void) {
 	} while (ctx.line.count >= 0);
 }
 
+#define SAT8(x) do { if ((x)>=256) (x)=255; else if ((x)<0) (x)=0; } while(0)
 static void draw_line_uvi(void) {
 	do {
-		uint16_t color = texture_color(&ctx.location.txt, ctx.line.param[0], ctx.line.param[1]);
+		uint32_t color = texture_color(&ctx.location.txt, ctx.line.param[0], ctx.line.param[1]);
 //		if (start_poly) color |= ctx.poly.scan_dir ? 0x3e0 : 0xf800;
-		uint32_t const i = ctx.line.param[2]>>16;	// we use 32 bits to get a carry flag in bit 16
-		uint32_t color_i = color + i;
-		if ((color_i^color)&0x20) color_i |= 0x1f;	// saturate blue
-		color_i += i<<6;
-		if ((color_i^color)&0x800) color_i |= 0x7e0;	// saturate green
-		color_i += i<<11;
-		if ((color_i^color)&0x10000) color_i |= 0xf800;	// saturate red
-		uint16_t *w = (uint16_t *)(ctx.line.w + ((ctx.line.decliv>>16)<<ctx.poly.nc_scale));
-		*w = color_i;
+		uint32_t *w = (uint32_t *)(ctx.line.w + ((ctx.line.decliv>>16)<<ctx.poly.nc_log));
+		int32_t i = ctx.line.param[2]>>16;	// we use 32 bits to get a carry flag in bit 16
+#ifdef GP2X	// gp2x uses YUV
+		int y = color&0xff;
+		y += (220*i)>>8;
+		SAT8(y);
+		*w = (color&0xff00ff00) | (y<<16) | y;
+#else
+		int r = (color>>16)+i;
+		int g = ((color>>8)&255)+i;
+		int b = (color&255)+i;
+		SAT8(r);
+		SAT8(g);
+		SAT8(b);
+		*w = (r<<16)|(g<<8)|b;
+#endif
 		ctx.line.w += ctx.line.dw;
 		ctx.line.decliv += ctx.line.ddecliv;
 		ctx.line.param[0] += ctx.line.dparam[0];
 		ctx.line.param[1] += ctx.line.dparam[1];
 		ctx.line.param[2] += ctx.line.dparam[2];
-		ctx.line.count --;
-	} while (ctx.line.count >= 0);
-}
-
-static void draw_line_rgb(void) {
-	do {
-		uint8_t r = ctx.line.param[0]>>(16+3);
-		uint8_t g = ctx.line.param[1]>>(16+2);
-		uint8_t b = ctx.line.param[2]>>(16+3);
-		int16_t color = (b<<11)|(g<<5)|r;
-//		if (start_poly) color |= ctx.poly.scan_dir ? 0x3e0 : 0xf800;
-		uint16_t *w = (uint16_t *)(ctx.line.w + ((ctx.line.decliv>>16)<<ctx.poly.nc_scale));
-		*w = color;
-		ctx.line.w += ctx.line.dw;
-		ctx.line.decliv += ctx.line.ddecliv;
-		ctx.line.param[0] += ctx.line.dparam[0];
-		ctx.line.param[1] += ctx.line.dparam[1];
-		ctx.line.param[2] += ctx.line.dparam[2];
-		ctx.line.count --;
-	} while (ctx.line.count >= 0);
-}
-
-static void draw_line_rgbi(void) {
-	do {
-		uint8_t r = ctx.line.param[0]>>(16+3);
-		uint8_t g = ctx.line.param[1]>>(16+2);
-		uint8_t b = ctx.line.param[2]>>(16+3);
-		int16_t color = (b<<11)|(g<<5)|r;
-//		if (start_poly) color |= ctx.poly.scan_dir ? 0x3e0 : 0xf800;
-		uint32_t const i = ctx.line.param[3]>>16;	// we use 32 bits to get a carry flag in bit 16
-		uint32_t color_i = color + i;
-		if ((color_i^color)&0x20) color_i |= 0x1f;	// saturate blue
-		color_i += i<<6;
-		if ((color_i^color)&0x800) color_i |= 0x7e0;	// saturate green
-		color_i += i<<11;
-		if ((color_i^color)&0x10000) color_i |= 0xf800;	// saturate red
-		uint16_t *w = (uint16_t *)(ctx.line.w + ((ctx.line.decliv>>16)<<ctx.poly.nc_scale));
-		*w = color_i;
-		ctx.line.w += ctx.line.dw;
-		ctx.line.decliv += ctx.line.ddecliv;
-		ctx.line.param[0] += ctx.line.dparam[0];
-		ctx.line.param[1] += ctx.line.dparam[1];
-		ctx.line.param[2] += ctx.line.dparam[2];
-		ctx.line.param[3] += ctx.line.dparam[3];
 		ctx.line.count --;
 	} while (ctx.line.count >= 0);
 }
@@ -154,12 +118,12 @@ static void draw_line_rgbi(void) {
 // buffers are so lower coords have lower addresses. direct coord system was just a convention, right ?
 static void draw_line(void) {
 	int32_t const c_start = ctx.trap.side[0].c>>16;
-	ctx.line.dw = 2;
+	ctx.line.dw = 4;
 	ctx.line.ddecliv = ctx.poly.decliveness;
 	ctx.line.count = (ctx.trap.side[1].c>>16) - c_start;
 	if (ctx.line.count < 0) {
 		ctx.line.count = -ctx.line.count;
-		ctx.line.dw = -2;
+		ctx.line.dw = -4;
 		ctx.line.ddecliv = -ctx.line.ddecliv;
 	}	
 	int32_t inv_dc = 0;
@@ -176,7 +140,7 @@ static void draw_line(void) {
 		ctx.line.dw <<= ctx.location.out.width_log;
 	}
 	static draw_line_t const draw_lines[NB_RENDERING_TYPES] = {
-		draw_line_c, draw_line_ci, draw_line_uv, draw_line_uvi, draw_line_rgb, draw_line_rgbi,
+		draw_line_c, draw_line_ci, draw_line_uv, draw_line_uvi,
 	};
 //	perftime_enter(PERF_POLY_DRAW, "poly_draw");
 	draw_lines[ctx.poly.cmdFacet.rendering_type]();
@@ -194,7 +158,7 @@ void draw_poly(void) {
 	start_poly = 6;
 	ctx.poly.decliveness = 0;
 	ctx.poly.scan_dir = 0;
-	ctx.poly.nc_scale = ctx.location.out.width_log+1;
+	ctx.poly.nc_log = ctx.location.out.width_log+2;
 	// bounding box
 	{
 		unsigned v=ctx.poly.first_vector;
@@ -233,7 +197,7 @@ void draw_poly(void) {
 		}
 		if (Fix_abs(m[0]) < Fix_abs(m[1])) {
 			ctx.poly.scan_dir = 1;
-			ctx.poly.nc_scale = 1;
+			ctx.poly.nc_log = 2;
 			SWAP(int32_t, m[0], m[1]);
 		}
 		if (m[0]) ctx.poly.decliveness = (((int64_t)m[1])<<16)/m[0];

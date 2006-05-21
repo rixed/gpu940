@@ -1,5 +1,5 @@
 #include "console.h"
-#include "gpu940.h"
+#include "bin/gpu940i.h"
 #ifndef GP2X
 #	include <assert.h>
 #else
@@ -16,7 +16,7 @@
 SDL_Surface *sdl_console;
 #endif
 
-uint16_t color = 0xffff;
+uint8_t color = 1;
 
 /*
  * Private Functions
@@ -26,7 +26,20 @@ static inline unsigned char_width(void) { return 8; }
 static inline unsigned char_height(void) { return sizeof(consolefont[0]); }
 
 void plot_char(int x, int y, int c) {
-	uint16_t *w = (uint16_t *)sdl_console->pixels;
+#ifdef GP2X
+	uint8_t *w = shared->osd_data;
+	w += SCREEN_WIDTH*y*char_height()/4 + x*char_width()/4;
+	for (unsigned dy=0; dy<char_height(); dy++) {
+		for (unsigned dx=0; dx<char_width(); dx++) {
+			*w = 0xff;
+//			if (consolefont[c][dy]&(0x80>>dx)) {
+//				*(w + dx/4) = ((*(w + dx/4))&~(3U<<((dx%4)<<1)))|(c<<((dx%3)<<1));
+//			}
+		}
+		w += SCREEN_WIDTH/4;
+	}
+#else
+	uint8_t *w = (uint8_t *)sdl_console->pixels;
 	w += SCREEN_WIDTH*y*char_height() + x*char_width();
 	for (unsigned dy=0; dy<char_height(); dy++) {
 		for (unsigned dx=0; dx<char_width(); dx++) {
@@ -34,6 +47,7 @@ void plot_char(int x, int y, int c) {
 		}
 		w += SCREEN_WIDTH;
 	}
+#endif
 }
 
 void console_clear_rect_(unsigned x, unsigned y, unsigned width, unsigned height) {
@@ -49,19 +63,51 @@ void console_clear_rect_(unsigned x, unsigned y, unsigned width, unsigned height
  */
 
 void console_begin(void) {
-	sdl_console = SDL_CreateRGBSurface(SDL_SWSURFACE|SDL_SRCCOLORKEY, SCREEN_WIDTH, SCREEN_HEIGHT, 16, 0xF800, 0x07E0, 0x0014, 0);
+#ifdef GP2X
+	// set address of OSD headers
+	uint32_t osd_head = (uint32_t)&shared->osd_head;
+	gp2x_regs16[0x2916>>1] = osd_head&0xffff;
+	gp2x_regs16[0x2918>>1] = osd_head>>16;
+	gp2x_regs16[0x291a>>1] = osd_head&0xffff;
+	gp2x_regs16[0x291c>>1] = osd_head>>16;
+	// set osd palette
+	gp2x_regs16[0x2954>>1] = 0;
+	gp2x_regs16[0x2956>>1] = 0;	// color 0 (should not be set)
+	gp2x_regs16[0x2956>>1] = 0;
+	gp2x_regs16[0x2956>>1] = 0xffff;	// color 1
+	gp2x_regs16[0x2956>>1] = 0xffff;
+	gp2x_regs16[0x2956>>1] = 0xffff;	// color 2
+	gp2x_regs16[0x2956>>1] = 0xffff;
+	gp2x_regs16[0x2956>>1] = 0xffff;	// color 3
+	gp2x_regs16[0x2956>>1] = 0xffff;
+	// enable OSD
+	gp2x_regs16[0x2880>>1] |= 0x80;
+#else
+	sdl_console = SDL_CreateRGBSurface(SDL_SWSURFACE|SDL_SRCCOLORKEY, SCREEN_WIDTH, SCREEN_HEIGHT, 8, 0, 0, 0, 0);
 	if (! sdl_console) {
 		fprintf(stderr, "CreateRGBSurface failed: %s\n", SDL_GetError());
 		exit(1);
 	}
+	SDL_Color palette[] = {
+		{ 255, 30, 30, 0 },
+		{ 30, 255, 30, 0 },
+		{ 30, 30, 255, 0 },
+	};
+	SDL_SetPalette(sdl_console, SDL_LOGPAL, palette, 1, 3);
 	if (0 != SDL_SetColorKey(sdl_console, SDL_SRCCOLORKEY, 0x0000)) {
 		fprintf(stderr, "SetColorKey failed: %s\n", SDL_GetError());
 		exit(1);
 	}
+#endif
 }
 
 void console_end(void) {
+#ifdef GP2X
+	// disable OSD
+	gp2x_regs16[0x2880>>1] &= ~0x80;
+#else
 	SDL_FreeSurface(sdl_console);
+#endif
 }
 
 unsigned console_width(void) {
@@ -71,8 +117,8 @@ unsigned console_height(void) {
 	return SCREEN_HEIGHT/char_height();
 }
 
-void console_setcolor(uint8_t r, uint8_t g, uint8_t b) {
-	color = ((r>>3)<<11)|((g>>2)<<5)|(b>>3);
+void console_setcolor(uint8_t c) {
+	color = c;
 }
 
 void console_write(int x, int y, char const *str) {

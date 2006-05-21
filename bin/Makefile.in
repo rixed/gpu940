@@ -55,7 +55,7 @@ am_gpu940_OBJECTS = gpu940.$(OBJEXT) poly.$(OBJEXT) clip.$(OBJEXT) \
 	mylib.$(OBJEXT) text.$(OBJEXT) draw_line.gp2x.$(OBJEXT) \
 	crt0.$(OBJEXT) mydiv.$(OBJEXT)
 gpu940_OBJECTS = $(am_gpu940_OBJECTS)
-gpu940_DEPENDENCIES = ../console/libconsole.la
+gpu940_DEPENDENCIES = ../console/libconsole.a
 am_load940_OBJECTS = load940.$(OBJEXT)
 load940_OBJECTS = $(am_load940_OBJECTS)
 load940_LDADD = $(LDADD)
@@ -194,7 +194,7 @@ gpu940_SOURCES = \
 	crt0.S \
 	mydiv.c
 
-gpu940_LDADD = ../console/libconsole.la
+gpu940_LDADD = ../console/libconsole.a
 #AM_CFLAGS += -fno-pic -ffreestanding
 load940_SOURCES = load940.c
 @GP2X_TRUE@HOST_CC = gcc
@@ -502,7 +502,7 @@ uninstall-am: uninstall-binPROGRAMS uninstall-info-am
 @GP2X_TRUE@	$< > $@
 @GP2X_TRUE@draw_line.gp2x.S: offsets.S
 @GP2X_TRUE@gpu940: $(gpu940_OBJECTS) script.ld
-@GP2X_TRUE@	$(LD) -o $@.elf $(LDFLAGS) -T script.ld -N -s
+@GP2X_TRUE@	$(LD) -o $@.elf $(LDFLAGS) -L$(top_srcdir)/console -T script.ld -N -s
 @GP2X_TRUE@	$(OBJCOPY) --output-target binary --only-section upper32 $@.elf $@
 
 @GP2X_TRUE@gpu940.source: gpu940

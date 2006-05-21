@@ -8,7 +8,8 @@ SECTIONS {
 		poly.o(.text)
 		draw_line.gp2x.o(.text)
 		text.o(.text)
-		libperftimeFS.a(.text)
+		libconsole.a(.text)
+		libperftime.a(.text)
 		mydiv.o(.text)
 		. = ALIGN(16);
 		*(.data)

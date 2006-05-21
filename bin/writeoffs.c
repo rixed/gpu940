@@ -40,7 +40,7 @@ int main(void) {
 	printctxoff(poly.nc_dir);
 	printctxoff(poly.first_vector);
 	printctxoff(poly.nb_params);
-	printctxoff(poly.nc_scale);
+	printctxoff(poly.nc_log);
 	printctxoff(line.count);
 	printctxoff(line.w);
 	printctxoff(line.dw);

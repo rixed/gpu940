@@ -15,7 +15,7 @@ gpu940_SOURCES = \
 	draw_line.gp2x.S \
 	crt0.S \
 	mydiv.c
-gpu940_LDADD = ../console/libconsole.la
+gpu940_LDADD = ../console/libconsole.a
 #AM_CFLAGS += -fno-pic -ffreestanding
 load940_SOURCES = load940.c
 
@@ -33,7 +33,7 @@ draw_line.gp2x.S: offsets.S
 OBJCOPY = /usr/local/devkitPro/devkitGP2X/bin/arm-linux-objcopy
 OBJDUMP = /usr/local/devkitPro/devkitGP2X/bin/arm-linux-objdump
 gpu940: $(gpu940_OBJECTS) script.ld
-	$(LD) -o $@.elf $(LDFLAGS) -T script.ld -N -s
+	$(LD) -o $@.elf $(LDFLAGS) -L$(top_srcdir)/console -T script.ld -N -s
 	$(OBJCOPY) --output-target binary --only-section upper32 $@.elf $@
 
 gpu940.source: gpu940

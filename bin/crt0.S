@@ -15,7 +15,7 @@ _start:
 	LDR PC, =_undefi @ Data abort
 	LDR PC, =_undefi @ Reserved
 	LDR PC, =_undefi @ Reserved
-	LDR PC, =_undefi @ IRQ
+	LDR PC, =_irq @ IRQ
 	LDR PC, =_undefi @ FIQ
 
 _xxinit:
@@ -63,11 +63,17 @@ _xxinit:
 _undefi:
 	// TODO : blink the battery LED when this situation arrises
 	b _start
-	
+
+_irq:
+	sub r14, r14, #4
+	stmdb sp!, {r0-r3, r14}
+	bl vertical_interrupt
+	ldmia sp!, {r0-r3, pc}^
+
 _icache_flush:
 	mov r0, #0
 	mcr p15, 0, r0, c7, c5, 0
-	bx LR
+	bx lr
 
 _dcache_flush:
 	mov r0, #0

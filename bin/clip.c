@@ -133,12 +133,6 @@ int clip_poly(void) {
 		case rendering_uvi:
 			ctx.poly.nb_params = 3;
 			break;
-		case rendering_rgb:
-			ctx.poly.nb_params = 3;
-			break;
-		case rendering_rgbi:
-			ctx.poly.nb_params = 4;
-			break;
 		default:
 			set_error_flag(gpuEPARAM);
 			return 0;
