@@ -69,7 +69,7 @@ static void display(struct buffer_loc const *loc) {
 //		gp2x_regs16[0x290c>>1] = width;
 		gp2x_regs16[0x288a>>1] = width&0xffff;	// V scale ratio
 		gp2x_regs16[0x288c>>1] = width>>16;
-		gp2x_regs16[0x2892>>1] = (width<<1);
+		gp2x_regs16[0x2892>>1] = width;
 		previous_width = width;
 	}
 	uint32_t screen_addr = (uint32_t)&((struct gpuShared *)SHARED_PHYSICAL_ADDR)->buffers[loc->address + (ctx.view.winPos[1]<<loc->width_log) + ctx.view.winPos[0]];
@@ -127,8 +127,8 @@ static void console_stat(int y, int target) {
 }
 static void update_console(void) {
 	static unsigned skip = 0;
-	skip = (skip+1)&0xf;
-//	if (skip) return;
+	skip = (skip+1)&0x7;
+	if (skip) return;
 	console_write_uint(20, 0, 3, shared->error_flags);
 	console_write_uint(9, 1, 5, shared->frame_count);
 	console_write_uint(9, 2, 5, shared->frame_miss);
