@@ -1,5 +1,6 @@
    .text
 #ifdef GP2X
+#include "offsets.S"
 	.align
 	.global _start
 	.global _icache_flush
@@ -8,17 +9,16 @@
 	.global _dbuffer_drain
 
 _start:
-	LDR PC, =_xxinit @ Reset
-	LDR PC, =_undefi @ Undefined instruction
-	LDR PC, =_undefi @ Software Interrupt
-	LDR PC, =_undefi @ Prefetch abort
-	LDR PC, =_undefi @ Data abort
-	LDR PC, =_undefi @ Reserved
-	LDR PC, =_undefi @ Reserved
-	LDR PC, =_irq @ IRQ
-	LDR PC, =_undefi @ FIQ
+	b _reset @ Reset
+	ldr pc, =undef_instr @//subs pc, r14, #4 @ Undefined instruction
+	ldr pc, =swi @ Software Interrupt
+	ldr pc, =prefetch_abrt @ Prefetch abort
+	ldr pc, =data_abrt @ Data abort
+	ldr pc, =reserved @ Reserved
+	b _safe_irq_handler @ IRQ
+	ldr pc, =fiq @ FIQ
 
-_xxinit:
+_reset:
 	// After reset, all bits 0 of register 6 are reset (all region disabled).
 	// So we just enable what we need.
 	// Region 0 is the default for data, where shared data will reside. We want uncacheable but bufferable
@@ -58,17 +58,18 @@ _xxinit:
 	stmdb r13!, {r11,r12}
 	bl mymain
 	// TODO sheck for dead beef face
-	b _xxinit
+	b _reset
 
 _undefi:
 	// TODO : blink the battery LED when this situation arrises
 	b _start
 
-_irq:
-	sub r14, r14, #4
-	stmdb sp!, {r0-r3, r14}
-	bl vertical_interrupt
-	ldmia sp!, {r0-r3, pc}^
+_safe_irq_handler:
+	sub lr, lr, #4
+	mov sp, #0	// looks like a good place
+	stmfd sp!, {r0 - r12, lr}
+	bl irq_handler
+	ldmfd sp!, {r0 - r12, pc}^
 
 _icache_flush:
 	mov r0, #0

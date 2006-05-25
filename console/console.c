@@ -30,12 +30,14 @@ void plot_char(int x, int y, int c) {
 	uint8_t *w = shared->osd_data;
 	w += SCREEN_WIDTH*y*char_height()/4 + x*char_width()/4;
 	for (unsigned dy=0; dy<char_height(); dy++) {
+		uint16_t v = 0;	// works because char_width = 8 :-<
 		for (unsigned dx=0; dx<char_width(); dx++) {
-			*w = 0xff;
-//			if (consolefont[c][dy]&(0x80>>dx)) {
-//				*(w + dx/4) = ((*(w + dx/4))&~(3U<<((dx%4)<<1)))|(c<<((dx%3)<<1));
-//			}
+			if (consolefont[c][dy]&(0x80>>dx)) {
+				v |= 3<<(dx*2);
+			}
 		}
+		*w = v&0xff;
+		*(w+1) = (v>>8)&0xff;
 		w += SCREEN_WIDTH/4;
 	}
 #else
@@ -65,7 +67,7 @@ void console_clear_rect_(unsigned x, unsigned y, unsigned width, unsigned height
 void console_begin(void) {
 #ifdef GP2X
 	// set address of OSD headers
-	uint32_t osd_head = (uint32_t)&shared->osd_head;
+	uint32_t osd_head = (uint32_t)&((struct gpuShared *)SHARED_PHYSICAL_ADDR)->osd_head;
 	gp2x_regs16[0x2916>>1] = osd_head&0xffff;
 	gp2x_regs16[0x2918>>1] = osd_head>>16;
 	gp2x_regs16[0x291a>>1] = osd_head&0xffff;

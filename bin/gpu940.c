@@ -63,10 +63,6 @@ static void display(struct buffer_loc const *loc) {
 	// display current workingBuffer
 //	perftime_enter(PERF_DISPLAY, "display");
 #ifdef GP2X
-//	TODO: use vertical interrupt instead 
-//	uint16_t vsync = gp2x_regs16[0x2804>>1] & 1;
-//	while ((gp2x_regs16[0x1182>>1]&(1<<4)) == !vsync) ;
-//	while ((gp2x_regs16[0x1182>>1]&(1<<4)) == vsync) ;
 	static unsigned previous_width = 0;
 	unsigned width = 1<<(1+loc->width_log);
 	if (width != previous_width) {
@@ -76,11 +72,9 @@ static void display(struct buffer_loc const *loc) {
 		gp2x_regs16[0x2892>>1] = (width<<1);
 		previous_width = width;
 	}
-	uint32_t screen_addr = (uint32_t)&((struct gpuShared *)SHARED_PHYSICAL_ADDR)->buffers[ctx.location.out.address+(ctx.view.winPos[1]<<ctx.location.out.width_log)+ctx.view.winPos[0]];
-//	gp2x_regs16[0x290e>>1] = screen_addr&0xffff; gp2x_regs16[0x2912>>1] = screen_addr&0xffff;
-//	gp2x_regs16[0x2910>>1] = screen_addr>>16; gp2x_regs16[0x2914>>1] = screen_addr>>16;
-	gp2x_regs16[0x28a0>>1] = screen_addr&0xffff;	// odd
-	gp2x_regs16[0x28a2>>1] = screen_addr>>16;	// odd
+	uint32_t screen_addr = (uint32_t)&((struct gpuShared *)SHARED_PHYSICAL_ADDR)->buffers[loc->address + (ctx.view.winPos[1]<<loc->width_log) + ctx.view.winPos[0]];
+//	gp2x_regs16[0x28a0>>1] = screen_addr&0xffff;	// odd	seams useless
+//	gp2x_regs16[0x28a2>>1] = screen_addr>>16;	// odd
 	gp2x_regs16[0x28a4>>1] = screen_addr&0xffff;	// even
 	gp2x_regs16[0x28a6>>1] = screen_addr>>16;	// even
 #else
@@ -102,7 +96,7 @@ static void display(struct buffer_loc const *loc) {
 //	perftime_leave();
 }
 
-void vertical_interrupt(void) {
+static void vertical_interrupt(void) {
 	if (displist_begin == displist_end) {
 		shared->frame_miss ++;
 	} else {
@@ -161,7 +155,7 @@ static void shared_reset(void) {
 	// FIXME: use SCREEN_WIDTH / SCREEN_HEIGHT
 	shared->osd_head[1] = 0x87c000efU;	// 1000 0111 1100 0000 0000 0000 1110 1111
 	shared->osd_head[2] = 0x4000013fU;	// 0100 0000 0000 0000 0000 0001 0011 1111
-	my_memset(shared->osd_data, 1, sizeof(shared->osd_data));
+	my_memset(shared->osd_data, 0, sizeof(shared->osd_data));
 #endif
 	my_memset(shared->buffers, 0, sizeof(shared->buffers));
 }
@@ -240,9 +234,6 @@ static void do_showBuf(void) {
 	}
 	displist[displist_end] = allCmds.showBuf.loc;
 	displist_end = next_displist_end;
-#ifdef GP2X	// quick hack
-	vertical_interrupt();
-#endif
 }
 static void do_point(void) {}
 static void do_line(void) {}
@@ -345,12 +336,47 @@ static void run(void) {
 static inline void set_error_flag(unsigned err_mask);
 
 #ifdef GP2X
+void enable_irqs(void) {
+	__asm__ volatile (
+		"mrs r0, cpsr\n"
+		"bic r0, r0, #0x80\n"
+		"msr cpsr_c, r0\n"
+		"nop\n"
+		:::"r0"
+	);
+}
+void disable_irqs(void) {
+	__asm__ volatile (
+		"mrs r0, cpsr\n"
+		"orr r0, r0, #0x80\n"
+		"msr cpsr_c, r0\n"
+		"nop\n"
+		:::"r0"
+	);
+}
+void undef_instr(void) { }
+void swi(void) { }
+void prefetch_abrt(void) { }
+void data_abrt(void) { }
+void reserved(void) { }
+void fiq(void) { }
+void irq_handler(void) {
+	int irq;
+	for (irq=0; 0 == (gp2x_regs32[0x4510>>2]&(1U<<irq)) && irq < 32; irq++) ;
+	if (irq == 32) {
+		return;
+	}
+	if (irq == 0) {	// DISPINT
+		// reset intflag
+		vertical_interrupt();
+		gp2x_regs16[0x2846>>1] |= 2;
+	}
+	gp2x_regs32[0x4500>>2] = 1U<<irq;
+	gp2x_regs32[0x4510>>2] = 1U<<irq;
+}
 void mymain(void) {	// to please autoconf, we call this 'main'
 	ctx_reset();
 	shared_reset();
-	// set video mode
-//	gp2x_regs16[0x28da>>1] = 0x4ab; // 16bpp, only region 1 activated
-//	Try YUV mode
 	// MLC_OVLAY_CNTR
 	uint16_t v = gp2x_regs16[0x2880>>1];
 	v &= 0x0400;	// keep reserved bit
@@ -377,20 +403,22 @@ void mymain(void) {	// to please autoconf, we call this 'main'
 	v |= 0x2a;
 	gp2x_regs16[0x28da>>1] = v;
 	// enable dithering
-	gp2x_regs8[0x2946] = 1;
+	gp2x_regs8[0x2946] = 1;	// this does nothing (??)
 	// enhance contrast and brightness
-	gp2x_regs16[0x2934>>1] = 0x033f;
-	
+	gp2x_regs16[0x2934>>1] = 0x033f;	
 //	if (-1 == perftime_begin(0, NULL, 0)) goto quit;
-	// enable the vertical interrupt only
-//	gp2x_regs32[0x0808>>2] = 0xfffffffe;	// mask all but DISPINT
+	// init the vertical interrupt
+	gp2x_regs32[0x0808>>2] |= 1U;	// kernel don't want these
+	gp2x_regs32[0x4504>>2] = 0;	// IRQs not FIQs
+	gp2x_regs32[0x4508>>2] = ~1U;	// mask all but DISPINT
+	gp2x_regs32[0x450c>>2] = 0;	// kernel does this
+	gp2x_regs32[0x4500>>2] = -1;	// kernel does this
+	gp2x_regs32[0x4510>>2] = -1;	// kernel does this
+	gp2x_regs16[0x3b42>>1] = -1;	// DUALINT940
+	// enable VSYNC IRQ in display controler
+	gp2x_regs16[0x2846>>1] |= 0x20;
 	// and now, enable IRQs
-//	__asm__ volatile (
-//		"mrs r0, cpsr\n"
-//		"bic r0, r0, #0x80\n"
-//		"msr cpsr_c, r0\n"
-//		:::"r0"
-//	);
+	enable_irqs();
 	console_begin();
 	console_clear();
 	console_write(0, 0, "GPU940 v" VERSION);

@@ -125,7 +125,7 @@ static void draw_line(void) {
 		ctx.line.count = -ctx.line.count;
 		ctx.line.dw = -4;
 		ctx.line.ddecliv = -ctx.line.ddecliv;
-	}	
+	}
 	int32_t inv_dc = 0;
 	if (ctx.line.count) inv_dc = Fix_inv(ctx.line.count<<16);
 	for (unsigned p=ctx.poly.nb_params; p--; ) {

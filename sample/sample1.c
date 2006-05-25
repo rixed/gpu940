@@ -110,7 +110,7 @@ int main(void) {
 		struct gpuBuf *outBuf;
 		gpuErr err;
 		while (1) {
-			outBuf = gpuAlloc(9, 300);
+			outBuf = gpuAlloc(9, 242);
 			if (outBuf) break;
 			(void)sched_yield();
 		}
@@ -132,6 +132,8 @@ int main(void) {
 			else if  (gpuENOSPC == err) (void)sched_yield();
 			else return EXIT_FAILURE;
 		}
+		if (shared->error_flags) printf("ERROR: %u\n", shared->error_flags);
+//		printf("frame %u, missed %u\n", shared->frame_count, shared->frame_miss);
 	}
 	gpuFree(txtBuf);
 	gpuClose();

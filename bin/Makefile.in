@@ -501,7 +501,7 @@ uninstall-am: uninstall-binPROGRAMS uninstall-info-am
 @GP2X_TRUE@offsets.S: writeoffs
 @GP2X_TRUE@	$< > $@
 @GP2X_TRUE@draw_line.gp2x.S: offsets.S
-@GP2X_TRUE@gpu940: $(gpu940_OBJECTS) script.ld
+@GP2X_TRUE@gpu940: $(gpu940_OBJECTS) script.ld ../console/libconsole.a
 @GP2X_TRUE@	$(LD) -o $@.elf $(LDFLAGS) -L$(top_srcdir)/console -T script.ld -N -s
 @GP2X_TRUE@	$(OBJCOPY) --output-target binary --only-section upper32 $@.elf $@
 

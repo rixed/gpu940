@@ -1,0 +1,5 @@
+#!/bin/sh
+
+chmod a+x *
+./load940 gpu940
+

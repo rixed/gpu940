@@ -1,3 +1,3 @@
 #!/bin/sh
-ncftpput -u root -p root 192.168.2.2 /mnt/sd bin/gpu940 bin/load940 sample/.libs/sample1 sample/.libs/sample2 lib/.libs/libgpu940.so.1
+ncftpput -u root -p root gp2x /mnt/sd bin/gpu940 bin/load940 sample/.libs/sample1 sample/.libs/sample2 lib/.libs/libgpu940.so.1
 

@@ -31,7 +31,7 @@
 
 #ifdef GP2X
 extern volatile uint32_t *gp2x_regs;	// 32-bit version of the MMSP2 registers, from the 940T
-//#	define gp2x_regs32 gp2x_regs for some reason this does not work most of the time
+#	define gp2x_regs32 gp2x_regs
 #	define gp2x_regs16 ((volatile uint16_t *)gp2x_regs)	// don't forgot volatile here or be prepared to strange GCC "optims"
 #	define gp2x_regs8 ((volatile uint8_t *)gp2x_regs)	// don't forgot volatile here or be prepared to strange GCC "optims"
 #endif

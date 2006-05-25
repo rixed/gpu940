@@ -228,7 +228,7 @@ int main(void) {
 		struct gpuBuf *outBuf;
 		gpuErr err;
 		while (1) {
-			outBuf = gpuAlloc(9, 300);
+			outBuf = gpuAlloc(9, 242);
 			if (outBuf) break;
 			(void)sched_yield();
 		}

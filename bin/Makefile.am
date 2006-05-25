@@ -32,7 +32,7 @@ draw_line.gp2x.S: offsets.S
 
 OBJCOPY = /usr/local/devkitPro/devkitGP2X/bin/arm-linux-objcopy
 OBJDUMP = /usr/local/devkitPro/devkitGP2X/bin/arm-linux-objdump
-gpu940: $(gpu940_OBJECTS) script.ld
+gpu940: $(gpu940_OBJECTS) script.ld ../console/libconsole.a
 	$(LD) -o $@.elf $(LDFLAGS) -L$(top_srcdir)/console -T script.ld -N -s
 	$(OBJCOPY) --output-target binary --only-section upper32 $@.elf $@
 

@@ -2,7 +2,6 @@
 * Embarquer directement le perftime dans shared, et ajouter à la lib les fonctions pour le lire. Et faire
   disparaitre la dépendance sur libperftime.
 * Ajouter la possibilité d'avoir un zbuffer (valeurs sur 16 bits dans un buffer distinct, avec un type de rendu distinct, _z).
-* Changer le calcul de luminosité pour pouvoir assombrir en plus d'éclairer.
 * Ajouter à libgpu des fonctionnalités de tri et de backface culling.
 * Optimiser.
 
