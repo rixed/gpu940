@@ -26,6 +26,7 @@ static inline unsigned char_width(void) { return 8; }
 static inline unsigned char_height(void) { return sizeof(consolefont[0]); }
 
 void plot_char(int x, int y, int c) {
+	if (x < 0 || x >= (int)console_width() || y<0 || y>=(int)console_height()) return;
 #ifdef GP2X
 	uint8_t *w = shared->osd_data;
 	w += SCREEN_WIDTH*y*char_height()/4 + x*char_width()/4;
@@ -124,18 +125,21 @@ void console_setcolor(uint8_t c) {
 }
 
 void console_write(int x, int y, char const *str) {
-	while (x < 0) {
-		x += console_width();
-		y --;
-	}
 	for ( ; *str; str ++) {
-		if (x >= (int)console_width()) {
-			x = 0;
-			y ++;
+		plot_char(x++, y, *str);
+	}
+}
+
+void console_write_uint(int x, int y, unsigned nb_digits, uint32_t number) {
+	int first = 1;
+	while (nb_digits) {
+		int c = ' ';
+		if (number || first) {
+			c = '0' + number%10;
+			number /= 10;
+			first = 0;
 		}
-		if (y >= (int)console_height()) break;
-		if (y >= 0) plot_char(x, y, *str);
-		x ++;
+		plot_char(x+(--nb_digits), y, c);
 	}
 }
 

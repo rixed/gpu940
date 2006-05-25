@@ -14,7 +14,7 @@
 
 @SET_MAKE@
 
-SOURCES = $(libperftime_la_SOURCES)
+SOURCES = $(libperftime_a_SOURCES)
 
 srcdir = @srcdir@
 top_srcdir = @top_srcdir@
@@ -54,11 +54,13 @@ am__vpath_adj = case $$p in \
   esac;
 am__strip_dir = `echo $$p | sed -e 's|^.*/||'`;
 am__installdirs = "$(DESTDIR)$(libdir)"
-libLTLIBRARIES_INSTALL = $(INSTALL)
-LTLIBRARIES = $(lib_LTLIBRARIES)
-libperftime_la_LIBADD =
-am_libperftime_la_OBJECTS = perftime.lo
-libperftime_la_OBJECTS = $(am_libperftime_la_OBJECTS)
+libLIBRARIES_INSTALL = $(INSTALL_DATA)
+LIBRARIES = $(lib_LIBRARIES)
+ARFLAGS = cru
+libperftime_a_AR = $(AR) $(ARFLAGS)
+libperftime_a_LIBADD =
+am_libperftime_a_OBJECTS = perftime.$(OBJEXT)
+libperftime_a_OBJECTS = $(am_libperftime_a_OBJECTS)
 DEFAULT_INCLUDES = -I. -I$(srcdir) -I$(top_builddir)
 depcomp = $(SHELL) $(top_srcdir)/depcomp
 am__depfiles_maybe = depfiles
@@ -70,8 +72,8 @@ LTCOMPILE = $(LIBTOOL) --tag=CC --mode=compile $(CC) $(DEFS) \
 CCLD = $(CC)
 LINK = $(LIBTOOL) --tag=CC --mode=link $(CCLD) $(AM_CFLAGS) $(CFLAGS) \
 	$(AM_LDFLAGS) $(LDFLAGS) -o $@
-SOURCES = $(libperftime_la_SOURCES)
-DIST_SOURCES = $(libperftime_la_SOURCES)
+SOURCES = $(libperftime_a_SOURCES)
+DIST_SOURCES = $(libperftime_a_SOURCES)
 ETAGS = etags
 CTAGS = ctags
 DISTFILES = $(DIST_COMMON) $(DIST_SOURCES) $(TEXINFOS) $(EXTRA_DIST)
@@ -176,9 +178,8 @@ sharedstatedir = @sharedstatedir@
 sysconfdir = @sysconfdir@
 target_alias = @target_alias@
 AM_CFLAGS = -I $(top_srcdir)/include -fstrict-aliasing -D_GNU_SOURCE -std=c99 -Wall -W -pedantic -pipe
-lib_LTLIBRARIES = libperftime.la
-libperftime_la_SOURCES = perftime.c perftime.h
-libperftime_la_LDFLAGS = -Wl,--warn-common
+lib_LIBRARIES = libperftime.a
+libperftime_a_SOURCES = perftime.c perftime.h
 all: all-am
 
 .SUFFIXES:
@@ -212,35 +213,39 @@ $(top_srcdir)/configure:  $(am__configure_deps)
 	cd $(top_builddir) && $(MAKE) $(AM_MAKEFLAGS) am--refresh
 $(ACLOCAL_M4):  $(am__aclocal_m4_deps)
 	cd $(top_builddir) && $(MAKE) $(AM_MAKEFLAGS) am--refresh
-install-libLTLIBRARIES: $(lib_LTLIBRARIES)
+install-libLIBRARIES: $(lib_LIBRARIES)
 	@$(NORMAL_INSTALL)
 	test -z "$(libdir)" || $(mkdir_p) "$(DESTDIR)$(libdir)"
-	@list='$(lib_LTLIBRARIES)'; for p in $$list; do \
+	@list='$(lib_LIBRARIES)'; for p in $$list; do \
 	  if test -f $$p; then \
 	    f=$(am__strip_dir) \
-	    echo " $(LIBTOOL) --mode=install $(libLTLIBRARIES_INSTALL) $(INSTALL_STRIP_FLAG) '$$p' '$(DESTDIR)$(libdir)/$$f'"; \
-	    $(LIBTOOL) --mode=install $(libLTLIBRARIES_INSTALL) $(INSTALL_STRIP_FLAG) "$$p" "$(DESTDIR)$(libdir)/$$f"; \
+	    echo " $(libLIBRARIES_INSTALL) '$$p' '$(DESTDIR)$(libdir)/$$f'"; \
+	    $(libLIBRARIES_INSTALL) "$$p" "$(DESTDIR)$(libdir)/$$f"; \
+	  else :; fi; \
+	done
+	@$(POST_INSTALL)
+	@list='$(lib_LIBRARIES)'; for p in $$list; do \
+	  if test -f $$p; then \
+	    p=$(am__strip_dir) \
+	    echo " $(RANLIB) '$(DESTDIR)$(libdir)/$$p'"; \
+	    $(RANLIB) "$(DESTDIR)$(libdir)/$$p"; \
 	  else :; fi; \
 	done
 
-uninstall-libLTLIBRARIES:
+uninstall-libLIBRARIES:
 	@$(NORMAL_UNINSTALL)
-	@set -x; list='$(lib_LTLIBRARIES)'; for p in $$list; do \
+	@list='$(lib_LIBRARIES)'; for p in $$list; do \
 	  p=$(am__strip_dir) \
-	  echo " $(LIBTOOL) --mode=uninstall rm -f '$(DESTDIR)$(libdir)/$$p'"; \
-	  $(LIBTOOL) --mode=uninstall rm -f "$(DESTDIR)$(libdir)/$$p"; \
+	  echo " rm -f '$(DESTDIR)$(libdir)/$$p'"; \
+	  rm -f "$(DESTDIR)$(libdir)/$$p"; \
 	done
 
-clean-libLTLIBRARIES:
-	-test -z "$(lib_LTLIBRARIES)" || rm -f $(lib_LTLIBRARIES)
-	@list='$(lib_LTLIBRARIES)'; for p in $$list; do \
-	  dir="`echo $$p | sed -e 's|/[^/]*$$||'`"; \
-	  test "$$dir" != "$$p" || dir=.; \
-	  echo "rm -f \"$${dir}/so_locations\""; \
-	  rm -f "$${dir}/so_locations"; \
-	done
-libperftime.la: $(libperftime_la_OBJECTS) $(libperftime_la_DEPENDENCIES) 
-	$(LINK) -rpath $(libdir) $(libperftime_la_LDFLAGS) $(libperftime_la_OBJECTS) $(libperftime_la_LIBADD) $(LIBS)
+clean-libLIBRARIES:
+	-test -z "$(lib_LIBRARIES)" || rm -f $(lib_LIBRARIES)
+libperftime.a: $(libperftime_a_OBJECTS) $(libperftime_a_DEPENDENCIES) 
+	-rm -f libperftime.a
+	$(libperftime_a_AR) libperftime.a $(libperftime_a_OBJECTS) $(libperftime_a_LIBADD)
+	$(RANLIB) libperftime.a
 
 mostlyclean-compile:
 	-rm -f *.$(OBJEXT)
@@ -248,7 +253,7 @@ mostlyclean-compile:
 distclean-compile:
 	-rm -f *.tab.c
 
-@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/perftime.Plo@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/perftime.Po@am__quote@
 
 .c.o:
 @am__fastdepCC_TRUE@	if $(COMPILE) -MT $@ -MD -MP -MF "$(DEPDIR)/$*.Tpo" -c -o $@ $<; \
@@ -358,7 +363,7 @@ distdir: $(DISTFILES)
 	done
 check-am: all-am
 check: check-am
-all-am: Makefile $(LTLIBRARIES)
+all-am: Makefile $(LIBRARIES)
 installdirs:
 	for dir in "$(DESTDIR)$(libdir)"; do \
 	  test -z "$$dir" || $(mkdir_p) "$$dir"; \
@@ -389,7 +394,7 @@ maintainer-clean-generic:
 	@echo "it deletes files that may require special tools to rebuild."
 clean: clean-am
 
-clean-am: clean-generic clean-libLTLIBRARIES clean-libtool clean-local \
+clean-am: clean-generic clean-libLIBRARIES clean-libtool clean-local \
 	mostlyclean-am
 
 distclean: distclean-am
@@ -410,7 +415,7 @@ info-am:
 
 install-data-am:
 
-install-exec-am: install-libLTLIBRARIES
+install-exec-am: install-libLIBRARIES
 
 install-info: install-info-am
 
@@ -436,20 +441,20 @@ ps: ps-am
 
 ps-am:
 
-uninstall-am: uninstall-info-am uninstall-libLTLIBRARIES
+uninstall-am: uninstall-info-am uninstall-libLIBRARIES
 
 .PHONY: CTAGS GTAGS all all-am check check-am clean clean-generic \
-	clean-libLTLIBRARIES clean-libtool clean-local ctags distclean \
+	clean-libLIBRARIES clean-libtool clean-local ctags distclean \
 	distclean-compile distclean-generic distclean-libtool \
 	distclean-tags distdir dvi dvi-am html html-am info info-am \
 	install install-am install-data install-data-am install-exec \
 	install-exec-am install-info install-info-am \
-	install-libLTLIBRARIES install-man install-strip installcheck \
+	install-libLIBRARIES install-man install-strip installcheck \
 	installcheck-am installdirs maintainer-clean \
 	maintainer-clean-generic mostlyclean mostlyclean-compile \
 	mostlyclean-generic mostlyclean-libtool pdf pdf-am ps ps-am \
 	tags uninstall uninstall-am uninstall-info-am \
-	uninstall-libLTLIBRARIES
+	uninstall-libLIBRARIES
 
 
 sample: sample.o $(lib)

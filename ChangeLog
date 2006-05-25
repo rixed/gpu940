@@ -1,6 +1,7 @@
 2005-05-25 rixed@free.fr
 	* Fix DISPINT IRQ on GP2X (thank you Squidge).
 	* Fix OSD on GP2X.
+	* Add perfmeters.
 
 2005-05-21 rixed@free.fr
 	* Now GP2X rendering uses YUV (better lightning)

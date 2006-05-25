@@ -142,9 +142,9 @@ static void draw_line(void) {
 	static draw_line_t const draw_lines[NB_RENDERING_TYPES] = {
 		draw_line_c, draw_line_ci, draw_line_uv, draw_line_uvi,
 	};
-//	perftime_enter(PERF_POLY_DRAW, "poly_draw");
+	perftime_enter(PERF_POLY_DRAW, "poly_draw");
 	draw_lines[ctx.poly.cmdFacet.rendering_type]();
-//	perftime_enter(PERF_POLY, NULL);
+	perftime_enter(PERF_POLY, NULL);
 	if (start_poly) start_poly --;
 }
 
@@ -154,7 +154,7 @@ static void draw_line(void) {
 
 // nb DIVs = 2 + 3*nb_sizes+2*nb_scan_lines
 void draw_poly(void) {
-//	perftime_enter(PERF_POLY, "poly");
+	perftime_enter(PERF_POLY, "poly");
 	start_poly = 6;
 	ctx.poly.decliveness = 0;
 	ctx.poly.scan_dir = 0;
@@ -303,6 +303,6 @@ void draw_poly(void) {
 		}
 	} while (1);
 end_poly:;
-//	perftime_leave();
+	perftime_leave();
 }
 

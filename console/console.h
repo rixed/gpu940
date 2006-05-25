@@ -33,6 +33,7 @@ unsigned console_height(void);
 
 void console_setcolor(uint8_t c);
 void console_write(int x, int y, char const *str);
+void console_write_uint(int x, int y, unsigned nb_digits, uint32_t number);
 void console_clear_rect(unsigned x, unsigned y, unsigned width, unsigned height); // if width=0, use console_width ; idem for height.
 static inline void console_clear(void) { console_clear_rect(0, 0, 0, 0); }
 

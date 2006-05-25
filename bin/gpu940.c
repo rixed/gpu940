@@ -61,7 +61,7 @@ static unsigned displist_begin = 0, displist_end = 0;	// same convention than fo
 
 static void display(struct buffer_loc const *loc) {
 	// display current workingBuffer
-//	perftime_enter(PERF_DISPLAY, "display");
+	perftime_enter(PERF_DISPLAY, "display");
 #ifdef GP2X
 	static unsigned previous_width = 0;
 	unsigned width = 1<<(1+loc->width_log);
@@ -93,17 +93,60 @@ static void display(struct buffer_loc const *loc) {
 	SDL_BlitSurface(sdl_console, NULL, sdl_screen, NULL);
 	SDL_UpdateRect(sdl_screen, 0, 0, ctx.view.winWidth, ctx.view.winHeight);
 #endif
-//	perftime_leave();
+	perftime_leave();
 }
+
+static void console_setup(void) {
+	console_clear();
+/*
+	static char str[3] = { 'X', ':', 0 };
+	for (unsigned y=0; y<32; y++) {
+		for (unsigned x=0; x<8; x++) {
+			str[0] = y*8+x;
+			console_write(x*5, y, str);
+			console_write_uint(x*5+2, y, 3, x+y*8);
+		}
+	}
+	while(1) ; */
+	console_write(0, 0, "GPU940 v" VERSION " ErrFlg:");
+	console_write(0, 1, "FrmCount:");
+	console_write(0, 2, "FrmMiss :");
+	console_write(0, 3, "Perfmeter        \xb3 nb calls \xb3 secs \xb3  %");
+	console_write(0, 4, "\xc4\xc4\xc4\xc4\xc4\xc4\xc4\xc4\xc4\xc4\xc4\xc4\xc4\xc4\xc4\xc4\xc4\xc5\xc4\xc4\xc4\xc4\xc4\xc4\xc4\xc4\xc4\xc4\xc5\xc4\xc4\xc4\xc4\xc4\xc4\xc5\xc4\xc4\xc4\xc4\xc4");
+}
+static void console_stat(int y, int target) {
+	struct perftime_stat st;
+	perftime_stat(target, &st);
+	if (st.name) console_write(0, y, st.name);
+	console_write(17, y, "\xb3");
+	console_write_uint(18, y, 9, st.nb_enter);
+	console_write(28, y, "\xb3");
+	console_write_uint(29, y, 5, st.cumul_secs>>10);
+	console_write(35, y, "\xb3");
+	console_write_uint(36, y, 3, st.average);
+}
+static void update_console(void) {
+	static unsigned skip = 0;
+	skip = (skip+1)&0xf;
+//	if (skip) return;
+	console_write_uint(20, 0, 3, shared->error_flags);
+	console_write_uint(9, 1, 5, shared->frame_count);
+	console_write_uint(9, 2, 5, shared->frame_miss);
+	console_stat(5, PERF_DISPLAY);
+	console_stat(6, PERF_POLY);
+	console_stat(7, PERF_POLY_DRAW);
+}
+
 
 static void vertical_interrupt(void) {
 	if (displist_begin == displist_end) {
-		shared->frame_miss ++;
+		if (shared->frame_count>0) shared->frame_miss ++;
 	} else {
 		display(displist+displist_begin);
 		if (++ displist_begin >= sizeof_array(displist)) displist_begin = 0;
 		shared->frame_count ++;
 	}
+	update_console();
 }
 
 static void reset_clipPlanes(void) {
@@ -155,7 +198,6 @@ static void shared_reset(void) {
 	// FIXME: use SCREEN_WIDTH / SCREEN_HEIGHT
 	shared->osd_head[1] = 0x87c000efU;	// 1000 0111 1100 0000 0000 0000 1110 1111
 	shared->osd_head[2] = 0x4000013fU;	// 0100 0000 0000 0000 0000 0001 0011 1111
-	my_memset(shared->osd_data, 0, sizeof(shared->osd_data));
 #endif
 	my_memset(shared->buffers, 0, sizeof(shared->buffers));
 }
@@ -316,11 +358,6 @@ static void run(void) {
 #ifndef GP2X
 		if (SDL_QuitRequested()) return;
 #endif
-#ifdef GP2X
-//		if (! (gp2x_regs16[0x1184>>1] & 0x0100)) {
-//			perftime_stat_print_all(1);
-//		}
-#endif
 		if (shared->cmds_end == shared->cmds_begin) {
 #ifdef GP2X
 			// sleep, downclock, whatever. TODO
@@ -375,6 +412,7 @@ void irq_handler(void) {
 	gp2x_regs32[0x4510>>2] = 1U<<irq;
 }
 void mymain(void) {	// to please autoconf, we call this 'main'
+	if (-1 == perftime_begin(0, NULL, 0)) goto quit;
 	ctx_reset();
 	shared_reset();
 	// MLC_OVLAY_CNTR
@@ -406,7 +444,6 @@ void mymain(void) {	// to please autoconf, we call this 'main'
 	gp2x_regs8[0x2946] = 1;	// this does nothing (??)
 	// enhance contrast and brightness
 	gp2x_regs16[0x2934>>1] = 0x033f;	
-//	if (-1 == perftime_begin(0, NULL, 0)) goto quit;
 	// init the vertical interrupt
 	gp2x_regs32[0x0808>>2] |= 1U;	// kernel don't want these
 	gp2x_regs32[0x4504>>2] = 0;	// IRQs not FIQs
@@ -420,12 +457,11 @@ void mymain(void) {	// to please autoconf, we call this 'main'
 	// and now, enable IRQs
 	enable_irqs();
 	console_begin();
-	console_clear();
-	console_write(0, 0, "GPU940 v" VERSION);
+	console_setup();
 	run();
 	console_end();
-//quit:;
-	// halt the 940
+quit:;
+	// TODO halt the 940
 }
 #else
 static void alrm_handler(int dummy) {
@@ -433,7 +469,7 @@ static void alrm_handler(int dummy) {
 	vertical_interrupt();
 }
 int main(void) {
-//	if (-1 == perftime_begin(0, NULL, 0)) return EXIT_FAILURE;
+	if (-1 == perftime_begin(0, NULL, 0)) return EXIT_FAILURE;
 	int fd = open(CMDFILE, O_RDWR|O_CREAT|O_TRUNC, 0644);
 	if (-1 == fd ||
 		-1 == lseek(fd, sizeof(*shared)-1, SEEK_SET) ||
@@ -473,13 +509,11 @@ int main(void) {
 		return EXIT_FAILURE;
 	}
 	console_begin();
-	console_clear();
-	console_write(0, 0, "GPU940 v" VERSION);
+	console_setup();
 	run();
 	console_end();
 	SDL_Quit();
-//	perftime_stat_print_all(1);
-//	perftime_end();
+	perftime_end();
 	return 0;
 }
 #endif
