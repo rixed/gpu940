@@ -23,24 +23,17 @@
 .align 4
 .globl draw_line_c
 draw_line_c:
-	stmfd sp!, {r4-r6, lr}
-	ldr lr, .ctx
-	ldr r0, [lr, #OFF_ctx.line.count]
-	ldr r1, [lr, #OFF_ctx.poly.nc_log]
-	ldr r2, [lr, #OFF_ctx.line.w]
-	ldr r3, [lr, #OFF_ctx.line.dw]
-	ldr r4, [lr, #OFF_ctx.line.decliv]
-	ldr r5, [lr, #OFF_ctx.line.ddecliv]
-	ldr lr, [lr, #OFF_ctx.poly.cmdFacet.color]
+	ldr r3, .ctx
+	ldr r0, [r3, #OFF_ctx.line.count]
+	ldr r1, [r3, #OFF_ctx.line.w]
+	ldr r2, [r3, #OFF_ctx.line.dw]
+	ldr r3, [r3, #OFF_ctx.poly.cmdFacet.color]
 0:
-	mov r6, r4, asr #16	// r6 = decliv>>16
-	mov r6, r6, asl r1	// r6 <<= nc_log
-	strh lr, [r2, r6]		// write color into that addy
-	add r2, r2, r3			// w += dw
-	add r4, r4, r5			// decliv += ddecliv
 	subs r0, r0, #1		// count--
+	str r3, [r1]		// write color into that addy
+	add r1, r1, r2			// w += dw
 	bge 0b
-	ldmfd	sp!, {r4-r6, pc}
+	mov pc, lr
 	
 .align 4
 .globl draw_line_uv_OLD
@@ -57,7 +50,7 @@ draw_line_uv_OLD:
 	ldr r7, [lr, #OFF_ctx.line.dparam]	// du
 	ldr r8, [lr, #(OFF_ctx.line.param+4)]	// v
 	ldr r9, [lr, #(OFF_ctx.line.dparam+4)]	// dv
-	ldr lr, [lr, #OFF_ctx.poly.cmdFacet.texture]
+//	ldr lr, [lr, #OFF_ctx.poly.cmdFacet.texture]
 	ldr r11, .shared
 	ldr r11, [r11]
 //	add r11, r11, #OFF_shared.textures

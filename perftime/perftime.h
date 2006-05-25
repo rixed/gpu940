@@ -16,6 +16,8 @@ int perftime_begin(unsigned freq, unsigned (*gettime)(void), unsigned wrap_after
 void perftime_enter(unsigned target, char const *name);
 // quit all target (enter iddle, if you prefer). This is different from returning to previous target
 void perftime_leave(void);
+// quit current target and return to previous one. Targets do not stack !!
+void perftime_return(void);
 
 void perftime_stat(unsigned target, struct perftime_stat *stat);
 

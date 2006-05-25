@@ -1,4 +1,3 @@
-* Optimiser le type de rendu _c pour tracer en X, avec 2 pixels par write, afin d'avoir un memset rapide.
 * Ajouter la possibilité d'avoir un zbuffer (valeurs sur 16 bits dans un buffer distinct, avec un type de rendu distinct, _z).
 * Ajouter à libgpu des fonctionnalités de tri et de backface culling.
 * Optimiser.

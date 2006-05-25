@@ -66,20 +66,32 @@ int main(void) {
 		{ .uvi_params = { .u=255<<16, .v=0, .i=0<<16 }, },
 		{ .uvi_params = { .u=255<<16, .v=255<<16, .i=16<<16 }, },
 		{ .uvi_params = { .u=0, .v=255<<16, .i=32<<16 }, },
-/*		{ .rgbi_params = { .r=0, .g=0, .b=255<<16, .i=16<<16 }, },
-		{ .rgbi_params = { .r=255<<16, .g= 0, .b=255<<16, .i=0<<16 }, },
-		{ .rgbi_params = { .r=255<<16, .g= 255<<16, .b=0, .i=16<<16 }, },
-		{ .rgbi_params = { .r=0, .g=255<<16, .b=0, .i=32<<16 }, },*/
 	};
 	gpuCmdFacet facet = {
 		.opcode = gpuFACET,
 		.size = sizeof_array(vectors),
-		.texture = 0,
-		.color = 0x4567,
-		.rendering_type = rendering_uv,
+		.color = gpuColor(120, 130, 200),
+		.rendering_type = rendering_c,
 	};
-	struct iovec cmdvec[1+sizeof_array(vectors)+1] = {
-		{ .iov_base = &facet, .iov_len = sizeof(facet) },
+	gpuCmdVector vec_bg[] = {
+		{ .geom = { .c3d = { -10<<16, -10<<16, -257 } }, },
+		{ .geom = { .c3d = {  10<<16, -10<<16, -257 } }, },
+		{ .geom = { .c3d = {  10<<16,  10<<16, -257 } }, },
+		{ .geom = { .c3d = { -10<<16,  10<<16, -257 } }, },
+	};
+	gpuCmdFacet facet_bg = {
+		.opcode = gpuFACET,
+		.size = sizeof_array(vec_bg),
+		.color = gpuColor(0, 0, 0),
+		.rendering_type = rendering_c,
+	};
+	struct iovec cmdvec[1+4+1+sizeof_array(vectors)+1] = {
+		{ .iov_base = &facet_bg, .iov_len = sizeof(facet_bg) },	// first facet to clear the background
+		{ .iov_base = vec_bg+0, .iov_len = sizeof(*vec_bg) },
+		{ .iov_base = vec_bg+1, .iov_len = sizeof(*vec_bg) },
+		{ .iov_base = vec_bg+2, .iov_len = sizeof(*vec_bg) },
+		{ .iov_base = vec_bg+3, .iov_len = sizeof(*vec_bg) },
+		{ .iov_base = &facet, .iov_len = sizeof(facet) },	// textured facet
 		{ .iov_base = vectors+0, .iov_len = sizeof(*vectors) },
 		{ .iov_base = vectors+1, .iov_len = sizeof(*vectors) },
 		{ .iov_base = vectors+2, .iov_len = sizeof(*vectors) },

@@ -154,7 +154,6 @@ static void send_facet(unsigned v0) {
 	static gpuCmdFacet facet = {
 		.opcode = gpuFACET,
 		.size = 4,
-		.texture = 0,
 		.color = 0x4567,
 		.rendering_type = rendering_uvi,
 	};

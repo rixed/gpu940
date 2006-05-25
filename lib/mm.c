@@ -164,8 +164,8 @@ gpuErr gpuShowBuf(struct gpuBuf *buf) {
 	show.loc = buf->loc;
 	gpuErr err = gpuWrite(&show, sizeof(show));
 	if (gpuOK != err) goto sb_quit;
-	buf->free_after_fc = my_frame_count;
 	my_frame_count ++;
+	buf->free_after_fc = my_frame_count;
 	list_add_tail(&buf->fc_list, &fc_list);
 sb_quit:	
 	return err;

@@ -125,7 +125,6 @@ typedef struct {
 typedef struct {
 	gpuOpcode opcode;
 	uint32_t size;	// >=3
-	uint32_t texture;
 	uint32_t color;
 	enum {
 		rendering_c,	// use color for flat rendering
@@ -157,6 +156,7 @@ gpuErr gpuWritev(const struct iovec *cmdvec, size_t count);
 
 uint32_t gpuReadErr(void);
 gpuErr gpuLoadImg(struct buffer_loc const *loc, uint8_t (*rgb)[3], unsigned lod);
+uint32_t gpuColor(unsigned r, unsigned g, unsigned b);
 
 struct gpuBuf *gpuAlloc(unsigned width_log, unsigned height);
 void gpuFree(struct gpuBuf *buf);

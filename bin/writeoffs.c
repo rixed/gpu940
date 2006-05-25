@@ -31,7 +31,6 @@ int main(void) {
 	printctxoff(view.dproj);
 	printctxoff(poly.cmdFacet);
 	printctxoff(poly.cmdFacet.size);
-	printctxoff(poly.cmdFacet.texture);
 	printctxoff(poly.cmdFacet.color);
 	printctxoff(poly.cmdFacet.rendering_type);
 	printctxoff(poly.vectors);

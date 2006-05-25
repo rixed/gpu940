@@ -16,6 +16,8 @@
  * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
  */
 #include <stdint.h>
+#include "gpu940i.h"
+#include "../perftime/perftime.h"
 
 static void unsigned_divide(uint64_t dividend, uint64_t divisor, uint64_t *pquotient, uint64_t *premainder) {
 	uint64_t t, num_bits;
@@ -95,20 +97,25 @@ int32_t __divsi3(int32_t n, int32_t d) {
 
 uint32_t __udivsi3(uint32_t n, uint32_t d) {
 	uint64_t q, r;
+	perftime_enter(PERF_DIV, "div");
 	unsigned_divide(n, d, &q, &r);
+	perftime_return();
 	return q;
 }
 
 int64_t __divdi3(int64_t n, int64_t d) {
 	int64_t q, r;
+	perftime_enter(PERF_DIV, "div");
 	signed_divide(n, d, &q, &r);
+	perftime_return();
 	return q;
 }
 
 uint64_t __udivdi3(uint64_t n, uint64_t d) {
 	uint64_t q, r;
+	perftime_enter(PERF_DIV, "div");
 	unsigned_divide(n, d, &q, &r);
+	perftime_return();
 	return q;
 }
-
 

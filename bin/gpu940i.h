@@ -18,7 +18,7 @@
 #ifndef GPU940_I_H_051231
 #define GPU940_I_H_051231
 
-#include <perftime.h>
+#include "../perftime/perftime.h"
 #include "gpu940.h"
 #include "poly.h"
 #include "clip.h"
@@ -40,6 +40,7 @@ enum {
 	PERF_DISPLAY,  //  0
 	PERF_POLY,     // 25
 	PERF_POLY_DRAW,// 74
+	PERF_DIV,      //
 };
 
 typedef struct {

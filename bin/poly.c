@@ -127,10 +127,12 @@ static void draw_line(void) {
 		ctx.line.ddecliv = -ctx.line.ddecliv;
 	}
 	int32_t inv_dc = 0;
-	if (ctx.line.count) inv_dc = Fix_inv(ctx.line.count<<16);
-	for (unsigned p=ctx.poly.nb_params; p--; ) {
-		ctx.line.param[p] = ctx.trap.side[0].param[p];	// starting value
-		ctx.line.dparam[p] = ((int64_t)(ctx.trap.side[1].param[p]-ctx.line.param[p])*inv_dc)>>16;
+	if (ctx.poly.nb_params > 0) {
+		if (ctx.line.count) inv_dc = Fix_inv(ctx.line.count<<16);
+		for (unsigned p=ctx.poly.nb_params; p--; ) {
+			ctx.line.param[p] = ctx.trap.side[0].param[p];	// starting value
+			ctx.line.dparam[p] = ((int64_t)(ctx.trap.side[1].param[p]-ctx.line.param[p])*inv_dc)>>16;
+		}
 	}
 	ctx.line.decliv = ctx.poly.decliveness*c_start;	// 16.16
 	if (ctx.poly.scan_dir == 0) {
@@ -178,7 +180,7 @@ void draw_poly(void) {
 		} while (v != ctx.poly.first_vector);
 	}
 	// compute decliveness (2 DIVs)
-	{
+	if (ctx.poly.nb_params > 0) {	// else we keep default values : we don't need decliveness.
 		int32_t m[2];
 		// FIXME: with clipping, A can get very close from A or B.
 #		define B_VEC (ctx.poly.vectors[ctx.poly.bbox[2][MIN]])
@@ -266,7 +268,7 @@ void draw_poly(void) {
 				dnc = Fix_abs(dnc);
 				ctx.trap.side[side].dc = ((int64_t)num<<16)/dnc;
 				// compute alpha_params used for vector parameters
-				{
+				if (ctx.poly.nb_params > 0) {
 					// first, compute the z_alpha of end_v (and store it for later comparaison)
 					int64_t n = z_num + (int64_t)z_dnum*dnc;	// 25.16
 					int64_t d = z_den + (int64_t)z_dden*dnc;	// 25.16
@@ -291,9 +293,11 @@ void draw_poly(void) {
 		draw_line();	// will do another DIV
 		// next scanline (1 DIV)
 		ctx.poly.nc_declived += ctx.poly.nc_dir;
-		z_den += z_dden;
-		z_num += z_dnum;
-		if (z_den) ctx.poly.z_alpha = ((int64_t)z_num<<16)/z_den;
+		if (ctx.poly.nb_params > 0) {
+			z_den += z_dden;
+			z_num += z_dnum;
+			if (z_den) ctx.poly.z_alpha = ((int64_t)z_num<<16)/z_den;
+		}
 		for (unsigned side=2; side--; ) {
 			int32_t dalpha = ctx.poly.z_alpha - ctx.trap.side[side].z_alpha_start;
 			for (unsigned p=ctx.poly.nb_params; p--; ) {

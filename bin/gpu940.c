@@ -135,6 +135,7 @@ static void update_console(void) {
 	console_stat(5, PERF_DISPLAY);
 	console_stat(6, PERF_POLY);
 	console_stat(7, PERF_POLY_DRAW);
+	console_stat(8, PERF_DIV);
 }
 
 
