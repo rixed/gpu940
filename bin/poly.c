@@ -51,18 +51,26 @@ static void draw_line_c(void) {
 	} while (ctx.line.count >= 0);
 }
 #endif
+#ifdef GP2X
+extern void draw_line_ci(void);
+#else
 static void draw_line_ci(void) {
-	do {
-		uint32_t color = ctx.poly.cmdFacet.color;
-		int32_t i = ctx.line.param[0]>>16;	// we use 32 bits to get a carry flag in bit 16
-		uint32_t *w = (uint32_t *)(ctx.line.w + ((ctx.line.decliv>>16)<<ctx.poly.nc_log));
-//		if (start_poly) color |= ctx.poly.scan_dir ? 0x3e0 : 0xf800;
+	uint32_t const color = ctx.poly.cmdFacet.color;
+//	if (start_poly) color |= ctx.poly.scan_dir ? 0x3e0 : 0xf800;
 #ifdef GP2X	// gp2x uses YUV
+	ctx.line.param[0] *= 55;
+	ctx.line.dparam[0] *= 55;
+#endif
+	do {
+		uint32_t *w = (uint32_t *)(ctx.line.w + ((ctx.line.decliv>>16)<<ctx.poly.nc_log));
+#ifdef GP2X	// gp2x uses YUV
+		int32_t i = ctx.line.param[0]>>22;
 		int y = color&0xff;
-		y += (220*i)>>8;
+		y += i;
 		SAT8(y);
 		*w = (color&0xff00ff00) | (y<<16) | y;
 #else
+		int32_t i = ctx.line.param[0]>>16;
 		int r = (color>>16)+i;
 		int g = ((color>>8)&255)+i;
 		int b = (color&255)+i;
@@ -73,14 +81,16 @@ static void draw_line_ci(void) {
 #endif
 		ctx.line.w += ctx.line.dw;
 		ctx.line.decliv += ctx.line.ddecliv;
+		ctx.line.param[0] += ctx.line.dparam[0];
 		ctx.line.count --;
 	} while (ctx.line.count >= 0);
 }
+#endif
 
 static void draw_line_uv(void) {
 	do {
 		uint32_t color = texture_color(&ctx.location.txt, ctx.line.param[0], ctx.line.param[1]);
-//		if (start_poly) color |= ctx.poly.scan_dir ? 0x3e0 : 0xf800;
+		//	if (start_poly) color |= ctx.poly.scan_dir ? 0x3e0 : 0xf800;
 		uint32_t *w = (uint32_t *)(ctx.line.w + ((ctx.line.decliv>>16)<<ctx.poly.nc_log));
 		*w = color;
 		ctx.line.w += ctx.line.dw;

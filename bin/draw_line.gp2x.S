@@ -20,8 +20,9 @@
 #include "offsets.S"
 
 .text
-.align 4
 .globl draw_line_c
+.globl draw_line_ci
+.align 4
 draw_line_c:
 	ldr r3, .ctx
 	ldr r0, [r3, #OFF_ctx.line.count]
@@ -34,9 +35,50 @@ draw_line_c:
 	add r1, r1, r2			// w += dw
 	bge 0b
 	mov pc, lr
+
+draw_line_ci:
+	stmfd sp!, {r4-r10, lr}
+	ldr lr, .ctx
+	ldr r0, [lr, #OFF_ctx.line.w]
+	ldr r1, [lr, #OFF_ctx.line.dw]
+	ldr r2, [lr, #OFF_ctx.poly.nc_log]
+	ldr r3, [lr, #OFF_ctx.line.decliv]
+	ldr r4, [lr, #OFF_ctx.line.ddecliv]
+	ldr r5, [lr, #OFF_ctx.line.param]	// r5 = p
+	add r9, r5, r5, lsl #1	// r9 = p*3
+	add r5, r9, r5, lsl #3	// r5 = p*3+p*8 = p*11
+	add r5, r5, r5, lsl #2	// r5 = p*11+(p*11)*4 = p*55
+	ldr r6, [lr, #OFF_ctx.line.dparam]
+	add r9, r6, r6, lsl #1
+	add r6, r9, r6, lsl #3
+	add r6, r6, r6, lsl #2
+	ldr r7, [lr, #OFF_ctx.poly.cmdFacet.color]
+	bic r7, r7, #0x0000ff
+	bic r7, r7, #0xff0000	// color without Y
+	ldrb r8, [lr, #OFF_ctx.poly.cmdFacet.color] // Y
+	ldr lr, [lr, #OFF_ctx.line.count]
+0:
+	// compute color
+	adds r9, r8, r5, asr #22	// r9 = Y + intens
+	movmi r9, #0	// saturate
+	cmp r9, #0x100
+	movpl r9, #0xff
+	orr r9, r9, r9, lsl #16
+	orr r9, r7, r9
+	// poke it
+	mov r10, r3, asr #16	// r10 = decliv>>16
+	mov r10, r10, asl r2	// r10 <<= nc_log
+	str r9, [r0, r10]	// write color into that addy
+	// loop
+	add r0, r0, r1	// w += dw
+	add r3, r3, r4	// decliv += ddecliv
+	add r5, r5, r6	// param += dparam
+	subs lr, lr, #1	// count--
+	bge 0b
+	// quit
+	ldmfd	sp!, {r4-r10, pc}
 	
-.align 4
-.globl draw_line_uv_OLD
+	
 draw_line_uv_OLD:
 	stmfd	sp!, {r4-r11, lr}
 	ldr lr, .ctx
