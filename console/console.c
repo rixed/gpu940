@@ -97,7 +97,7 @@ void console_begin(void) {
 	}
 	SDL_Color palette[] = {
 		{ 255, 30, 30, 0 },
-		{ 30, 255, 30, 0 },
+		{ 100, 100, 100, 0 },
 		{ 30, 30, 255, 0 },
 	};
 	SDL_SetPalette(sdl_console, SDL_LOGPAL, palette, 1, 3);
@@ -135,7 +135,7 @@ void console_setcolor(uint8_t c) {
 
 void console_write(int x, int y, char const *str) {
 	for ( ; *str; str ++) {
-		plot_char(x++, y, *str);
+		plot_char(x++, y, *(unsigned char *)str);
 	}
 }
 

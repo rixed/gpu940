@@ -38,16 +38,15 @@ static int start_poly = 0;	// DEBUG
 
 typedef void (*draw_line_t)(void);
 
+#define SAT8(x) do { if ((x)>=256) (x)=255; else if ((x)<0) (x)=0; } while(0)
 #ifdef GP2X
 extern void draw_line_c(void);
 #else
 static void draw_line_c(void) {
 	do {
-//		if (start_poly) color |= ctx.poly.scan_dir ? 0x3e0 : 0xf800;
-		uint32_t *w = (uint32_t *)(ctx.line.w + ((ctx.line.decliv>>16)<<ctx.poly.nc_log));
+		uint32_t *w = (uint32_t *)(ctx.line.w);
 		*w = ctx.poly.cmdFacet.color;
 		ctx.line.w += ctx.line.dw;
-		ctx.line.decliv += ctx.line.ddecliv;
 		ctx.line.count --;
 	} while (ctx.line.count >= 0);
 }
@@ -55,16 +54,23 @@ static void draw_line_c(void) {
 static void draw_line_ci(void) {
 	do {
 		uint32_t color = ctx.poly.cmdFacet.color;
-//		if (start_poly) color |= ctx.poly.scan_dir ? 0x3e0 : 0xf800;
-		uint32_t const i = ctx.line.param[0]>>16;	// we use 32 bits to get a carry flag in bit 16
-		uint32_t color_i = color + i;
-		if ((color_i^color)&0x20) color_i |= 0x1f;	// saturate blue
-		color_i += i<<6;
-		if ((color_i^color)&0x800) color_i |= 0x7e0;	// saturate green
-		color_i += i<<11;
-		if ((color_i^color)&0x10000) color_i |= 0xf800;	// saturate red
+		int32_t i = ctx.line.param[0]>>16;	// we use 32 bits to get a carry flag in bit 16
 		uint32_t *w = (uint32_t *)(ctx.line.w + ((ctx.line.decliv>>16)<<ctx.poly.nc_log));
-		*w = color_i;
+//		if (start_poly) color |= ctx.poly.scan_dir ? 0x3e0 : 0xf800;
+#ifdef GP2X	// gp2x uses YUV
+		int y = color&0xff;
+		y += (220*i)>>8;
+		SAT8(y);
+		*w = (color&0xff00ff00) | (y<<16) | y;
+#else
+		int r = (color>>16)+i;
+		int g = ((color>>8)&255)+i;
+		int b = (color&255)+i;
+		SAT8(r);
+		SAT8(g);
+		SAT8(b);
+		*w = (r<<16)|(g<<8)|b;
+#endif
 		ctx.line.w += ctx.line.dw;
 		ctx.line.decliv += ctx.line.ddecliv;
 		ctx.line.count --;
@@ -85,7 +91,6 @@ static void draw_line_uv(void) {
 	} while (ctx.line.count >= 0);
 }
 
-#define SAT8(x) do { if ((x)>=256) (x)=255; else if ((x)<0) (x)=0; } while(0)
 static void draw_line_uvi(void) {
 	do {
 		uint32_t color = texture_color(&ctx.location.txt, ctx.line.param[0], ctx.line.param[1]);
