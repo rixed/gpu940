@@ -66,7 +66,7 @@ _undefi:
 
 _safe_irq_handler:
 	sub lr, lr, #4
-	mov sp, #0	// looks like a good place
+	mov sp, #0x02000000	// there are some room left up there
 	stmfd sp!, {r0 - r12, lr}
 	bl irq_handler
 	ldmfd sp!, {r0 - r12, pc}^

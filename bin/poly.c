@@ -86,7 +86,9 @@ static void draw_line_ci(void) {
 	} while (ctx.line.count >= 0);
 }
 #endif
-
+#ifdef GP2X
+extern void draw_line_uv(void);
+#else
 static void draw_line_uv(void) {
 	do {
 		uint32_t color = texture_color(&ctx.location.txt, ctx.line.param[0], ctx.line.param[1]);
@@ -100,7 +102,7 @@ static void draw_line_uv(void) {
 		ctx.line.count --;
 	} while (ctx.line.count >= 0);
 }
-
+#endif
 static void draw_line_uvi(void) {
 	do {
 		uint32_t color = texture_color(&ctx.location.txt, ctx.line.param[0], ctx.line.param[1]);

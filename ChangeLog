@@ -2,6 +2,7 @@
 	* OSD uses colors.
 	* Fix OSD rendering of chars > 128 on PC.
 	* Fix flat drawing routine on PC.
+	* rendering_c, _ci and _uv are now in ARM asm, which change nothing.
 
 2005-05-25 rixed@free.fr
 	* Fix DISPINT IRQ on GP2X (thank you Squidge).

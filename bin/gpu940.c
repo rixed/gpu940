@@ -52,7 +52,7 @@ volatile uint32_t *gp2x_regs = (void *)(0xC0000000U-0x2000000U);	// 32-bit versi
 #else
 static SDL_Surface *sdl_screen;
 #endif
-static struct buffer_loc displist[GPU940_DISPLIST_SIZE+1];
+static struct buffer_loc displist[GPU_DISPLIST_SIZE+1];
 static unsigned displist_begin = 0, displist_end = 0;	// same convention than for shared->cmds
 
 /*
@@ -264,7 +264,12 @@ static void do_setOutBuf(void) {
 }
 static void do_setTxtBuf(void) {
 	read_from_cmdBuf(&allCmds.setTxtBuf, sizeof(allCmds.setTxtBuf));
+	if ((1U<<allCmds.setTxtBuf.loc.width_log) != allCmds.setTxtBuf.loc.height) {
+		set_error_flag(gpuEPARAM);
+		return;
+	}
 	my_memcpy(&ctx.location.txt, &allCmds.setTxtBuf.loc, sizeof(ctx.location.txt));
+	ctx.location.txt_mask = ((1<<ctx.location.txt.width_log)-1)<<2;
 }
 static void do_setZBuf(void) {
 	read_from_cmdBuf(&allCmds.setZBuf, sizeof(allCmds.setZBuf));

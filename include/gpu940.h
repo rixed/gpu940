@@ -33,11 +33,10 @@
 #define SCREEN_HEIGHT 240
 #define MAX_FACET_SIZE 16
 #define GPU_DEFAULT_DPROJ 8
-#define GPU940_NB_PARAMS 3
-#define GPU940_NB_CLIPPLANES (5+2)
-#define GPU940_DISPLIST_SIZE 64
+#define GPU_NB_PARAMS 3
+#define GPU_NB_CLIPPLANES (5+2)
+#define GPU_DISPLIST_SIZE 64
 #define SHARED_PHYSICAL_ADDR 0x2010000	// this is from 920T or for the video controler.
-#define CONSOLE_PHYSICAL_ADDR (SHARED_PHYSICAL_ADDR+sizeof(*shared))	// from 920T or video controler.
 
 #ifndef sizeof_array
 #	define sizeof_array(x) (sizeof(x)/sizeof(*x))
@@ -63,6 +62,8 @@ typedef struct {
 // Commands
 
 extern struct gpuShared {
+	uint32_t cmds[0x10000];	// 1Mbytes for commands
+	uint32_t buffers[0x770000];	// 30Mbytes for buffers
 	// All integer members are supposed to have the same property as sig_atomic_t.
 	volatile int32_t cmds_begin;	// first word beeing actually used by the gpu. let libgpu read in there.
 	volatile int32_t cmds_end;	// last word + 1 beeing actually used by the gpu. let libgpu write in there.
@@ -74,8 +75,6 @@ extern struct gpuShared {
 	uint32_t osd_head[3];
 	uint8_t osd_data[SCREEN_WIDTH*SCREEN_HEIGHT/4];
 #endif
-	uint32_t cmds[0x10000];	// 1Mbytes for commands
-	uint32_t buffers[0x770000];	// 30Mbytes for buffers
 } *shared;
 // there must be enought room after this for the video console, and 64Kb before for code+stack
 
@@ -137,12 +136,15 @@ typedef struct {
 
 typedef union {
 	// No opcode: it must follow a point/line/facet
-	int32_t all_params[3+GPU940_NB_PARAMS];
+	int32_t all_params[3+GPU_NB_PARAMS];
 	struct {
 		int32_t x, y, z, u, v, i;
 	} uvi_params;
 	struct {
-		int32_t c3d[3], param[GPU940_NB_PARAMS];
+		int32_t x, y, z, i;
+	} ci_params;
+	struct {
+		int32_t c3d[3], param[GPU_NB_PARAMS];
 	} geom;
 } gpuCmdVector;
 
@@ -156,7 +158,17 @@ gpuErr gpuWritev(const struct iovec *cmdvec, size_t count);
 
 uint32_t gpuReadErr(void);
 gpuErr gpuLoadImg(struct buffer_loc const *loc, uint8_t (*rgb)[3], unsigned lod);
-uint32_t gpuColor(unsigned r, unsigned g, unsigned b);
+static inline uint32_t gpuColor(unsigned r, unsigned g, unsigned b) {
+#ifdef GP2X
+	// Riped from Rlyeh minilib
+	uint32_t y = ((r<<9)+(g<<8)+(b<<8)+(r<<14)+(g<<15)+(b<<11)+(b<<12)+0x108000U)&0xFF0000U;
+	uint32_t u = ((b<<7)-(b<<4)-(r<<5)-(r<<2)-(r<<1)-(g<<6)-(g<<3)-(g<<1)+0x8080U)&0xFF00U;
+	uint32_t v = ((r<<23)-(r<<20)-(g<<21)-(g<<22)+(g<<17)-(b<<20)-(b<<17)+0x80800000U)&0xFF000000U;
+	return (v|y|u|(y>>16));
+#else
+	return (r<<11)|(g<<5)|(b);
+#endif
+}
 
 struct gpuBuf *gpuAlloc(unsigned width_log, unsigned height);
 void gpuFree(struct gpuBuf *buf);

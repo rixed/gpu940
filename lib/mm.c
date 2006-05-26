@@ -160,7 +160,7 @@ gpuErr gpuShowBuf(struct gpuBuf *buf) {
 		.opcode = gpuSHOWBUF,
 	};
 	assert(my_frame_count >= shared->frame_count);
-	if (my_frame_count-shared->frame_count >= GPU940_DISPLIST_SIZE) return gpuENOSPC;
+	if (my_frame_count-shared->frame_count >= GPU_DISPLIST_SIZE) return gpuENOSPC;
 	show.loc = buf->loc;
 	gpuErr err = gpuWrite(&show, sizeof(show));
 	if (gpuOK != err) goto sb_quit;

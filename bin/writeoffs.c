@@ -40,6 +40,8 @@ int main(void) {
 	printctxoff(poly.first_vector);
 	printctxoff(poly.nb_params);
 	printctxoff(poly.nc_log);
+	printctxoff(location.txt.address);
+	printctxoff(location.txt_mask);
 	printctxoff(line.count);
 	printctxoff(line.w);
 	printctxoff(line.dw);
@@ -48,5 +50,6 @@ int main(void) {
 	printctxoff(line.param);
 	printctxoff(line.dparam);
 	printshroff(buffers);
+	printf("BUFFERS_ADDR=0x%x\n", (unsigned)(((struct gpuShared *)(SHARED_PHYSICAL_ADDR-0x2000000U))->buffers));
 	return 0;
 }

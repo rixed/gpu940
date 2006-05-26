@@ -70,8 +70,8 @@ int main(void) {
 	gpuCmdFacet facet = {
 		.opcode = gpuFACET,
 		.size = sizeof_array(vectors),
-		.color = gpuColor(120, 130, 200),
-		.rendering_type = rendering_c,
+		.color = gpuColor(20, 30, 180),
+		.rendering_type = rendering_uv,
 	};
 	gpuCmdVector vec_bg[] = {
 		{ .geom = { .c3d = { -10<<16, -10<<16, -257 } }, },

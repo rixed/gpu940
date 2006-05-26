@@ -22,6 +22,7 @@
 .text
 .globl draw_line_c
 .globl draw_line_ci
+.globl draw_line_uv
 .align 4
 draw_line_c:
 	ldr r3, .ctx
@@ -78,45 +79,41 @@ draw_line_ci:
 	// quit
 	ldmfd	sp!, {r4-r10, pc}
 	
-	
-draw_line_uv_OLD:
-	stmfd	sp!, {r4-r11, lr}
+draw_line_uv:
+	stmfd	sp!, {r4-r12, lr}
 	ldr lr, .ctx
-	ldr r0, [lr, #OFF_ctx.line.count]
-	ldr r1, [lr, #OFF_ctx.poly.nc_log]
-	ldr r2, [lr, #OFF_ctx.line.w]
-	ldr r3, [lr, #OFF_ctx.line.dw]
-	ldr r4, [lr, #OFF_ctx.line.decliv]
-	ldr r5, [lr, #OFF_ctx.line.ddecliv]	
-	ldr r6, [lr, #OFF_ctx.line.param]	// u
-	ldr r7, [lr, #OFF_ctx.line.dparam]	// du
-	ldr r8, [lr, #(OFF_ctx.line.param+4)]	// v
-	ldr r9, [lr, #(OFF_ctx.line.dparam+4)]	// dv
-//	ldr lr, [lr, #OFF_ctx.poly.cmdFacet.texture]
-	ldr r11, .shared
-	ldr r11, [r11]
-//	add r11, r11, #OFF_shared.textures
-	add r11, r11, lr, lsl #9	// points to the chosen texture
-	// lr is free
+	ldr r0, [lr, #OFF_ctx.line.w]
+	ldr r1, [lr, #OFF_ctx.line.dw]
+	ldr r2, [lr, #OFF_ctx.poly.nc_log]
+	ldr r3, [lr, #OFF_ctx.line.decliv]
+	ldr r4, [lr, #OFF_ctx.line.ddecliv]
+	ldr r5, [lr, #OFF_ctx.line.param]	// U
+	ldr r6, [lr, #OFF_ctx.line.dparam]	// DU
+	ldr r7, [lr, #OFF_ctx.line.param+4]	// V
+	ldr r8, [lr, #OFF_ctx.line.dparam+4]	// DV
+	ldr r9, [lr, #OFF_ctx.location.txt_mask]
+	ldr r10, [lr, #OFF_ctx.location.txt.address]
+	add r10, r10, #BUFFERS_ADDR
+	ldr lr, [lr, #OFF_ctx.line.count]
 0:
 	// peek
-	and r10, r6, #0xff0000	//											1
-	and lr, r8, #0xff0000	//											1
-	add r10, r10, lr, lsl #8	// r10 = VU00							1
-	mov r10, r10, lsr #15		// offset into texture				1
-	ldrh r10, [r11, r10]			// r10 = texel							1 or 2 ?
-	add r6, r6, r7				// u += du								1
-	add r8, r8, r9				// v += dv								1
+	and r12, r9, r5, asr #14
+	and r11, r9, r7, asr #14
+	add r12, r12, r11, lsl #8	// this #8 to be patched when txt width change
+	ldr r11, [r10, r12]	// r11 = texel
 	// poke
-	mov lr, r4, asr #16		// lr = decliv>>16					1
-	mov lr, lr, asl r1		// lr <<= nc_log					2 (register controled shift)
-	strh r10, [r2, lr]			// write color into that addy		1
-	add r2, r2, r3				// w += dw								1
-	add r4, r4, r5				// decliv += ddecliv					1
+	mov r12, r3, asr #16	// r12 = decliv>>16
+	mov r12, r12, asl r2	// r12 <<= nc_log
+	str r11, [r0, r12]	// write color into that addy
 	// loop
-	subs r0, r0, #1			// count--								1
-	bge 0b						//											3
-	ldmfd	sp!, {r4-r11, pc}	//			total = 17 or 18 per pixel
+	add r0, r0, r1	// w += dw
+	add r3, r3, r4	// decliv += ddecliv
+	add r5, r5, r6	// u += du
+	add r7, r7, r8	// v += dv
+	subs lr, lr, #1	// count--
+	bge 0b
+	// quit
+	ldmfd	sp!, {r4-r12, pc}
 
 .shared: .word shared
 .ctx: .word ctx

@@ -15,6 +15,7 @@
  * along with gpu940; if not, write to the Free Software
  * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
  */
+#ifdef GP2X
 #include <stdint.h>
 #include "gpu940i.h"
 #include "../perftime/perftime.h"
@@ -118,4 +119,4 @@ uint64_t __udivdi3(uint64_t n, uint64_t d) {
 	perftime_return();
 	return q;
 }
-
+#endif

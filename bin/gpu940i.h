@@ -61,18 +61,19 @@ extern struct ctx {
 		int32_t winPos[2];	// position of the clipped window in the internal image buffer (0,0 meaning lower left corner in bottom left)
 		int32_t winHeight;	// computed from clipMin/Max
 		int32_t winWidth;
-		gpuPlane clipPlanes[GPU940_NB_CLIPPLANES];
+		gpuPlane clipPlanes[GPU_NB_CLIPPLANES];
 		uint32_t nb_clipPlanes;
 		uint32_t dproj;
 	} view;
 	// Buffer
 	struct {
 		struct buffer_loc out, txt, z;
+		uint32_t txt_mask;
 	} location;
 	// Current Polygon
 	struct {
 		gpuCmdFacet cmdFacet;
-		gpuVector vectors[MAX_FACET_SIZE+2*GPU940_NB_CLIPPLANES];
+		gpuVector vectors[MAX_FACET_SIZE+2*GPU_NB_CLIPPLANES];
 		int32_t z_alpha;
 		int32_t nc_declived;
 		int32_t bbox[3][2];
@@ -89,8 +90,8 @@ extern struct ctx {
 		struct {
 			int32_t c;	// 16.16
 			int32_t dc;	// 16.16
-			int32_t param[GPU940_NB_PARAMS];	// 16.16. Params are : U, V, Illum
-			int32_t param_alpha[GPU940_NB_PARAMS];	// 16.16
+			int32_t param[GPU_NB_PARAMS];	// 16.16. Params are : U, V, Illum
+			int32_t param_alpha[GPU_NB_PARAMS];	// 16.16
 			int32_t start_v;
 			int32_t end_v;
 			int32_t z_alpha_start;
@@ -103,8 +104,8 @@ extern struct ctx {
 		int32_t dw;
 		int32_t decliv;
 		int32_t ddecliv;
-		int32_t param[GPU940_NB_PARAMS];
-		int32_t dparam[GPU940_NB_PARAMS];
+		int32_t param[GPU_NB_PARAMS];
+		int32_t dparam[GPU_NB_PARAMS];
 	} line;
 } ctx;
 
