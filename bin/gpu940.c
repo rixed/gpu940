@@ -108,6 +108,7 @@ static void console_setup(void) {
 		}
 	}
 	while(1) ; */
+	console_setcolor(2);
 	console_write(0, 0, "GPU940 v" VERSION " ErrFlg:");
 	console_write(0, 1, "FrmCount:");
 	console_write(0, 2, "FrmMiss :");
@@ -117,18 +118,20 @@ static void console_setup(void) {
 static void console_stat(int y, int target) {
 	struct perftime_stat st;
 	perftime_stat(target, &st);
-	if (st.name) console_write(0, y, st.name);
-	console_write(17, y, "\xb3");
-	console_write_uint(18, y, 9, st.nb_enter);
-	console_write(28, y, "\xb3");
-	console_write_uint(29, y, 5, st.cumul_secs>>10);
-	console_write(35, y, "\xb3");
-	console_write_uint(36, y, 3, st.average);
+	unsigned c = st.average >= 40 ? 1:3;
+	if (st.name) { console_setcolor(c); console_write(0, y, st.name); }
+	console_setcolor(2); console_write(17, y, "\xb3");
+	console_setcolor(c); console_write_uint(18, y, 9, st.nb_enter);
+	console_setcolor(2); console_write(28, y, "\xb3");
+	console_setcolor(c); console_write_uint(29, y, 5, st.cumul_secs>>10);
+	console_setcolor(2); console_write(35, y, "\xb3");
+	console_setcolor(c); console_write_uint(36, y, 3, st.average);
 }
 static void update_console(void) {
 	static unsigned skip = 0;
 	skip = (skip+1)&0x7;
 	if (skip) return;
+	console_setcolor(3);
 	console_write_uint(20, 0, 3, shared->error_flags);
 	console_write_uint(9, 1, 5, shared->frame_count);
 	console_write_uint(9, 2, 5, shared->frame_miss);
@@ -197,7 +200,7 @@ static void shared_reset(void) {
 #ifdef GP2X
 	shared->osd_head[0] = 0;
 	// FIXME: use SCREEN_WIDTH / SCREEN_HEIGHT
-	shared->osd_head[1] = 0x87c000efU;	// 1000 0111 1100 0000 0000 0000 1110 1111
+	shared->osd_head[1] = 0x868000efU;	// 1000 0110 1000 0000 0000 0000 1110 1111
 	shared->osd_head[2] = 0x4000013fU;	// 0100 0000 0000 0000 0000 0001 0011 1111
 #endif
 	my_memset(shared->buffers, 0, sizeof(shared->buffers));

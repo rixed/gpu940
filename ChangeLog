@@ -1,4 +1,7 @@
 2005-05-25 rixed@free.fr
+	* OSD uses colors.
+
+2005-05-25 rixed@free.fr
 	* Fix DISPINT IRQ on GP2X (thank you Squidge).
 	* Fix OSD on GP2X.
 	* Add perfmeters.

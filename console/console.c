@@ -16,7 +16,7 @@
 SDL_Surface *sdl_console;
 #endif
 
-uint8_t color = 1;
+uint8_t color;
 
 /*
  * Private Functions
@@ -34,7 +34,7 @@ void plot_char(int x, int y, int c) {
 		uint16_t v = 0;	// works because char_width = 8 :-<
 		for (unsigned dx=0; dx<char_width(); dx++) {
 			if (consolefont[c][dy]&(0x80>>dx)) {
-				v |= 3<<(dx*2);
+				v |= (uint16_t)color<<(dx*2);
 			}
 		}
 		*w = v&0xff;
@@ -66,6 +66,7 @@ void console_clear_rect_(unsigned x, unsigned y, unsigned width, unsigned height
  */
 
 void console_begin(void) {
+	color = 1;
 #ifdef GP2X
 	// set address of OSD headers
 	uint32_t osd_head = (uint32_t)&((struct gpuShared *)SHARED_PHYSICAL_ADDR)->osd_head;
@@ -77,12 +78,15 @@ void console_begin(void) {
 	gp2x_regs16[0x2954>>1] = 0;
 	gp2x_regs16[0x2956>>1] = 0;	// color 0 (should not be set)
 	gp2x_regs16[0x2956>>1] = 0;
-	gp2x_regs16[0x2956>>1] = 0xffff;	// color 1
-	gp2x_regs16[0x2956>>1] = 0xffff;
-	gp2x_regs16[0x2956>>1] = 0xffff;	// color 2
-	gp2x_regs16[0x2956>>1] = 0xffff;
-	gp2x_regs16[0x2956>>1] = 0xffff;	// color 3
-	gp2x_regs16[0x2956>>1] = 0xffff;
+	// color 1
+	gp2x_regs16[0x2956>>1] = 0x3020;// CbCr
+	gp2x_regs16[0x2956>>1] = 0xff;// AlphY
+	// color 2
+	gp2x_regs16[0x2956>>1] = 0x8080;
+	gp2x_regs16[0x2956>>1] = 0x80;	// color 2
+	// color 3
+	gp2x_regs16[0x2956>>1] = 0xff10;
+	gp2x_regs16[0x2956>>1] = 0x90;	// color 3
 	// enable OSD
 	gp2x_regs16[0x2880>>1] |= 0x80;
 #else
@@ -121,7 +125,12 @@ unsigned console_height(void) {
 }
 
 void console_setcolor(uint8_t c) {
-	color = c;
+	color =
+#ifdef GP2X
+		c&3;
+#else
+		c;
+#endif
 }
 
 void console_write(int x, int y, char const *str) {
