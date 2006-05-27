@@ -166,7 +166,7 @@ static inline uint32_t gpuColor(unsigned r, unsigned g, unsigned b) {
 	uint32_t v = ((r<<23)-(r<<20)-(g<<21)-(g<<22)+(g<<17)-(b<<20)-(b<<17)+0x80800000U)&0xFF000000U;
 	return (v|y|u|(y>>16));
 #else
-	return (r<<11)|(g<<5)|(b);
+	return (r<<16)|(g<<8)|(b);
 #endif
 }
 

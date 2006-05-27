@@ -110,6 +110,7 @@ static void console_setup(void) {
 	while(1) ; */
 	console_setcolor(2);
 	console_write(0, 0, "GPU940 v" VERSION " ErrFlg:");
+	console_write(24, 0, "MHz:");
 	console_write(0, 1, "FrmCount:");
 	console_write(0, 2, "FrmMiss :");
 	console_write(0, 3, "Perfmeter        \xb3 nb calls \xb3 secs \xb3  %");
@@ -360,6 +361,40 @@ static void __unused play_div_anim(void) {
 	}
 }
 
+#define FULL_THROTTLE   8
+#define VERY_FAST       7
+#define REASONABLY_FAST 6
+#define MODERABLY_FAST  5
+#define ECONOMIC        4
+#define MODERATED       3
+#define QUITE_SLOW      2
+#define BLOATED         1
+#define SLOW_AS_HELL    0
+void set_speed(unsigned s) {
+#ifdef GP2X
+	static unsigned previous_speed = ~0U;
+	static struct {
+		unsigned mhz;
+		unsigned magik;
+	} speeds[FULL_THROTTLE+1] = {
+		{ 50, 0x6503 },
+		{ 75, 0x4902 },
+		{ 100, 0x6502 },
+		{ 125, 0x3c01 },
+		{ 150, 0x4901 },
+		{ 175, 0x3F04 },
+		{ 200, 0x4904 },
+		{ 225, 0x5304 },
+		{ 250, 0x5D04 }
+	};
+	if (previous_speed == s) return;
+	gp2x_regs16[0x0910>>1] = speeds[s].magik;
+	while (gp2x_regs16[0x0902>>1] & 1) ;
+	console_setcolor(3); console_write_uint(29, 0, 3, speeds[s].mhz);
+	previous_speed = s;
+#else
+#endif
+}
 static void run(void) {
 	//play_div_anim();
 	//play_nodiv_anim();
@@ -369,11 +404,12 @@ static void run(void) {
 #endif
 		if (shared->cmds_end == shared->cmds_begin) {
 #ifdef GP2X
-			// sleep, downclock, whatever. TODO
+			//set_speed(SLOW_AS_HELL);
 #else
 			(void)sched_yield();
 #endif
 		} else {
+			set_speed(FULL_THROTTLE);
 			fetch_command();
 		}
 	}
@@ -420,8 +456,11 @@ void irq_handler(void) {
 	gp2x_regs32[0x4500>>2] = 1U<<irq;
 	gp2x_regs32[0x4510>>2] = 1U<<irq;
 }
+
 void mymain(void) {	// to please autoconf, we call this 'main'
 	if (-1 == perftime_begin(0, NULL, 0)) goto quit;
+	set_speed(ECONOMIC);
+	// Init datas
 	ctx_reset();
 	shared_reset();
 	// MLC_OVLAY_CNTR
