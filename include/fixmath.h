@@ -44,6 +44,10 @@ static inline int32_t Fix_abs(int32_t v) {
 	int32_t m=v>>31;
 	return (v^m)-m;
 }
+static inline int64_t Fix_abs64(int64_t v) {
+	int64_t m=v>>63;
+	return (v^m)-m;
+}
 static inline int32_t Fix_inv(int32_t v) {
 	if (v>0) return ((uint32_t)~0U)/(uint32_t)v;
 	else return -((uint32_t)~0U)/(uint32_t)-v;
