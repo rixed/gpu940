@@ -119,6 +119,9 @@ static void proj_vec(unsigned v) {
 // We must first init other members of facet and vectors, then clip, updating facet size as we add/remove vectors.
 // return true if something is left to be displayed.
 int clip_poly(void) {
+	int disp = 0;
+	unsigned previous_target = perftime_target();
+	perftime_enter(PERF_CLIP, "clip & proj");
 	// init facet
 	switch (ctx.poly.cmdFacet.rendering_type) {
 		case rendering_c:
@@ -135,7 +138,7 @@ int clip_poly(void) {
 			break;
 		default:
 			set_error_flag(gpuEPARAM);
-			return 0;
+			goto ret;
 	}
 	// init vectors
 	unsigned v;
@@ -149,7 +152,7 @@ int clip_poly(void) {
 	ctx.poly.vectors[0].prev = v-1;
 	ctx.poly.vectors[v-1].next = 0;
 	for (v=0; v<ctx.view.nb_clipPlanes; v++) {
-		if (! clip_facet_by_plane(v)) return 0;
+		if (! clip_facet_by_plane(v)) goto ret;
 	}
 	ctx.poly.cmdFacet.size = 0;
 	v = ctx.poly.first_vector;
@@ -158,6 +161,9 @@ int clip_poly(void) {
 		ctx.poly.cmdFacet.size ++;
 		v = ctx.poly.vectors[v].next;
 	} while (v != ctx.poly.first_vector);
-	return 1;
+	disp = 1;
+ret:
+	perftime_enter(previous_target, NULL);
+	return disp;
 }
 

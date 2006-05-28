@@ -499,9 +499,9 @@ uninstall-am: uninstall-binPROGRAMS uninstall-info-am
 @GP2X_TRUE@writeoffs: writeoffs.c gpu940i.h ../include/gpu940.h
 #	$(CC) $(CFLAGS) $(AM_CFLAGS) $(LDFLAGS) $(AM_LDFLAGS) -std=c99 -Wall -W -o writeoffs writeoffs.c
 @GP2X_TRUE@	$(HOST_CC) -std=c99 -Wall -W -o $@ $< -I$(top_srcdir)/include
-@GP2X_TRUE@offsets.S: writeoffs
+@GP2X_TRUE@offsets.S: writeoffs $(top_srcdir)/include/gpu940.h $(top_srcdir)/bin/gpu940i.h
 @GP2X_TRUE@	$< > $@
-@GP2X_TRUE@draw_line.gp2x.S: offsets.S
+@GP2X_TRUE@draw_line.gp2x.o: offsets.S
 @GP2X_TRUE@gpu940: $(gpu940_OBJECTS) script.ld $(top_srcdir)/console/libconsole.a $(top_srcdir)/perftime/libperftime.a
 @GP2X_TRUE@	$(LD) -o $@.elf $(LDFLAGS) -L$(top_srcdir)/console -L$(top_srcdir)/perftime -T script.ld -N -s
 @GP2X_TRUE@	$(OBJCOPY) --output-target binary --only-section upper32 $@.elf $@

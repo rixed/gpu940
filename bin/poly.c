@@ -92,7 +92,7 @@ extern void draw_line_uv(void);
 static void draw_line_uv(void) {
 	do {
 		uint32_t color = texture_color(&ctx.location.txt, ctx.line.param[0], ctx.line.param[1]);
-		//	if (start_poly) color |= ctx.poly.scan_dir ? 0x3e0 : 0xf800;
+//		if (start_poly) color |= ctx.poly.scan_dir ? 0x3e0 : 0xf800;
 		uint32_t *w = (uint32_t *)(ctx.line.w + ((ctx.line.decliv>>16)<<ctx.poly.nc_log));
 		*w = color;
 		ctx.line.w += ctx.line.dw;
@@ -173,6 +173,7 @@ static void draw_line(void) {
 
 // nb DIVs = 2 + 3*nb_sizes+2*nb_scan_lines
 void draw_poly(void) {
+	unsigned previous_target = perftime_target();
 	perftime_enter(PERF_POLY, "poly");
 	start_poly = 6;
 	ctx.poly.decliveness = 0;
@@ -324,6 +325,6 @@ void draw_poly(void) {
 		}
 	} while (1);
 end_poly:;
-	perftime_leave();
+	perftime_enter(previous_target, NULL);
 }
 

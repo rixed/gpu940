@@ -23,6 +23,7 @@
 .globl draw_line_c
 .globl draw_line_ci
 .globl draw_line_uv
+.globl patch_uv_width_code
 .align 4
 draw_line_c:
 	ldr r3, .ctx
@@ -31,10 +32,10 @@ draw_line_c:
 	ldr r2, [r3, #OFF_ctx.line.dw]
 	ldr r3, [r3, #OFF_ctx.poly.cmdFacet.color]
 0:
-	subs r0, r0, #1		// count--
-	str r3, [r1]		// write color into that addy
-	add r1, r1, r2			// w += dw
-	bge 0b
+	subs r0, r0, #2
+	str r3, [r1], r2
+	strpl r3, [r1], r2
+	bhi 0b
 	mov pc, lr
 
 draw_line_ci:
@@ -93,24 +94,26 @@ draw_line_uv:
 	ldr r8, [lr, #OFF_ctx.line.dparam+4]	// DV
 	ldr r9, [lr, #OFF_ctx.location.txt_mask]
 	ldr r10, [lr, #OFF_ctx.location.txt.address]
+	mov r10, r10, lsl #2
 	add r10, r10, #BUFFERS_ADDR
 	ldr lr, [lr, #OFF_ctx.line.count]
 0:
 	// peek
-	and r12, r9, r5, asr #14
-	and r11, r9, r7, asr #14
-	add r12, r12, r11, lsl #8	// this #8 to be patched when txt width change
-	ldr r11, [r10, r12]	// r11 = texel
+	and r12, r9, r5, asr #16	// r12 = U
+	and r11, r9, r7, asr #16	// r11 = V
+	add r5, r5, r6	// U += DU
+patch_uv_width_code:
+	add r12, r12, r11, lsl #6	// r12 = VU*4 (this #8 to be patched when txt width change)
+	add r7, r7, r8	// V += DV
+	ldr r11, [r10, r12, lsl #2]	// r11 = texel
 	// poke
 	mov r12, r3, asr #16	// r12 = decliv>>16
 	mov r12, r12, asl r2	// r12 <<= nc_log
+	add r3, r3, r4	// decliv += ddecliv
+	subs lr, lr, #1	// count--
 	str r11, [r0, r12]	// write color into that addy
 	// loop
 	add r0, r0, r1	// w += dw
-	add r3, r3, r4	// decliv += ddecliv
-	add r5, r5, r6	// u += du
-	add r7, r7, r8	// v += dv
-	subs lr, lr, #1	// count--
 	bge 0b
 	// quit
 	ldmfd	sp!, {r4-r12, pc}

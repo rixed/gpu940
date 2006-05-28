@@ -30,7 +30,6 @@ static unsigned (*gettime)(void);
 static unsigned freq;
 static unsigned wrap_after;
 static unsigned in_target;
-static unsigned previous_target;
 static unsigned long long total_time;	// if a timer can make an unsigned wrap, then total_time must be greater.
 
 #ifndef GP2X
@@ -59,7 +58,7 @@ static void update_in_target(unsigned now) {
 	if (likely(now >= stats[in_target].last_time_in)) {	// no wrap
 		elapsed_time = now - stats[in_target].last_time_in;
 	} else {
-		elapsed_time = now + (wrap_after - stats[in_target].last_time_in + 1);
+		elapsed_time = 0;//now + (wrap_after - stats[in_target].last_time_in + 1);
 	}
 	stats[in_target].tot_time += elapsed_time;
 	total_time += elapsed_time;
@@ -75,7 +74,6 @@ int perftime_begin(unsigned freq_, unsigned (*gettime_)(void), unsigned wrap_aft
 	}
 	total_time = 0;
 	in_target = ~0U;
-	previous_target = ~0U;
 	for (unsigned t=0; t<sizeof_array(stats); t++) {
 		stats[t].name = NULL;
 		stats[t].nb_enter = 0;
@@ -100,30 +98,18 @@ int perftime_begin(unsigned freq_, unsigned (*gettime_)(void), unsigned wrap_aft
 }
 
 void perftime_enter(unsigned target, char const *name) {
-	assert(target<sizeof_array(stats));
 	unsigned now = gettime();
 	if (~0U != in_target) update_in_target(now);
-	if (name) stats[target].name = name;
-	stats[target].nb_enter ++;
-	stats[target].last_time_in = now;
-	previous_target = in_target;
+	if (~0U != target) {
+		if (name) stats[target].name = name;
+		stats[target].nb_enter ++;
+		stats[target].last_time_in = now;
+	}
 	in_target = target;
 }
 
-void perftime_leave(void) {
-	assert(~0U != in_target);
-	unsigned now = gettime();
-	update_in_target(now);
-	previous_target = in_target;
-	in_target = ~0U;
-}
-
-void perftime_return(void) {
-	if (previous_target != ~0U) {
-		perftime_enter(previous_target, NULL);
-	} else {
-		perftime_leave();
-	}
+unsigned perftime_target(void) {
+	return in_target;
 }
 
 void perftime_stat(unsigned target, struct perftime_stat *s) {

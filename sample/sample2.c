@@ -27,7 +27,7 @@
 #include "fixmath.h"
 
 static uint8_t pascale[256*256][3];
-static uint8_t img[256*256][3];
+static uint8_t img[64*64][3];
 
 static void satadd(uint8_t *v, int d) {
 	d = *v + d;
@@ -41,18 +41,18 @@ static void satsub(uint8_t *v, int d) {
 }
 
 static void pass(int u, int v, int cu, int cv, int dr, int dg, int db) {
-	for (int y=256; y--; ) {
-		for (int x=256; x--; ) {
+	for (int y=64; y--; ) {
+		for (int x=64; x--; ) {
 			int yy = y-cu;
 			int xx = x-cv;
 			if (xx*u + yy*v > 0) {
-				satadd(img[y*256+x]+0, dr);
-				satadd(img[y*256+x]+1, dg);
-				satadd(img[y*256+x]+2, db);
+				satadd(img[y*64+x]+0, dr);
+				satadd(img[y*64+x]+1, dg);
+				satadd(img[y*64+x]+2, db);
 			} else {
-				satsub(img[y*256+x]+0, dr);
-				satsub(img[y*256+x]+1, dg);
-				satsub(img[y*256+x]+2, db);
+				satsub(img[y*64+x]+0, dr);
+				satsub(img[y*64+x]+1, dg);
+				satsub(img[y*64+x]+2, db);
 			}
 		}
 	}
@@ -67,7 +67,7 @@ static int randc(void) {
 	return ((rand()>>5)&3);
 }
 static void gen_img(void) {
-	memset(img, 28, 256*256*3);
+	memset(img, 28, 64*64*3);
 	for (unsigned i=500; i--; ) {
 		pass(randi(), randi(), randu(), randu(), randc(), randc(), randc());
 	}
@@ -181,7 +181,7 @@ int main(void) {
 		return EXIT_FAILURE;
 	}
 	gen_img();
-	struct gpuBuf *txtGenBuf = gpuAlloc(8, 256);
+	struct gpuBuf *txtGenBuf = gpuAlloc(6, 64);
 	if (! txtGenBuf) {
 		fprintf(stderr, "Cannot alloc buf for texture\n");
 		return EXIT_FAILURE;

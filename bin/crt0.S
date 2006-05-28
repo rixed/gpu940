@@ -32,16 +32,21 @@ _reset:
 	mov r0, #0x1F
 	mcr p15, 0, r0, c6, c2, 0
 	mcr p15, 0, r0, c6, c2, 1
+	// region 3 (area of shared->buffers used for textures)
+	mov r0, #0x2F	// 16 Mb from 0
+	mcr p15, 0, r0, c6, c3, 0
+	// As it's faster to have both read and writes cached, we should do the oposite : all cacheable, then some parts of shared + registers non cacheable.
 	// And that's all.
 	// Only region 2 is cacheable, both for code and data
-	mov r0, #0x4
+	mov r0, #0xC	// reg 3 cacheable also
 	mcr p15, 0, r0, c2, c0, 0
+	mov r0, #0x4
 	mcr p15, 0, r0, c2, c0, 1
 	// Only regions 0 and 2 are bufferables (IO registers are not)
-	mov r0, #0x5
+	mov r0, #0xD //#0x5
 	mcr p15, 0, r0, c3, c0, 0
 	// Full access for all runlevels to all these regions for datas
-	mov r0, #0x3F
+	mov r0, #0xFF //#0x3F
 	mcr p15, 0, r0, c5, c0, 0
 	// Only to region 2 for instructions
 	mov r0, #0x30
@@ -57,7 +62,7 @@ _reset:
 	ldr r11, =0xFACE0000
 	stmdb r13!, {r11,r12}
 	bl mymain
-	// TODO sheck for dead beef face
+	// TODO check for dead beef face
 	b _reset
 
 _undefi:

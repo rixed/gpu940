@@ -1,3 +1,8 @@
+2005-05-28 rixed@free.fr
+	* Downclock when iddle on GP2X.
+	* Better division.
+	* Fix textures when size is not 256.
+
 2005-05-27 rixed@free.fr
 	* CLocking the 940T to full speed.
 	* Better division routine.

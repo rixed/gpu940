@@ -61,6 +61,7 @@ static unsigned displist_begin = 0, displist_end = 0;	// same convention than fo
 
 static void display(struct buffer_loc const *loc) {
 	// display current workingBuffer
+	int in_target = perftime_target();
 	perftime_enter(PERF_DISPLAY, "display");
 #ifdef GP2X
 	static unsigned previous_width = 0;
@@ -93,7 +94,7 @@ static void display(struct buffer_loc const *loc) {
 	SDL_BlitSurface(sdl_console, NULL, sdl_screen, NULL);
 	SDL_UpdateRect(sdl_screen, 0, 0, ctx.view.winWidth, ctx.view.winHeight);
 #endif
-	perftime_leave();
+	perftime_enter(in_target, NULL);
 }
 
 static void console_setup(void) {
@@ -113,7 +114,7 @@ static void console_setup(void) {
 	console_write(24, 0, "MHz:");
 	console_write(0, 1, "FrmCount:");
 	console_write(0, 2, "FrmMiss :");
-	console_write(0, 3, "Perfmeter        \xb3 nb calls \xb3 secs \xb3  %");
+	console_write(0, 3, "Perfmeter        \xb3 nb enter \xb3 secs \xb3  %");
 	console_write(0, 4, "\xc4\xc4\xc4\xc4\xc4\xc4\xc4\xc4\xc4\xc4\xc4\xc4\xc4\xc4\xc4\xc4\xc4\xc5\xc4\xc4\xc4\xc4\xc4\xc4\xc4\xc4\xc4\xc4\xc5\xc4\xc4\xc4\xc4\xc4\xc4\xc5\xc4\xc4\xc4\xc4\xc4");
 }
 static void console_stat(int y, int target) {
@@ -137,9 +138,11 @@ static void update_console(void) {
 	console_write_uint(9, 1, 5, shared->frame_count);
 	console_write_uint(9, 2, 5, shared->frame_miss);
 	console_stat(5, PERF_DISPLAY);
-	console_stat(6, PERF_POLY);
-	console_stat(7, PERF_POLY_DRAW);
-	console_stat(8, PERF_DIV);
+	console_stat(6, PERF_CLIP);
+	console_stat(7, PERF_POLY);
+	console_stat(8, PERF_POLY_DRAW);
+	console_stat(9, PERF_DIV);
+//	console_stat(10, PERF_WAITCMD);
 }
 
 
@@ -270,7 +273,22 @@ static void do_setTxtBuf(void) {
 		return;
 	}
 	my_memcpy(&ctx.location.txt, &allCmds.setTxtBuf.loc, sizeof(ctx.location.txt));
-	ctx.location.txt_mask = ((1<<ctx.location.txt.width_log)-1)<<2;
+#ifdef GP2X
+	unsigned new_mask = (1<<ctx.location.txt.width_log)-1;
+	if (new_mask != ctx.location.txt_mask) {
+		ctx.location.txt_mask = new_mask;
+		extern uint16_t patch_uv_width_code;
+		// Never ever _read_ this value, or it will be loaded in DCache ; so
+		// that there is no need to clean and flush DCache.
+		patch_uv_width_code = 0xc00b | (ctx.location.txt.width_log<<7);
+		__asm__ volatile (	// Drain write buffer then fush ICache
+			"mov r0, #0\n"
+			"mcr p15, 0, r0, c7, c10, 4\n"
+			"mcr p15, 0, r0, c7, c5, 0\n"
+			:::"r0"
+		);
+	}
+#endif
 }
 static void do_setZBuf(void) {
 	read_from_cmdBuf(&allCmds.setZBuf, sizeof(allCmds.setZBuf));
@@ -393,23 +411,39 @@ void set_speed(unsigned s) {
 	console_setcolor(3); console_write_uint(29, 0, 3, speeds[s].mhz);
 	previous_speed = s;
 #else
+	(void)s;
 #endif
 }
 static void run(void) {
 	//play_div_anim();
 	//play_nodiv_anim();
+//	perftime_enter(PERF_WAITCMD, "idle");
+#ifdef GP2X
+	unsigned wait = 0;
+#endif
 	while (1) {
 #ifndef GP2X
 		if (SDL_QuitRequested()) return;
 #endif
 		if (shared->cmds_end == shared->cmds_begin) {
 #ifdef GP2X
-			//set_speed(SLOW_AS_HELL);
+#define TIME_FOR_A_BREAK 0x1000000
+			if (wait == TIME_FOR_A_BREAK) {
+				set_speed(SLOW_AS_HELL);
+			}
+			if (wait <= TIME_FOR_A_BREAK) {
+				wait ++;
+			}
 #else
 			(void)sched_yield();
 #endif
 		} else {
-			set_speed(FULL_THROTTLE);
+#ifdef GP2X
+			if (wait >= TIME_FOR_A_BREAK) {
+				set_speed(FULL_THROTTLE);
+			}
+			wait = 0;
+#endif
 			fetch_command();
 		}
 	}
@@ -459,7 +493,6 @@ void irq_handler(void) {
 
 void mymain(void) {	// to please autoconf, we call this 'main'
 	if (-1 == perftime_begin(0, NULL, 0)) goto quit;
-	set_speed(ECONOMIC);
 	// Init datas
 	ctx_reset();
 	shared_reset();
@@ -506,6 +539,7 @@ void mymain(void) {	// to please autoconf, we call this 'main'
 	enable_irqs();
 	console_begin();
 	console_setup();
+	set_speed(FULL_THROTTLE);
 	run();
 	console_end();
 quit:;

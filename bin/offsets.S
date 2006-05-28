@@ -24,5 +24,5 @@ OFF_ctx.line.decliv=1992
 OFF_ctx.line.ddecliv=1996
 OFF_ctx.line.param=2000
 OFF_ctx.line.dparam=2012
-OFF_shared.buffers=262144
-BUFFERS_ADDR=0x50000
+OFF_shared.buffers=0
+BUFFERS_ADDR=0x10000

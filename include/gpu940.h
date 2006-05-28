@@ -62,8 +62,8 @@ typedef struct {
 // Commands
 
 extern struct gpuShared {
-	uint32_t cmds[0x10000];	// 1Mbytes for commands
 	uint32_t buffers[0x770000];	// 30Mbytes for buffers
+	uint32_t cmds[0x10000];	// 1Mbytes for commands
 	// All integer members are supposed to have the same property as sig_atomic_t.
 	volatile int32_t cmds_begin;	// first word beeing actually used by the gpu. let libgpu read in there.
 	volatile int32_t cmds_end;	// last word + 1 beeing actually used by the gpu. let libgpu write in there.

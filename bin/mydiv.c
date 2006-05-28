@@ -20,28 +20,32 @@
 #include "gpu940i.h"
 #include "../perftime/perftime.h"
 
+/*
+ * Private Functions
+ */
+
 static int nbbit(uint64_t v, int n) {
 	while (n && 0 == (v&((uint64_t)1<<(n-1)))) n--;
 	return n;
 }
 
-static uint64_t unsigned_divide(uint64_t dividend, uint64_t divisor) {
-	uint64_t R = dividend;
-	uint64_t const D = divisor;
-	uint64_t Q = 0;
-	int d = nbbit(D, 64);
-	int e, r = 64;
+static uint64_t unsigned_divide(uint64_t R, uint64_t D) {
+	uint64_t Q = 0, normD;
+	int d = nbbit(D, (D>>32) ? 64:32);	// many times we come here with R and/or D beeing 32 bits only
+	int r = (R>>32) ? 64:32, e;
 	while (R >= D) {
 		r = nbbit(R, r);
-		e = r-d-1;
-		if (e<0) e=0;
-		R -= D<<e;
+		e = r-d;
+		normD = D << e;
+		if (normD > R) {
+			normD >>= 1;
+			e --;
+		}
+		R -= normD;
 		Q += (uint64_t)1<<e;
 	}
 	return Q;
 }
-
-#define myabs(x)  ((x) < 0 ? -(x) : (x))
 
 static int64_t signed_divide(int64_t n, int64_t d) {
 	uint64_t dd = Fix_abs64(n);
@@ -51,31 +55,40 @@ static int64_t signed_divide(int64_t n, int64_t d) {
 	return -q;
 }
 
+/*
+ * Public Functions (GCC)
+ */
+
 int32_t __divsi3(int32_t n, int32_t d) {
+	unsigned previous_target = perftime_target();
 	perftime_enter(PERF_DIV, "div");
 	int32_t q = signed_divide(n, d);
-	perftime_return();
+	perftime_enter(previous_target, NULL);
 	return q;
 }
 
 uint32_t __udivsi3(uint32_t n, uint32_t d) {
+	unsigned previous_target = perftime_target();
 	perftime_enter(PERF_DIV, "div");
 	uint32_t q = unsigned_divide(n, d);
-	perftime_return();
+	perftime_enter(previous_target, NULL);
 	return q;
 }
 
 int64_t __divdi3(int64_t n, int64_t d) {
+	unsigned previous_target = perftime_target();
 	perftime_enter(PERF_DIV, "div");
 	int64_t q = signed_divide(n, d);
-	perftime_return();
+	perftime_enter(previous_target, NULL);
 	return q;
 }
 
 uint64_t __udivdi3(uint64_t n, uint64_t d) {
+	unsigned previous_target = perftime_target();
 	perftime_enter(PERF_DIV, "div");
 	uint64_t q = unsigned_divide(n, d);
-	perftime_return();
+	perftime_enter(previous_target, NULL);
 	return q;
 }
+
 //#endif

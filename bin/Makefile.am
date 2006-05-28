@@ -26,9 +26,9 @@ HOST_CC=gcc
 writeoffs: writeoffs.c gpu940i.h ../include/gpu940.h
 #	$(CC) $(CFLAGS) $(AM_CFLAGS) $(LDFLAGS) $(AM_LDFLAGS) -std=c99 -Wall -W -o writeoffs writeoffs.c
 	$(HOST_CC) -std=c99 -Wall -W -o $@ $< -I$(top_srcdir)/include
-offsets.S: writeoffs
+offsets.S: writeoffs $(top_srcdir)/include/gpu940.h $(top_srcdir)/bin/gpu940i.h
 	$< > $@
-draw_line.gp2x.S: offsets.S
+draw_line.gp2x.o: offsets.S
 
 OBJCOPY = /usr/local/devkitPro/devkitGP2X/bin/arm-linux-objcopy
 OBJDUMP = /usr/local/devkitPro/devkitGP2X/bin/arm-linux-objdump

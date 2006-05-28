@@ -1,4 +1,5 @@
 #!/bin/sh
 . gp2xenv.sh
+export CFLAGS="$CFLAGS -mcpu=arm940t"
 ./configure --enable-gp2x --host=arm-linux
 make clean
