@@ -2,6 +2,7 @@
 	* Downclock when iddle on GP2X.
 	* Better division.
 	* Fix textures when size is not 256.
+	* Add a reset command.
 
 2005-05-27 rixed@free.fr
 	* CLocking the 940T to full speed.

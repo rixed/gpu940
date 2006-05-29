@@ -196,18 +196,20 @@ static void ctx_reset(void) {
 	ctx.view.nb_clipPlanes = 5;
 }
 
-static void shared_reset(void) {
-	shared->cmds_begin = shared->cmds_end = 0;
+static void shared_soft_reset(void) {
 	shared->frame_count = 0;
 	shared->frame_miss = 0;
 	shared->error_flags = 0;
+}
+static void shared_reset(void) {
+	shared->cmds_begin = shared->cmds_end = 0;
 #ifdef GP2X
 	shared->osd_head[0] = 0;
 	// FIXME: use SCREEN_WIDTH / SCREEN_HEIGHT
 	shared->osd_head[1] = 0x868000efU;	// 1000 0110 1000 0000 0000 0000 1110 1111
 	shared->osd_head[2] = 0x4000013fU;	// 0100 0000 0000 0000 0000 0001 0011 1111
 #endif
-	my_memset(shared->buffers, 0, sizeof(shared->buffers));
+	shared_soft_reset();
 }
 
 // All unsigned sizes are in words
@@ -243,6 +245,7 @@ static void read_from_cmdBuf(void *dest, size_t size_) {
  */
 
 static union {
+	gpuCmdReset reset;
 	gpuCmdSetView setView;
 	gpuCmdSetOutBuf setOutBuf;
 	gpuCmdSetTxtBuf setTxtBuf;
@@ -322,11 +325,20 @@ static void do_facet(void) {
 		draw_poly();
 	}
 }
+static void do_reset(void) {
+	read_from_cmdBuf(&allCmds.reset, sizeof(allCmds.reset));
+	perftime_reset();
+	ctx_reset();
+	shared_soft_reset();
+}
 
 static void fetch_command(void) {
 	uint32_t first_word;
 	copy32(&first_word, shared->cmds+shared->cmds_begin, 1);
 	switch (first_word) {
+		case gpuRESET:
+			do_reset();
+			break;
 		case gpuSETVIEW:
 			do_setView();
 			break;
@@ -493,9 +505,6 @@ void irq_handler(void) {
 
 void mymain(void) {	// to please autoconf, we call this 'main'
 	if (-1 == perftime_begin(0, NULL, 0)) goto quit;
-	// Init datas
-	ctx_reset();
-	shared_reset();
 	// MLC_OVLAY_CNTR
 	uint16_t v = gp2x_regs16[0x2880>>1];
 	v &= 0x0400;	// keep reserved bit
@@ -537,6 +546,9 @@ void mymain(void) {	// to please autoconf, we call this 'main'
 	gp2x_regs16[0x2846>>1] |= 0x20;
 	// and now, enable IRQs
 	enable_irqs();
+	// Init datas
+	ctx_reset();
+	shared_reset();
 	console_begin();
 	console_setup();
 	set_speed(FULL_THROTTLE);

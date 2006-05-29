@@ -93,7 +93,8 @@ gpuErr gpuOpen(void) {
 		fprintf(stderr, "  @%x\n", (unsigned)SHARED_PHYSICAL_ADDR);
 		return gpuESYS;
 	}
-	return gpuOK;
+	static gpuCmdReset reset = { .opcode = gpuRESET };
+	return gpuWrite(&reset, sizeof(reset));
 #	undef MMAP_OFFSET
 }
 

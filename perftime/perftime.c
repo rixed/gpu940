@@ -68,16 +68,19 @@ static void update_in_target(unsigned now) {
  * Public Functions
  */
 
-int perftime_begin(unsigned freq_, unsigned (*gettime_)(void), unsigned wrap_after_) {
-	for (unsigned t=0; t<sizeof_array(stats); t++) {
-		stats[t].nb_enter = 0;
-	}
+void perftime_reset(void) {
 	total_time = 0;
 	in_target = ~0U;
 	for (unsigned t=0; t<sizeof_array(stats); t++) {
-		stats[t].name = NULL;
 		stats[t].nb_enter = 0;
 		stats[t].tot_time = 0;
+	}
+}
+
+int perftime_begin(unsigned freq_, unsigned (*gettime_)(void), unsigned wrap_after_) {
+	perftime_reset();
+	for (unsigned t=0; t<sizeof_array(stats); t++) {	// reset keeps the names, just flush stats
+		stats[t].name = NULL;
 	}
 	if (gettime_) {
 		gettime = gettime_;

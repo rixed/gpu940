@@ -79,6 +79,7 @@ extern struct gpuShared {
 // there must be enought room after this for the video console, and 64Kb before for code+stack
 
 typedef enum {
+	gpuRESET,
 	gpuSETVIEW,
 	gpuSETOUTBUF,	// change view parameters
 	gpuSETTXTBUF,
@@ -94,6 +95,10 @@ struct buffer_loc {
 	uint32_t width_log;	// width in bytes
 	uint32_t height;
 };
+
+typedef struct {
+	gpuOpcode opcode;
+} gpuCmdReset;
 
 typedef struct {
 	uint32_t dproj;

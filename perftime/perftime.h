@@ -16,6 +16,8 @@ int perftime_begin(unsigned freq, unsigned (*gettime)(void), unsigned wrap_after
 void perftime_enter(unsigned target, char const *name);
 unsigned perftime_target(void);
 
+void perftime_reset(void);
+
 void perftime_stat(unsigned target, struct perftime_stat *stat);
 
 void perftime_stat_print(int fd, unsigned target);
