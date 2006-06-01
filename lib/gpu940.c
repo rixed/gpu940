@@ -94,7 +94,10 @@ gpuErr gpuOpen(void) {
 		return gpuESYS;
 	}
 	static gpuCmdReset reset = { .opcode = gpuRESET };
-	return gpuWrite(&reset, sizeof(reset));
+	gpuErr err = gpuWrite(&reset, sizeof(reset));
+	if (gpuOK != err) return err;
+	while (shared->frame_count != 0) ;
+	return gpuOK;
 #	undef MMAP_OFFSET
 }
 

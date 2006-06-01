@@ -38,6 +38,7 @@ static inline int32_t FixMat_scalar(int32_t v1[3], int32_t v2[3]) {
 }
 
 static inline bool Fix_same_sign(int32_t v0, int32_t v1) {
+	if (v0 == 0 || v1 == 0) return 1;	// 0 have both signs
 	return (v0&0x80000000)==(v1&0x80000000);
 }
 static inline int32_t Fix_abs(int32_t v) {
@@ -59,6 +60,8 @@ int64_t Fix_mul64x64(int64_t v, int64_t w);
 void Fix_trig_init(void);
 int32_t Fix_cos(int32_t ang);
 int32_t Fix_sin(int32_t ang);
+
+int32_t Fix_sqrt(int32_t n);
 
 #define is_power_of_2(v) (0 == ((v)&((v)-1)))
 

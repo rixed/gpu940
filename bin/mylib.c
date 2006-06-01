@@ -52,22 +52,6 @@ void my_memcpy(void *restrict dst, void const *restrict src, size_t size) {
 	}
 }
 
-#define iter1(N) \
-	try = root + (1 << (N)); \
-	if (n >= try << (N)) { \
-		n -= try << (N); \
-		root |= 2 << (N); \
-	}
-
-int32_t my_sqrt(int32_t n) {
-	int32_t root = 0, try;
-	iter1(15); iter1(14); iter1(13); iter1(12);
-	iter1(11); iter1(10); iter1( 9); iter1( 8);
-	iter1( 7); iter1( 6); iter1( 5); iter1( 4);
-	iter1( 3); iter1( 2); iter1( 1); iter1( 0);
-	return root >> 1;
-}
-
 void my_print(char const *str) {
 	int len = 0;
 	while ('\0' != str[len]) len++;

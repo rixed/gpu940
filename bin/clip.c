@@ -68,6 +68,7 @@ static int clip_facet_by_plane(unsigned p) {
 	if (0 == nb_new_v) {
 		return ~0U != last_in;
 	}
+	assert(~0U != last_in);
 	if (ctx.poly.vectors[ctx.poly.first_vector].h > 0) {
 		ctx.poly.vectors[new_v[0]].next = new_v[1];
 		ctx.poly.vectors[new_v[1]].prev = new_v[0];

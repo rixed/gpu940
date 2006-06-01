@@ -144,7 +144,7 @@ static void send_facet(unsigned v0) {
 		.size = 4,
 		.rendering_type = rendering_uvi,
 	};
-	static struct iovec cmdvec[1+4+1] = {
+	static struct iovec cmdvec[4+1] = {
 		{ .iov_base = &facet, .iov_len = sizeof(facet) },
 		{ .iov_len = sizeof(*vectors) },
 		{ .iov_len = sizeof(*vectors) },

@@ -88,4 +88,23 @@ int32_t Fix_cos(int32_t ang) {
 int32_t Fix_sin(int32_t ang) {
 	return sincos[NB_STEPS/4 + (ang&(NB_STEPS-1))];
 }
+
+// The following sqrt function was posted by Dijkstra on newsgroups
+#define iter1(N) \
+	try = root + (1 << (N)); \
+	if (n >= try << (N)) { \
+		n -= try << (N); \
+		root |= 2 << (N); \
+	}
+
+int32_t Fix_sqrt(int32_t n) {
+	int32_t root = 0, try;
+	iter1(15); iter1(14); iter1(13); iter1(12);
+	iter1(11); iter1(10); iter1( 9); iter1( 8);
+	iter1( 7); iter1( 6); iter1( 5); iter1( 4);
+	iter1( 3); iter1( 2); iter1( 1); iter1( 0);
+	return root >> 1;
+}
+
+
 #undef NB_STEPS

@@ -18,6 +18,7 @@
 /* This handle memory (de)allocation of shared->buffers memory region.
  */
 #include <stdlib.h>
+#include <stdio.h>
 #include <assert.h>
 #include <stddef.h>
 #include "gpu940.h"
@@ -62,6 +63,7 @@ static struct gpuBuf *buf_new(void) {
 		for (unsigned i=cache_size; i<new_cache_size; i++) {
 			list_add_tail(&buf_cache[i].cache_list, &cache_list);
 		}
+		cache_size = new_cache_size;
 	}
 	struct buf_cache *bc = list_entry(cache_list.next, struct buf_cache, cache_list);
 	list_del(&bc->cache_list);
