@@ -36,7 +36,7 @@
 #define GPU_NB_PARAMS 3
 #define GPU_NB_CLIPPLANES (5+2)
 #define GPU_DISPLIST_SIZE 64
-#define SHARED_PHYSICAL_ADDR 0x2010000	// this is from 920T or for the video controler.
+#define SHARED_PHYSICAL_ADDR 0x2100000	// this is from 920T or for the video controler.
 
 #ifndef sizeof_array
 #	define sizeof_array(x) (sizeof(x)/sizeof(*x))
@@ -62,8 +62,7 @@ typedef struct {
 // Commands
 
 extern struct gpuShared {
-	uint32_t buffers[0x770000];	// 30Mbytes for buffers
-	uint32_t cmds[0x10000];	// 1Mbytes for commands
+	uint32_t cmds[0x40000-5];	// 1Mbytes for commands and following volatiles.
 	// All integer members are supposed to have the same property as sig_atomic_t.
 	volatile int32_t cmds_begin;	// first word beeing actually used by the gpu. let libgpu read in there.
 	volatile int32_t cmds_end;	// last word + 1 beeing actually used by the gpu. let libgpu write in there.
@@ -71,6 +70,7 @@ extern struct gpuShared {
 	volatile uint32_t error_flags;	// use a special swap instruction to read&reset it, as a whole or bit by bit depending of available hardware !
 	volatile uint32_t frame_count;
 	volatile uint32_t frame_miss;
+	uint32_t buffers[0x740000];	// 29Mbytes for buffers
 #ifdef GP2X
 	uint32_t osd_head[3];
 	uint8_t osd_data[SCREEN_WIDTH*SCREEN_HEIGHT/4];

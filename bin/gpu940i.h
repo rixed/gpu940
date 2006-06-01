@@ -76,9 +76,8 @@ extern struct ctx {
 	struct {
 		gpuCmdFacet cmdFacet;
 		gpuVector vectors[MAX_FACET_SIZE+2*GPU_NB_CLIPPLANES];
-		int32_t z_alpha;
-		int32_t nc_declived;
-		int32_t bbox[3][2];
+		int32_t nc_declived, nc_declived_next;
+		uint32_t bbox[3][2];
 		int32_t decliveness;
 		uint32_t scan_dir;
 		int32_t nc_dir;
@@ -86,18 +85,21 @@ extern struct ctx {
 		uint32_t nb_params;	// from cmdFacet rendering_type
 		uint32_t nc_log;	// used to shift-left dw in line drawing routines.
 		uint32_t nb_vectors;	// gives how many vectors are in vectors. For the size of facet, see cmdFacet.size.
+		int32_t z_alpha;
+		int32_t z_alpha_next;
+		int64_t z_num, z_den;	// 24.16
+		int32_t z_dden, z_dnum;	// 16.16
 	} poly;
 	// Current trapeze
 	struct {
 		struct {
-			int32_t c;	// 16.16
+			int32_t c, c_next;	// 16.16
 			int32_t dc;	// 16.16
 			int32_t param[GPU_NB_PARAMS];	// 16.16. Params are : U, V, Illum
 			int32_t param_alpha[GPU_NB_PARAMS];	// 16.16
 			int32_t start_v;
 			int32_t end_v;
-			int32_t z_alpha_start;
-			int32_t z_alpha_end;
+			int32_t z_alpha_start, z_alpha_end;
 		} side[2];	// side dec, side inc
 	} trap;
 	struct {

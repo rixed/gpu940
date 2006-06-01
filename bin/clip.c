@@ -87,28 +87,28 @@ static void proj_vec(unsigned v) {
 	int32_t c2d;
 	switch (ctx.poly.vectors[v].clipFlag & 0xa) {
 		case 0x2:	// right
-			c2d = ctx.view.clipMax[0];
+			c2d = ctx.view.clipMax[0]<<16;
 			break;
 		case 0x8:	// left
-			c2d = ctx.view.clipMin[0];
+			c2d = ctx.view.clipMin[0]<<16;
 			break;
 		default:
-			c2d = ((int64_t)x<<dproj)/-z;
+			c2d = ((int64_t)x<<(16+dproj))/-z;
 			break;
 	}
-	ctx.poly.vectors[v].c2d[0] = c2d + ctx.view.winWidth/2;
+	ctx.poly.vectors[v].c2d[0] = c2d + (ctx.view.winWidth<<15);
 	switch (ctx.poly.vectors[v].clipFlag & 0x14) {
 		case 0x4:	// up
-			c2d = ctx.view.clipMax[1];
+			c2d = ctx.view.clipMax[1]<<16;
 			break;
 		case 0x10:	// bottom
-			c2d = ctx.view.clipMin[1];
+			c2d = ctx.view.clipMin[1]<<16;
 			break;
 		default:
-			c2d = ((int64_t)y<<dproj)/-z;
+			c2d = ((int64_t)y<<(16+dproj))/-z;
 			break;
 	}
-	ctx.poly.vectors[v].c2d[1] = c2d + ctx.view.winHeight/2;
+	ctx.poly.vectors[v].c2d[1] = c2d + (ctx.view.winHeight<<15);
 }
 
 /*

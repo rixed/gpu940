@@ -53,8 +53,8 @@ int main(void) {
 		fprintf(stderr, "Cannot set texture buffer.\n");
 		return EXIT_FAILURE;
 	}
-#define LEN (300<<16)
-#define LEN2 (90000<<16)
+#define LEN (30<<16)
+#define LEN2 (900<<16)
 	FixVec vec3d[] = {
 		{ .c = { LEN, -LEN, LEN/4 }, .xy = -LEN2 },
 		{ .c = { LEN, LEN, LEN/4 }, .xy = LEN2 },
@@ -122,7 +122,7 @@ int main(void) {
 		struct gpuBuf *outBuf;
 		gpuErr err;
 		while (1) {
-			outBuf = gpuAlloc(9, 242);
+			outBuf = gpuAlloc(9, 250);
 			if (outBuf) break;
 			(void)sched_yield();
 		}

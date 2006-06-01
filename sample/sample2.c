@@ -26,7 +26,6 @@
 #include <sched.h>
 #include "fixmath.h"
 
-static uint8_t pascale[256*256][3];
 static uint8_t img[64*64][3];
 
 static void satadd(uint8_t *v, int d) {
@@ -68,20 +67,9 @@ static int randc(void) {
 }
 static void gen_img(void) {
 	memset(img, 28, 64*64*3);
-	for (unsigned i=500; i--; ) {
+	for (unsigned i=600; i--; ) {
 		pass(randi(), randi(), randu(), randu(), randc(), randc(), randc());
 	}
-}
-
-static void load_img(void) {
-	int fd = open("deftext.tga", O_RDONLY);
-	if (-1 == fd) {
-		perror("Cannot open deftext");
-		exit(EXIT_FAILURE);
-	}
-	lseek(fd, 18, SEEK_SET);
-	read(fd, pascale, sizeof(pascale));
-	close(fd);
 }
 
 #define LEN (100<<16)
@@ -190,16 +178,6 @@ int main(void) {
 		fprintf(stderr, "Cannot load texture.\n");
 		return EXIT_FAILURE;
 	}
-	load_img();
-	struct gpuBuf *txtPicBuf = gpuAlloc(8, 256);
-	if (! txtPicBuf) {
-		fprintf(stderr, "Cannot alloc buf for texture\n");
-		return EXIT_FAILURE;
-	}
-	if (gpuOK != gpuLoadImg(gpuBuf_get_loc(txtPicBuf), pascale, 0)) {
-		fprintf(stderr, "Cannot load texture.\n");
-		return EXIT_FAILURE;
-	}
 	Fix_trig_init();
 	int32_t ang1 = 123;
 	int32_t ang2 = 245;
@@ -226,7 +204,7 @@ int main(void) {
 		struct gpuBuf *outBuf;
 		gpuErr err;
 		while (1) {
-			outBuf = gpuAlloc(9, 242);
+			outBuf = gpuAlloc(9, 250);
 			if (outBuf) break;
 			(void)sched_yield();
 		}
@@ -240,12 +218,7 @@ int main(void) {
 			fprintf(stderr, "Cannot set texture buffer.\n");
 			return EXIT_FAILURE;
 		}
-		for (unsigned f=0; f<4; f++) send_facet(f*4);
-		if (gpuOK != gpuSetTxtBuf(txtPicBuf)) {
-			fprintf(stderr, "Cannot set texture buffer.\n");
-			return EXIT_FAILURE;
-		}
-		for (unsigned f=4; f<6; f++) send_facet(f*4);
+		for (unsigned f=0; f<6; f++) send_facet(f*4);
 		while (1) {
 			err = gpuShowBuf(outBuf);
 			if (gpuOK == err) break;
@@ -254,7 +227,6 @@ int main(void) {
 		}
 	}
 	gpuFree(txtGenBuf);
-	gpuFree(txtPicBuf);
 	gpuClose();
 	return EXIT_SUCCESS;
 }

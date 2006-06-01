@@ -1,3 +1,7 @@
+2005-05-31 rixed@free.fr
+	* New rasterizer (slower but more understandable).
+	* Closer memory setup to have all buffers cacheable/bufferables.
+
 2005-05-28 rixed@free.fr
 	* Downclock when iddle on GP2X.
 	* Better division.
