@@ -45,6 +45,7 @@ extern void draw_line_c(void);
 static void draw_line_c(void) {
 	do {
 		uint32_t *w = (uint32_t *)(ctx.line.w);
+//		if (start_poly) *w = ctx.poly.scan_dir ? 0x3e0 : 0xf800; else
 		*w = ctx.poly.cmdFacet.color;
 		ctx.line.w += ctx.line.dw;
 		ctx.line.count --;
@@ -110,7 +111,7 @@ static void draw_line_uvi(void) {
 		uint32_t color = texture_color(&ctx.location.txt, ctx.line.param[0], ctx.line.param[1]);
 //		if (start_poly) color = ctx.poly.scan_dir ? 0x3e0 : 0xf800;
 		uint32_t *w = (uint32_t *)(ctx.line.w + ((ctx.line.decliv>>16)<<ctx.poly.nc_log));
-		int32_t i = ctx.line.param[2]>>16;	// we use 32 bits to get a carry flag in bit 16
+		int32_t i = ctx.line.param[2]>>16;
 #ifdef GP2X	// gp2x uses YUV
 		int y = color&0xff;
 		y += (220*i)>>8;
@@ -189,7 +190,7 @@ static void draw_trapeze(void) {
 			ctx.poly.nc_declived_next = ctx.poly.nc_declived + (ctx.poly.nc_dir << 16);
 		} else {
 			ctx.poly.nc_declived_next = ctx.poly.nc_declived & 0xffff0000;
-			if (ctx.poly.nc_dir == 1) {
+			if (ctx.poly.nc_dir > 0) {
 				ctx.poly.nc_declived_next += 1<<16;
 			}
 			complete_scan_line = false;
@@ -255,41 +256,38 @@ void draw_poly(void) {
 	ctx.poly.scan_dir = 0;
 	ctx.poly.nc_log = ctx.location.out.width_log+2;
 	// bounding box
-	gpuVector *a_vec, *b_vec, *c_vec;
-	int start_v;
-	{
+	unsigned b_vec, c_vec;
+	c_vec = b_vec = ctx.poly.first_vector;
+	if (ctx.poly.nb_params > 0) {
 		// compute decliveness (2 DIVs)
-		int32_t m[2];	// 16.16
 		// FIXME: with clipping, A can get very close from B or C.
 		// we want b = zmin, c = zmax (closer)
-		c_vec = b_vec = &ctx.poly.vectors[ctx.poly.first_vector];
 		unsigned v = ctx.poly.first_vector;
 		do {
-			gpuVector *const my_vec = &ctx.poly.vectors[v];
-			if (my_vec->cmdVector.geom.c3d[2] < b_vec->cmdVector.geom.c3d[2]) {
-				b_vec = my_vec;
+			if (ctx.poly.vectors[v].cmdVector.geom.c3d[2] < ctx.poly.vectors[b_vec].cmdVector.geom.c3d[2]) {
+				b_vec = v;
 			}
-			if (my_vec->cmdVector.geom.c3d[2] >= c_vec->cmdVector.geom.c3d[2]) {
-				c_vec = my_vec;
-				start_v = v;
+			if (ctx.poly.vectors[v].cmdVector.geom.c3d[2] >= ctx.poly.vectors[c_vec].cmdVector.geom.c3d[2]) {
+				c_vec = v;
 			}
 			v = ctx.poly.vectors[v].next;
 		} while (v != ctx.poly.first_vector);	
+		int32_t m[2];	// 16.16
+		unsigned a_vec;
 		do {
-			gpuVector const *my_vec = &ctx.poly.vectors[v];
-			if (my_vec != b_vec && my_vec != c_vec) {
-				a_vec = &ctx.poly.vectors[v];
+			if (v != b_vec && v != c_vec) {
+				a_vec = v;
 				break;
 			}
 			v = ctx.poly.vectors[v].next;
 		} while (1);
-		if (b_vec->cmdVector.geom.c3d[2] == c_vec->cmdVector.geom.c3d[2]) {	// BC is Z-const
-			m[0] = c_vec->c2d[0]-b_vec->c2d[0];
-			m[1] = c_vec->c2d[1]-b_vec->c2d[1];
+		if (ctx.poly.vectors[b_vec].cmdVector.geom.c3d[2] == ctx.poly.vectors[c_vec].cmdVector.geom.c3d[2]) {	// BC is Z-const
+			m[0] = ctx.poly.vectors[c_vec].c2d[0]-ctx.poly.vectors[b_vec].c2d[0];
+			m[1] = ctx.poly.vectors[c_vec].c2d[1]-ctx.poly.vectors[b_vec].c2d[1];
 		} else {
-			int32_t alpha = ((int64_t)(a_vec->cmdVector.geom.c3d[2]-b_vec->cmdVector.geom.c3d[2])<<31)/(c_vec->cmdVector.geom.c3d[2]-b_vec->cmdVector.geom.c3d[2]);
+			int64_t alpha = ((int64_t)(ctx.poly.vectors[a_vec].cmdVector.geom.c3d[2]-ctx.poly.vectors[b_vec].cmdVector.geom.c3d[2])<<31)/(ctx.poly.vectors[c_vec].cmdVector.geom.c3d[2]-ctx.poly.vectors[b_vec].cmdVector.geom.c3d[2]);
 			for (unsigned c=2; c--; ) {
-				m[c] = b_vec->cmdVector.geom.c3d[c]-a_vec->cmdVector.geom.c3d[c]+((int64_t)alpha*(c_vec->cmdVector.geom.c3d[c]-b_vec->cmdVector.geom.c3d[c])>>31);
+				m[c] = ctx.poly.vectors[b_vec].cmdVector.geom.c3d[c]-ctx.poly.vectors[a_vec].cmdVector.geom.c3d[c]+(alpha*(ctx.poly.vectors[c_vec].cmdVector.geom.c3d[c]-ctx.poly.vectors[b_vec].cmdVector.geom.c3d[c])>>31);
 			}
 		}
 		if (Fix_abs(m[0]) < Fix_abs(m[1])) {
@@ -311,34 +309,32 @@ void draw_poly(void) {
 	{
 		ctx.poly.z_num = 0;
 		ctx.poly.nc_dir = 1;
-		int32_t dz = b_vec->cmdVector.geom.c3d[2] - c_vec->cmdVector.geom.c3d[2];
+		int32_t dz = ctx.poly.vectors[b_vec].cmdVector.geom.c3d[2] - ctx.poly.vectors[c_vec].cmdVector.geom.c3d[2];
 		if (0 == dz) {	// if dz is 0, b_vec and c_vec are random, and so would be dnc
 			unsigned v = ctx.poly.first_vector;
 			do {
-				if (ctx.poly.vectors[v].nc_declived < c_vec->nc_declived) {
-					c_vec = ctx.poly.vectors + v;
-					start_v = v;
+				if (ctx.poly.vectors[v].nc_declived < ctx.poly.vectors[c_vec].nc_declived) {
+					c_vec = v;
 				}
-				if (ctx.poly.vectors[v].nc_declived > b_vec->nc_declived) {
-					b_vec = ctx.poly.vectors + v;
+				if (ctx.poly.vectors[v].nc_declived > ctx.poly.vectors[b_vec].nc_declived) {
+					b_vec = v;
 				}
 				v = ctx.poly.vectors[v].next;
 			} while (v != ctx.poly.first_vector);		
-			if (b_vec->cmdVector.geom.c3d[2] > c_vec->cmdVector.geom.c3d[2]) {
-				SWAP(gpuVector *, b_vec, c_vec);
+			if (ctx.poly.vectors[b_vec].cmdVector.geom.c3d[2] > ctx.poly.vectors[c_vec].cmdVector.geom.c3d[2]) {
+				SWAP(unsigned, b_vec, c_vec);
 			}
 		}
-		// FIXME: if dz is small, we should use dx or dy
-		ctx.poly.nc_declived = c_vec->nc_declived;
-		int32_t dnc = b_vec->nc_declived - c_vec->nc_declived;
-		ctx.poly.z_den = ((int64_t)b_vec->cmdVector.geom.c3d[2]*dnc);
+		ctx.poly.nc_declived = ctx.poly.vectors[c_vec].nc_declived;
+		int32_t dnc = ctx.poly.vectors[b_vec].nc_declived - ctx.poly.vectors[c_vec].nc_declived;
+		ctx.poly.z_den = ((int64_t)ctx.poly.vectors[b_vec].cmdVector.geom.c3d[2]*dnc);
 		if (dnc < 0) {
 			ctx.poly.nc_dir = -1;
 			dnc = -dnc;
 		}
-		ctx.poly.z_dnum = ctx.poly.nc_dir == 1 ? c_vec->cmdVector.geom.c3d[2]:-c_vec->cmdVector.geom.c3d[2];
+		ctx.poly.z_dnum = ctx.poly.nc_dir == 1 ? ctx.poly.vectors[c_vec].cmdVector.geom.c3d[2]:-ctx.poly.vectors[c_vec].cmdVector.geom.c3d[2];
 		ctx.poly.z_dden = ctx.poly.nc_dir == 1 ? -dz:dz;
-		ctx.trap.side[0].start_v = ctx.trap.side[0].end_v = ctx.trap.side[1].start_v = ctx.trap.side[1].end_v = start_v;
+		ctx.trap.side[0].start_v = ctx.trap.side[0].end_v = ctx.trap.side[1].start_v = ctx.trap.side[1].end_v = c_vec;
 		ctx.poly.z_alpha = 0;
 	}
 	// cut into trapezes
