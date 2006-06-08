@@ -5,3 +5,4 @@ Makefile.am
 Makefile.in
 sample1
 sample2
+pics.c
