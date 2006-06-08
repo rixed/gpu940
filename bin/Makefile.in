@@ -112,6 +112,7 @@ F77 = @F77@
 FFLAGS = @FFLAGS@
 GP2X_FALSE = @GP2X_FALSE@
 GP2X_TRUE = @GP2X_TRUE@
+HOST_CC = @HOST_CC@
 INSTALL_DATA = @INSTALL_DATA@
 INSTALL_PROGRAM = @INSTALL_PROGRAM@
 INSTALL_SCRIPT = @INSTALL_SCRIPT@
@@ -198,7 +199,6 @@ gpu940_SOURCES = \
 gpu940_LDADD = ../console/libconsole.a ../perftime/libperftime.a
 #AM_CFLAGS += -fno-pic -ffreestanding
 load940_SOURCES = load940.c
-@GP2X_TRUE@HOST_CC = gcc
 @GP2X_TRUE@OBJCOPY = /usr/local/devkitPro/devkitGP2X/bin/arm-linux-objcopy
 @GP2X_TRUE@OBJDUMP = /usr/local/devkitPro/devkitGP2X/bin/arm-linux-objdump
 all: all-am
@@ -498,7 +498,7 @@ uninstall-am: uninstall-binPROGRAMS uninstall-info-am
 # Trick to use the context structure fomr within .S files
 @GP2X_TRUE@writeoffs: writeoffs.c gpu940i.h ../include/gpu940.h
 #	$(CC) $(CFLAGS) $(AM_CFLAGS) $(LDFLAGS) $(AM_LDFLAGS) -std=c99 -Wall -W -o writeoffs writeoffs.c
-@GP2X_TRUE@	$(HOST_CC) -std=c99 -Wall -W -o $@ $< -I$(top_srcdir)/include
+@GP2X_TRUE@	@HOST_CC@ -std=c99 -Wall -W -o $@ $< -I$(top_srcdir)/include
 @GP2X_TRUE@offsets.S: writeoffs $(top_srcdir)/include/gpu940.h $(top_srcdir)/bin/gpu940i.h
 @GP2X_TRUE@	$< > $@
 @GP2X_TRUE@draw_line.gp2x.o: offsets.S

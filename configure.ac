@@ -9,6 +9,8 @@ AC_ARG_ENABLE(gp2x,compile specifically for gp2x,[CFLAGS="$CFLAGS -DGP2X"],[
 	AC_CHECK_LIB(SDL, SDL_Init,, AC_MSG_ERROR([SDL is required]))
 ])
 AM_CONDITIONAL(GP2X, [echo $CFLAGS|grep '\-DGP2X'>/dev/null])
+HOST_CC=gcc
+AC_SUBST(HOST_CC)
 
 # Checks for programs.
 AM_PROG_LIBTOOL

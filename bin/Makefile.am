@@ -20,12 +20,10 @@ gpu940_LDADD = ../console/libconsole.a ../perftime/libperftime.a
 load940_SOURCES = load940.c
 
 if GP2X
-HOST_CC=gcc
-
 # Trick to use the context structure fomr within .S files
 writeoffs: writeoffs.c gpu940i.h ../include/gpu940.h
 #	$(CC) $(CFLAGS) $(AM_CFLAGS) $(LDFLAGS) $(AM_LDFLAGS) -std=c99 -Wall -W -o writeoffs writeoffs.c
-	$(HOST_CC) -std=c99 -Wall -W -o $@ $< -I$(top_srcdir)/include
+	@HOST_CC@ -std=c99 -Wall -W -o $@ $< -I$(top_srcdir)/include
 offsets.S: writeoffs $(top_srcdir)/include/gpu940.h $(top_srcdir)/bin/gpu940i.h
 	$< > $@
 draw_line.gp2x.o: offsets.S
