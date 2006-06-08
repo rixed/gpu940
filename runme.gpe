@@ -1,5 +1,11 @@
 #!/bin/sh
 
+cd /mnt/sd
 chmod a+x *
+sync
+(cd /usr/gp2x; ./gp2xmenu& sleep 6; killall gp2xmenu)&
+sleep 3
 ./load940 gpu940
-
+./codealone
+sleep 3
+cd /usr/gp2x; ./gp2xmenu

@@ -1,9 +1,17 @@
 AM_CFLAGS = -I $(top_srcdir)/include -fstrict-aliasing -D_GNU_SOURCE -std=c99 -Wall -W -pedantic -pipe
 
-noinst_PROGRAMS = sample1 sample2
+noinst_PROGRAMS = sample1 sample2 codealone
 sample1_SOURCES = sample1.c
 sample2_SOURCES = sample2.c
+codealone_SOURCES = codealone.c
 
 sample1_LDADD = ../lib/libgpu940.la
 sample2_LDADD = ../lib/libgpu940.la
+codealone_LDADD = ../lib/libgpu940.la
+
+gimpcomp: gimpcomp.c
+	@HOST_CC@ -std=c99 -DGNU_SOURCES -Wall -W $< -o $@
+
+pics.c: gimpcomp title.c greetz.c never.c
+	./gimpcomp > $@
 
