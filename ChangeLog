@@ -1,3 +1,6 @@
+2005-06-08 rixed@free.fr
+	* New z_alpha computations.
+
 2005-05-31 rixed@free.fr
 	* New rasterizer (slower but more understandable).
 	* Closer memory setup to have all buffers cacheable/bufferables.

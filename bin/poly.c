@@ -94,7 +94,7 @@ static void draw_line_uv(void) {
 //		uint8_t z = ctx.poly.z_alpha>>8;
 //		uint32_t color = (z<<16)|(z<<8)|z;
 		uint32_t color = texture_color(&ctx.location.txt, ctx.line.param[0], ctx.line.param[1]);
-//		if (start_poly) color |= ctx.poly.scan_dir ? 0x3e0 : 0xf800;
+//		if (start_poly) color = ctx.poly.scan_dir ? 0x3e0 : 0xf800;
 		uint32_t *w = (uint32_t *)(ctx.line.w + ((ctx.line.decliv>>16)<<ctx.poly.nc_log));
 		*w = color;
 		ctx.line.w += ctx.line.dw;
@@ -108,7 +108,7 @@ static void draw_line_uv(void) {
 static void draw_line_uvi(void) {
 	do {
 		uint32_t color = texture_color(&ctx.location.txt, ctx.line.param[0], ctx.line.param[1]);
-//		if (start_poly) color |= ctx.poly.scan_dir ? 0x3e0 : 0xf800;
+//		if (start_poly) color = ctx.poly.scan_dir ? 0x3e0 : 0xf800;
 		uint32_t *w = (uint32_t *)(ctx.line.w + ((ctx.line.decliv>>16)<<ctx.poly.nc_log));
 		int32_t i = ctx.line.param[2]>>16;	// we use 32 bits to get a carry flag in bit 16
 #ifdef GP2X	// gp2x uses YUV
@@ -210,13 +210,13 @@ static void draw_trapeze(void) {
 		// compute z_alpha_next
 		if (ctx.poly.nb_params > 0) {
 			if (complete_scan_line) {
-				ctx.poly.z_den += ctx.poly.z_dden;
-				ctx.poly.z_num += ctx.poly.z_dnum;
+				ctx.poly.z_den += (int64_t)ctx.poly.z_dden<<16;
+				ctx.poly.z_num += (int64_t)ctx.poly.z_dnum<<16;
 			} else {
-				ctx.poly.z_den += ((int64_t)dnc*ctx.poly.z_dden)>>16;
-				ctx.poly.z_num += ((int64_t)dnc*ctx.poly.z_dnum)>>16;
+				ctx.poly.z_den += (int64_t)dnc*ctx.poly.z_dden;
+				ctx.poly.z_num += (int64_t)dnc*ctx.poly.z_dnum;
 			}
-			if (ctx.poly.z_den) ctx.poly.z_alpha_next = ((int64_t)ctx.poly.z_num<<16)/ctx.poly.z_den;
+			if (ctx.poly.z_den) ctx.poly.z_alpha_next = ctx.poly.z_num/(ctx.poly.z_den>>16);
 		}
 		// now compute c_nexts
 		for (unsigned side=2; side--; ) {
@@ -255,44 +255,41 @@ void draw_poly(void) {
 	ctx.poly.scan_dir = 0;
 	ctx.poly.nc_log = ctx.location.out.width_log+2;
 	// bounding box
-	if (ctx.poly.nb_params > 0) {
-		unsigned v = ctx.poly.first_vector;
-		ctx.poly.bbox[0][MIN] = ctx.poly.bbox[1][MIN] = ctx.poly.bbox[2][MIN] = ctx.poly.bbox[0][MAX] = ctx.poly.bbox[1][MAX] = ctx.poly.bbox[2][MAX] = v;
-		do {
-			for (unsigned c=2; c--; ) {
-				if (ctx.poly.vectors[v].c2d[c] < ctx.poly.vectors[ctx.poly.bbox[c][MIN]].c2d[c])
-					ctx.poly.bbox[c][MIN] = v;
-				if (ctx.poly.vectors[v].c2d[c] > ctx.poly.vectors[ctx.poly.bbox[c][MAX]].c2d[c])
-					ctx.poly.bbox[c][MAX] = v;
-			}
-			if (ctx.poly.vectors[v].cmdVector.geom.c3d[2] < ctx.poly.vectors[ctx.poly.bbox[2][MIN]].cmdVector.geom.c3d[2])
-				ctx.poly.bbox[2][MIN] = v;
-			if (ctx.poly.vectors[v].cmdVector.geom.c3d[2] > ctx.poly.vectors[ctx.poly.bbox[2][MAX]].cmdVector.geom.c3d[2])
-				ctx.poly.bbox[2][MAX] = v;
-			v = ctx.poly.vectors[v].next;
-		} while (v != ctx.poly.first_vector);
+	gpuVector *a_vec, *b_vec, *c_vec;
+	int start_v;
+	{
 		// compute decliveness (2 DIVs)
 		int32_t m[2];	// 16.16
-		// FIXME: with clipping, A can get very close from A or B.
-#		define B_VEC (ctx.poly.vectors[ctx.poly.bbox[2][MIN]])
-#		define C_VEC (ctx.poly.vectors[ctx.poly.bbox[2][MAX]])
-		unsigned a_vec;
-		unsigned a = ctx.poly.first_vector;
+		// FIXME: with clipping, A can get very close from B or C.
+		// we want b = zmin, c = zmax (closer)
+		c_vec = b_vec = &ctx.poly.vectors[ctx.poly.first_vector];
+		unsigned v = ctx.poly.first_vector;
 		do {
-			if (a != ctx.poly.bbox[2][MIN] && a != ctx.poly.bbox[2][MAX]) {
-				a_vec = a;
-				if (a < ctx.poly.cmdFacet.size) break;	// we'd rather use an unclipped vertex
+			gpuVector *const my_vec = &ctx.poly.vectors[v];
+			if (my_vec->cmdVector.geom.c3d[2] < b_vec->cmdVector.geom.c3d[2]) {
+				b_vec = my_vec;
 			}
-			a = ctx.poly.vectors[a].next;
-		} while (a != ctx.poly.first_vector);
-#		define A_VEC (ctx.poly.vectors[a_vec])
-		if (B_VEC.cmdVector.geom.c3d[2] == C_VEC.cmdVector.geom.c3d[2]) {	// BC is Z-const
-			m[0] = C_VEC.c2d[0]-B_VEC.c2d[0];
-			m[1] = C_VEC.c2d[1]-B_VEC.c2d[1];
+			if (my_vec->cmdVector.geom.c3d[2] >= c_vec->cmdVector.geom.c3d[2]) {
+				c_vec = my_vec;
+				start_v = v;
+			}
+			v = ctx.poly.vectors[v].next;
+		} while (v != ctx.poly.first_vector);	
+		do {
+			gpuVector const *my_vec = &ctx.poly.vectors[v];
+			if (my_vec != b_vec && my_vec != c_vec) {
+				a_vec = &ctx.poly.vectors[v];
+				break;
+			}
+			v = ctx.poly.vectors[v].next;
+		} while (1);
+		if (b_vec->cmdVector.geom.c3d[2] == c_vec->cmdVector.geom.c3d[2]) {	// BC is Z-const
+			m[0] = c_vec->c2d[0]-b_vec->c2d[0];
+			m[1] = c_vec->c2d[1]-b_vec->c2d[1];
 		} else {
-			int32_t alpha = ((int64_t)(A_VEC.cmdVector.geom.c3d[2]-B_VEC.cmdVector.geom.c3d[2])<<16)/(C_VEC.cmdVector.geom.c3d[2]-B_VEC.cmdVector.geom.c3d[2]);
+			int32_t alpha = ((int64_t)(a_vec->cmdVector.geom.c3d[2]-b_vec->cmdVector.geom.c3d[2])<<31)/(c_vec->cmdVector.geom.c3d[2]-b_vec->cmdVector.geom.c3d[2]);
 			for (unsigned c=2; c--; ) {
-				m[c] = B_VEC.cmdVector.geom.c3d[c]-A_VEC.cmdVector.geom.c3d[c]+((int64_t)alpha*(C_VEC.cmdVector.geom.c3d[c]-B_VEC.cmdVector.geom.c3d[c])>>16);
+				m[c] = b_vec->cmdVector.geom.c3d[c]-a_vec->cmdVector.geom.c3d[c]+((int64_t)alpha*(c_vec->cmdVector.geom.c3d[c]-b_vec->cmdVector.geom.c3d[c])>>31);
 			}
 		}
 		if (Fix_abs(m[0]) < Fix_abs(m[1])) {
@@ -302,57 +299,60 @@ void draw_poly(void) {
 		}
 		if (m[0]) ctx.poly.decliveness = (((int64_t)m[1])<<16)/m[0];
 	}
-	// init trapeze. start at Z min.
-	int32_t Z0 = 0, ZN = 0;
+	// compute all nc_declived
 	{
-		ctx.poly.nc_declived = INT32_MAX;
-		int32_t max_nc_declived = INT32_MIN;
-		unsigned start_v=0, end_v=0;	// to please GCC
-		ctx.poly.nc_dir = 1;
 		unsigned v = ctx.poly.first_vector;
 		do {
-			int32_t const my_nc_declived = ctx.poly.vectors[v].c2d[!ctx.poly.scan_dir] - (((int64_t)ctx.poly.decliveness*ctx.poly.vectors[v].c2d[ctx.poly.scan_dir])>>16);
-			ctx.poly.vectors[v].nc_declived = my_nc_declived;
-			if (my_nc_declived <= ctx.poly.nc_declived) {
-				ctx.poly.nc_declived = my_nc_declived;
-				Z0 = ctx.poly.vectors[v].cmdVector.geom.c3d[2];
-				start_v = v;
-			}
-			if (my_nc_declived >= max_nc_declived) {
-				max_nc_declived = my_nc_declived;
-				ZN = ctx.poly.vectors[v].cmdVector.geom.c3d[2];
-				end_v = v;
-			}
+			ctx.poly.vectors[v].nc_declived = ctx.poly.vectors[v].c2d[!ctx.poly.scan_dir] - (((int64_t)ctx.poly.decliveness*ctx.poly.vectors[v].c2d[ctx.poly.scan_dir])>>16);
 			v = ctx.poly.vectors[v].next;
-		} while (v != ctx.poly.first_vector);
-		if (ZN > Z0) {
-			SWAP(int32_t, Z0, ZN);
-			SWAP(int32_t, ctx.poly.nc_declived, max_nc_declived);
-			SWAP(unsigned, start_v, end_v);
+		} while (v != ctx.poly.first_vector);	
+	}
+	// init trapeze. start at Z min.
+	{
+		ctx.poly.z_num = 0;
+		ctx.poly.nc_dir = 1;
+		int32_t dz = b_vec->cmdVector.geom.c3d[2] - c_vec->cmdVector.geom.c3d[2];
+		if (0 == dz) {	// if dz is 0, b_vec and c_vec are random, and so would be dnc
+			unsigned v = ctx.poly.first_vector;
+			do {
+				if (ctx.poly.vectors[v].nc_declived < c_vec->nc_declived) {
+					c_vec = ctx.poly.vectors + v;
+					start_v = v;
+				}
+				if (ctx.poly.vectors[v].nc_declived > b_vec->nc_declived) {
+					b_vec = ctx.poly.vectors + v;
+				}
+				v = ctx.poly.vectors[v].next;
+			} while (v != ctx.poly.first_vector);		
+			if (b_vec->cmdVector.geom.c3d[2] > c_vec->cmdVector.geom.c3d[2]) {
+				SWAP(gpuVector *, b_vec, c_vec);
+			}
+		}
+		// FIXME: if dz is small, we should use dx or dy
+		ctx.poly.nc_declived = c_vec->nc_declived;
+		int32_t dnc = b_vec->nc_declived - c_vec->nc_declived;
+		ctx.poly.z_den = ((int64_t)b_vec->cmdVector.geom.c3d[2]*dnc);
+		if (dnc < 0) {
 			ctx.poly.nc_dir = -1;
+			dnc = -dnc;
 		}
-		// init z-interpolation along non-scanlines (nc)
-		{
-			ctx.poly.z_num = 0;
-			int32_t const DZ = ZN - Z0 /*16.16*/;
-			ctx.poly.z_dden = ctx.poly.nc_dir == 1 ? -DZ:DZ;
-			ctx.poly.z_dnum = ctx.poly.nc_dir == 1 ? Z0:-Z0;
-			int32_t const dnc = max_nc_declived-ctx.poly.nc_declived;
-			ctx.poly.z_den = ((int64_t)ZN*dnc)>>16;
-			ctx.trap.side[0].start_v = ctx.trap.side[0].end_v = ctx.trap.side[1].start_v = ctx.trap.side[1].end_v = start_v;
-			ctx.poly.z_alpha = 0;
-		}
+		ctx.poly.z_dnum = ctx.poly.nc_dir == 1 ? c_vec->cmdVector.geom.c3d[2]:-c_vec->cmdVector.geom.c3d[2];
+		ctx.poly.z_dden = ctx.poly.nc_dir == 1 ? -dz:dz;
+		ctx.trap.side[0].start_v = ctx.trap.side[0].end_v = ctx.trap.side[1].start_v = ctx.trap.side[1].end_v = start_v;
+		ctx.poly.z_alpha = 0;
 	}
 	// cut into trapezes
+#	define DNC_MIN 0x8000
 	do {
 		for (int side=2; side--; ) {
 			bool dc_ok = true;
-#define DNC_MIN 0x8000	// if dnc is below, we consider the edge is flat (not enough precision bits)
 			int32_t dnc;
 			while (1) {
 				dnc = ctx.poly.vectors[ ctx.trap.side[side].end_v ].nc_declived - ctx.poly.nc_declived;
-				dnc = Fix_abs(dnc);
-				if (dnc > DNC_MIN) break;	// not flat
+				if (
+						(ctx.poly.nc_dir > 0 && dnc > DNC_MIN) ||
+						(ctx.poly.nc_dir < 0 && dnc < -DNC_MIN)
+					) break;	// not flat
 				if (0 == ctx.poly.cmdFacet.size--) goto end_poly;
 				ctx.trap.side[side].start_v = ctx.trap.side[side].end_v;
 				ctx.trap.side[side].end_v = 0==side ? ctx.poly.vectors[ctx.trap.side[side].end_v].prev:ctx.poly.vectors[ctx.trap.side[side].end_v].next;
@@ -361,15 +361,16 @@ void draw_poly(void) {
 			}
 			if (! dc_ok) {
 				int32_t const num = ctx.poly.vectors[ ctx.trap.side[side].end_v ].c2d[ctx.poly.scan_dir] - ctx.trap.side[side].c;
+				dnc = Fix_abs(dnc);
 				ctx.trap.side[side].dc = ((int64_t)num<<16)/dnc;
 				// compute alpha_params used for vector parameters
 				if (ctx.poly.nb_params > 0) {
 					// first, compute the z_alpha of end_v
-					int64_t n = ctx.poly.z_num + (((int64_t)ctx.poly.z_dnum*dnc)>>16);	// 25.16
-					int64_t d = ctx.poly.z_den + (((int64_t)ctx.poly.z_dden*dnc)>>16);	// 25.16
+					int64_t n = ctx.poly.z_num + (((int64_t)ctx.poly.z_dnum*dnc));	// 32.32
+					int64_t d = ctx.poly.z_den + (((int64_t)ctx.poly.z_dden*dnc));	// 32.32
 					ctx.trap.side[side].z_alpha_start = ctx.poly.z_alpha;
 					ctx.trap.side[side].z_alpha_end = ctx.poly.z_alpha;
-					if (d) ctx.trap.side[side].z_alpha_end = ((int64_t)n<<16)/d;
+					if (d) ctx.trap.side[side].z_alpha_end = n/(d>>16);
 					int32_t const dalpha = ctx.trap.side[side].z_alpha_end - ctx.trap.side[side].z_alpha_start;
 					int32_t inv_dalpha = 0;
 					if (dalpha) inv_dalpha = Fix_inv(dalpha);
@@ -380,7 +381,7 @@ void draw_poly(void) {
 						ctx.trap.side[side].param_alpha[p] = (((int64_t)PN-P0)*inv_dalpha)>>16;
 					}
 				}
-				start_poly ++;
+				start_poly += 2;
 			}
 		}
 		// render trapeze (and advance nc_declived, c, and all params)
