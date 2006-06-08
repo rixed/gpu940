@@ -27,7 +27,8 @@
 static unsigned new_vec(unsigned prev, unsigned next, unsigned p) {
 	int32_t ha = Fix_abs(ctx.poly.vectors[prev].h);
 	int32_t hb = Fix_abs(ctx.poly.vectors[next].h);
-	int32_t ratio = ((int64_t)ha<<16)/(ha+hb);
+	int32_t ratio = 1<<16, hahb = ha+hb;
+	if (hahb) ratio = ((int64_t)ha<<16)/(ha+hb);
 	assert(ctx.poly.nb_vectors < sizeof_array(ctx.poly.vectors));
 	for (unsigned u=ctx.poly.nb_params+3; u--; ) {
 		ctx.poly.vectors[ctx.poly.nb_vectors].cmdVector.all_params[u] =
@@ -53,6 +54,7 @@ static int clip_facet_by_plane(unsigned p) {
 			int32_t const ov = ctx.poly.vectors[v].cmdVector.geom.c3d[c] - ctx.view.clipPlanes[p].origin[c];
 			ctx.poly.vectors[v].h += ((int64_t)ov*ctx.view.clipPlanes[p].normal[c])>>8;	// we suppose normal is approx 8 bits wide
 		}
+		if (0 == ctx.poly.vectors[v].h) ctx.poly.vectors[v].h = 1;
 		v = ctx.poly.vectors[v].next;
 	} while (v != ctx.poly.first_vector);
 	do {
@@ -68,7 +70,7 @@ static int clip_facet_by_plane(unsigned p) {
 	if (0 == nb_new_v) {
 		return ~0U != last_in;
 	}
-	assert(~0U != last_in);
+	assert(~0U != last_in && nb_new_v == 2);
 	if (ctx.poly.vectors[ctx.poly.first_vector].h > 0) {
 		ctx.poly.vectors[new_v[0]].next = new_v[1];
 		ctx.poly.vectors[new_v[1]].prev = new_v[0];
