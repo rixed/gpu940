@@ -107,6 +107,10 @@ static void draw_line_uv(void) {
 }
 #endif
 static void draw_line_uvi(void) {
+#ifdef GP2X
+	ctx.line.param[2] *= 55;
+	ctx.line.dparam[2] *= 55;
+#endif
 	do {
 		uint32_t color = texture_color(&ctx.location.txt, ctx.line.param[0], ctx.line.param[1]);
 //		if (start_poly) color = ctx.poly.scan_dir ? 0x3e0 : 0xf800;
@@ -114,7 +118,7 @@ static void draw_line_uvi(void) {
 		int32_t i = ctx.line.param[2]>>16;
 #ifdef GP2X	// gp2x uses YUV
 		int y = color&0xff;
-		y += (220*i)>>8;
+		y += i>>6; //(220*i)>>8;
 		SAT8(y);
 		*w = (color&0xff00ff00) | (y<<16) | y;
 #else
@@ -174,6 +178,48 @@ static void draw_line(void) {
 		draw_line_c, draw_line_ci, draw_line_uv, draw_line_uvi,
 	};
 	perftime_enter(PERF_POLY_DRAW, "poly_draw");
+#ifdef GP2X
+	{	// patch code
+		bool patched = false;
+		// nc_log
+		extern uint16_t patch_uv_nc_log;
+		extern uint16_t patch_ci_nc_log;
+		static uint32_t nc_log = ~0;
+		if (ctx.poly.nc_log != nc_log) {
+			patched = true;
+			nc_log = ctx.poly.nc_log;
+			patch_uv_nc_log = patch_ci_nc_log = 0x2001 | (nc_log<<7);
+		}
+		extern uint32_t patch_uv_dw;
+		extern uint32_t patch_ci_dw;
+		static int32_t dw = ~0;
+		if (ctx.line.dw != dw) {
+			patched = true;
+			dw = ctx.line.dw;
+			int sign = 0x80;
+			int dw_imm = dw;
+			int dw_rot = 0;
+			if (dw < 0) {
+				sign = 0x40;
+				dw_imm = -dw_imm;
+			}
+			while (dw_imm > 256) {
+				dw_imm >>= 2;
+				dw_rot ++;
+			}
+			if (dw_rot) dw_rot = 16-dw_rot;	// rotate right
+			patch_uv_dw = patch_ci_dw = 0xe2000000 | (sign<<16) | (dw_rot<<8) | dw_imm;
+		}
+		if (patched) {
+			__asm__ volatile (	// Drain write buffer then fush ICache
+				"mov r0, #0\n"
+				"mcr p15, 0, r0, c7, c10, 4\n"
+				"mcr p15, 0, r0, c7, c5, 0\n"
+				:::"r0"
+			);
+		}
+	}
+#endif
 	draw_lines[ctx.poly.cmdFacet.rendering_type]();
 	perftime_enter(PERF_POLY, NULL);
 	if (start_poly) start_poly --;

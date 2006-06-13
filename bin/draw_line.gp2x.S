@@ -23,7 +23,11 @@
 .globl draw_line_c
 .globl draw_line_ci
 .globl draw_line_uv
-.globl patch_uv_width_code
+.globl patch_uv_width
+.globl patch_uv_nc_log
+.globl patch_ci_nc_log
+.globl patch_uv_dw
+.globl patch_ci_dw
 .align 4
 draw_line_c:
 	ldr r3, .ctx
@@ -39,20 +43,18 @@ draw_line_c:
 	mov pc, lr
 
 draw_line_ci:
-	stmfd sp!, {r4-r10, lr}
+	stmfd sp!, {r4-r8, lr}
 	ldr lr, .ctx
 	ldr r0, [lr, #OFF_ctx.line.w]
-	ldr r1, [lr, #OFF_ctx.line.dw]
-	ldr r2, [lr, #OFF_ctx.poly.nc_log]
 	ldr r3, [lr, #OFF_ctx.line.decliv]
 	ldr r4, [lr, #OFF_ctx.line.ddecliv]
 	ldr r5, [lr, #OFF_ctx.line.param]	// r5 = p
-	add r9, r5, r5, lsl #1	// r9 = p*3
-	add r5, r9, r5, lsl #3	// r5 = p*3+p*8 = p*11
+	add r2, r5, r5, lsl #1	// r2 = p*3
+	add r5, r2, r5, lsl #3	// r5 = p*3+p*8 = p*11
 	add r5, r5, r5, lsl #2	// r5 = p*11+(p*11)*4 = p*55
 	ldr r6, [lr, #OFF_ctx.line.dparam]
-	add r9, r6, r6, lsl #1
-	add r6, r9, r6, lsl #3
+	add r2, r6, r6, lsl #1
+	add r6, r2, r6, lsl #3
 	add r6, r6, r6, lsl #2
 	ldr r7, [lr, #OFF_ctx.poly.cmdFacet.color]
 	bic r7, r7, #0x0000ff
@@ -61,31 +63,30 @@ draw_line_ci:
 	ldr lr, [lr, #OFF_ctx.line.count]
 0:
 	// compute color
-	adds r9, r8, r5, asr #22	// r9 = Y + intens
-	movmi r9, #0	// saturate
-	cmp r9, #0x100
-	movpl r9, #0xff
-	orr r9, r9, r9, lsl #16
-	orr r9, r7, r9
+	adds r2, r8, r5, asr #22	// r2 = Y + intens
+	movmi r2, #0	// saturate
+	cmp r2, #0x100
+	movpl r2, #0xff
+	orr r2, r2, r2, lsl #16
+	orr r2, r7, r2
 	// poke it
-	mov r10, r3, asr #16	// r10 = decliv>>16
-	mov r10, r10, asl r2	// r10 <<= nc_log
-	str r9, [r0, r10]	// write color into that addy
+	mov r1, r3, asr #16	// r1 = decliv>>16
+patch_ci_nc_log:
+	str r2, [r0, r1, asl #2]	// write color into that addy (shifter by nc_log, patched)
 	// loop
-	add r0, r0, r1	// w += dw
+patch_ci_dw:
+	add r0, r0, #0x12	// w += dw
 	add r3, r3, r4	// decliv += ddecliv
 	add r5, r5, r6	// param += dparam
 	subs lr, lr, #1	// count--
 	bge 0b
 	// quit
-	ldmfd	sp!, {r4-r10, pc}
+	ldmfd	sp!, {r4-r8, pc}
 	
 draw_line_uv:
-	stmfd	sp!, {r4-r12, lr}
+	stmfd	sp!, {r4-r10, lr}
 	ldr lr, .ctx
 	ldr r0, [lr, #OFF_ctx.line.w]
-	ldr r1, [lr, #OFF_ctx.line.dw]
-	ldr r2, [lr, #OFF_ctx.poly.nc_log]
 	ldr r3, [lr, #OFF_ctx.line.decliv]
 	ldr r4, [lr, #OFF_ctx.line.ddecliv]
 	ldr r5, [lr, #OFF_ctx.line.param]	// U
@@ -99,24 +100,25 @@ draw_line_uv:
 	ldr lr, [lr, #OFF_ctx.line.count]
 0:
 	// peek
-	and r12, r9, r5, asr #16	// r12 = U
-	and r11, r9, r7, asr #16	// r11 = V
+	and r1, r9, r5, asr #16	// r1 = U
+	and r2, r9, r7, asr #16	// r2 = V
 	add r5, r5, r6	// U += DU
-patch_uv_width_code:
-	add r12, r12, r11, lsl #6	// r12 = VU*4 (this #8 to be patched when txt width change)
+patch_uv_width:
+	add r1, r1, r2, lsl #8	// r1 = VU (this #8 to be patched when txt width change)
 	add r7, r7, r8	// V += DV
-	ldr r11, [r10, r12, lsl #2]	// r11 = texel
+	ldr r2, [r10, r1, lsl #2]	// r2 = texel
 	// poke
-	mov r12, r3, asr #16	// r12 = decliv>>16
-	mov r12, r12, asl r2	// r12 <<= nc_log
+	mov r1, r3, asr #16	// r1 = decliv>>16
 	add r3, r3, r4	// decliv += ddecliv
 	subs lr, lr, #1	// count--
-	str r11, [r0, r12]	// write color into that addy
+patch_uv_nc_log:
+	str r2, [r0, r1, asl #2]	// write color into that addy (shifted by nc_log, patched)
 	// loop
-	add r0, r0, r1	// w += dw
+patch_uv_dw:
+	add r0, r0, #0x12	// w += dw
 	bge 0b
 	// quit
-	ldmfd	sp!, {r4-r12, pc}
+	ldmfd	sp!, {r4-r10, pc}
 
 .shared: .word shared
 .ctx: .word ctx
