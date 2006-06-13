@@ -128,7 +128,7 @@ void gpuFree(struct gpuBuf *buf) {
 
 void gpuFreeFC(struct gpuBuf *buf, unsigned fc) {
 	assert(buf);
-	buf->free_after_fc = fc;
+	buf->free_after_fc = my_frame_count + fc;
 	list_add_tail(&buf->fc_list, &fc_list);
 }
 
@@ -166,9 +166,8 @@ gpuErr gpuShowBuf(struct gpuBuf *buf) {
 	show.loc = buf->loc;
 	gpuErr err = gpuWrite(&show, sizeof(show));
 	if (gpuOK != err) goto sb_quit;
+	gpuFreeFC(buf, 1);
 	my_frame_count ++;
-	buf->free_after_fc = my_frame_count;
-	list_add_tail(&buf->fc_list, &fc_list);
 sb_quit:	
 	return err;
 }
