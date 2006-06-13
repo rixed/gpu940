@@ -51,6 +51,7 @@
 #include <string.h>
 #include <assert.h>
 #include <unistd.h>
+#include <time.h>
 #include <sys/mman.h>
 #include <sys/types.h>
 #include <sys/stat.h>
@@ -146,6 +147,19 @@ static void show_out_buf(void) {
 		else assert(0);
 	}
 }
+
+static void set_dproj(unsigned dproj) {
+	static gpuCmdSetView setView = {
+		.opcode = gpuSETVIEW,
+		.clipMin = { GPU_DEFAULT_CLIPMIN0, GPU_DEFAULT_CLIPMIN1 },
+		.clipMax = { GPU_DEFAULT_CLIPMAX0, GPU_DEFAULT_CLIPMAX1 },
+		.winPos = { GPU_DEFAULT_WINPOS0, GPU_DEFAULT_WINPOS1 }
+	};
+	setView.dproj = dproj;
+	gpuErr err = gpuWrite(&setView, sizeof(setView));
+	assert(gpuOK == err);
+}
+
 
 /*
  * Camera
@@ -299,7 +313,7 @@ static int32_t uvs[6][4][2] = {
 };
 static struct gpuBuf *facet_text[6] = { NULL, };
 
-static void draw_facet(unsigned f, bool ext) {
+static void draw_facet(unsigned f, bool ext, int32_t i_dec) {
 	assert(f < sizeof_array(cube_facet));
 	(void)ext;
 	int32_t normal[3] = { 0, 0, 0 };
@@ -311,7 +325,7 @@ static void draw_facet(unsigned f, bool ext) {
 		}
 		cmdVec[v].uvi_params.u = uvs[f][v][0];
 		cmdVec[v].uvi_params.v = uvs[f][v][1];
-		cmdVec[v].uvi_params.i = ((2*LEN<<16)+c3d[ cube_facet[f][v] ][2])<<6;
+		cmdVec[v].uvi_params.i = (i_dec+c3d[ cube_facet[f][v] ][2])<<6;
 	}
 	int32_t scal = (
 		((int64_t)normal[0]*c3d[ cube_facet[f][0] ][0]) +
@@ -339,9 +353,9 @@ static void draw_facet(unsigned f, bool ext) {
 	}
 }
 
-static void draw_cube(bool ext) {
+static void draw_cube(bool ext, int32_t i_dec) {
 	for (unsigned f=6; f--; ) {
-		draw_facet(f, ext);
+		draw_facet(f, ext, i_dec);
 	}
 }
 
@@ -382,17 +396,17 @@ static void transform_cube(void) {
 }
 
 /*
- * Scenes
+ * Scene 1
  */
 
 #include "pics.c"
 
-struct target targets_scene1[] = {
+static struct target targets_scene1[] = {
 	{
 		.pos = { 0, 0, (2*LEN<<16)+12000 },	// first facet (grabed gp2x menu)
 		.lookat = { 0, 0, LEN<<16 },
 		.Xy = 0,
-		.nb_steps = 500,
+		.nb_steps = 50,
 	}, {
 		.pos = { 30000, 5000, (2*LEN<<16)+35000 },
 		.lookat = { 0, 0, LEN<<16 },
@@ -422,7 +436,7 @@ struct target targets_scene1[] = {
 		.pos = { (2*LEN<<16)+60000, 30000, 0 },
 		.lookat = { 1*LEN<<16, 0, 0 },
 		.Xy = -3000,
-		.nb_steps = 100,
+		.nb_steps = 70,
 	}, {
 		.pos = { 2*LEN<<16, 20000, -2*LEN<<16 },
 		.lookat = { 1*LEN<<16, 0, 0 },
@@ -623,22 +637,161 @@ static void scene1(void) {
 		next_out_buf();
 		clear_screen();
 		transform_cube();
-		draw_cube(true);
+		draw_cube(true, 2*LEN<<16);
 		show_out_buf();
 		if (! --camera.target->nb_steps) {
 			if (++target >= sizeof_array(targets_scene1)) break;
 			camera.target = &targets_scene1[target];
 			if (14 == target) {
 				camera.acc_pos[0] = camera.acc_pos[1] = camera.acc_pos[2] = 0;
-				printf("NOW!\n");
 			}
 		}
-		// si on viens de tapper le cube, mettre a 0 l'inertie
 	} while (1);
-	gpuFree(facet_text[4]);
-	gpuFree(facet_text[0]);
-	gpuFree(facet_text[5]);
-	gpuFree(facet_text[2]);
+	gpuFreeFC(facet_text[4], 1);
+	gpuFreeFC(facet_text[0], 1);
+	gpuFreeFC(facet_text[5], 1);
+	gpuFreeFC(facet_text[2], 1);
+}
+
+/*
+ * Scene 2
+ */
+
+#define DROP_DIAMETER 128
+static uint8_t ink_drop[DROP_DIAMETER][DROP_DIAMETER];
+
+static void draw_drop(void) {
+	memset(ink_drop, 0, sizeof(ink_drop));
+	unsigned x, y;
+	unsigned thresold = DROP_DIAMETER*DROP_DIAMETER / 36;
+	for (y=0; y<DROP_DIAMETER; y++) {
+		int dy = DROP_DIAMETER/2 - y;
+		unsigned dy2 = dy*dy;
+		for (x=0; x<DROP_DIAMETER; x++) {
+			int dx = DROP_DIAMETER/2 - x;
+			unsigned dx2 = dx*dx;
+			unsigned d2 = dy2 + dx2;
+			if (d2 < thresold) {
+				ink_drop[y][x] = 255;
+			} else {
+				unsigned ang = 2*Fix_sqrt(d2 - thresold);
+				if (ang < DROP_DIAMETER) {
+					int32_t c = 0x80+(Fix_cos((ang*32768)/DROP_DIAMETER)>>9);
+					ink_drop[y][x] = c<0 ? 0 : c>255 ? 255 : c;
+				} else {
+					ink_drop[y][x] = 0;
+				}
+			}
+		}
+	}
+}
+
+static void add_drop(uint8_t (*map)[256][256], unsigned x, unsigned y) {
+	unsigned dx, dy;
+	for (dy=0; dy<DROP_DIAMETER; dy++) {
+		for (dx=0; dx<DROP_DIAMETER; dx++) {
+			unsigned i = (*map)[(y+dy)&0xff][(x+dx)&0xff] + ink_drop[dy][dx];
+			(*map)[(y+dy)&0xff][(x+dx)&0xff] = i > 255 ? 255 : i;
+		}
+	}
+}
+
+static void splash_colors(uint8_t (*map)[256][256], unsigned nb_drops) {
+	draw_drop();
+	memset(map, 0, sizeof(*map));
+	for (unsigned s=0; s<nb_drops; s++) {
+		int r = rand();
+		int sx = (r>>8);
+		int sy = (r>>16);
+		add_drop(map, sx, sy);
+	}
+}
+
+static void ink2text(uint32_t *text, uint8_t (*map)[256][256]) {
+	static int a1, a2, a3, a4, a5;
+	unsigned ax = (41*Fix_sin(a1))>>16;
+	a1 += 200;
+	unsigned ay = (18*Fix_cos(a2))>>16;
+	a2 += 20;
+	unsigned bx = (21*Fix_sin(a3))>>16;
+	a3 += 67;
+	unsigned by = (28*Fix_cos(a4))>>16;
+	a4 += 51;
+	unsigned thresold = 80 + ((70*Fix_sin(a5))>>16);
+	a5 += 453;
+	unsigned thresold2 = thresold + 90;
+	uint32_t col1 = gpuColor(0xc0, 0xc0, 0xb0);
+	uint32_t col2 = gpuColor(0x80, 0xa8, 0xb0);
+	for (unsigned y=0; y<256; y++) {
+		for (unsigned x=0; x<256; x++) {
+			unsigned v = (unsigned)(*map)[(y+by)&0xff][(x+bx)&0xff]+(unsigned)(*map)[(ay-y)&0xff][(ax-x)&0xff];
+			if (v < thresold) {
+				*text = col1;
+			} else if (v < thresold2) {
+				*text = col2;
+			} else {
+				*text = col1;
+			}
+			text ++;
+		}
+	}
+}
+
+static struct target targets_scene2[] = {
+	{
+		.pos = { 0, 0, 12000 },	// first facet (grabed gp2x menu)
+		.lookat = { 0, 0, 0 },
+		.Xy = 1000,
+		.nb_steps = 150,
+	}, {
+		.pos = { 300, 45000, 5000 },
+		.lookat = { 0, 0, 0 },
+		.Xy = -30000,
+		.nb_steps = 150,
+	}, {
+		.pos = { 300, -35000, 45000 },
+		.lookat = { 0, 0, 0 },
+		.Xy = 20000,
+		.nb_steps = 150,
+	}
+};
+
+static void scene2(void) {
+	uint8_t (*ink_map)[256][256] = malloc(sizeof(*ink_map));
+	assert(ink_map);
+	splash_colors(ink_map, 8);
+	unsigned target = 0;
+	camera.target = &targets_scene2[target];
+	camera.acc_pos[0] /= 8;
+	camera.acc_pos[1] /= 2;
+	camera.acc_pos[2] /= 2;
+	camera.pos[0] = -50000;
+	set_dproj(7);
+	do {
+		// build a new texture
+		struct gpuBuf *text;
+		do {
+			text = gpuAlloc(8, 256);
+			if (text) break;
+			sched_yield();
+		} while (1);
+		gpuFreeFC(text, 1);
+		for (unsigned f=0; f<sizeof_array(facet_text); f++) {
+			facet_text[f] = text;
+		}
+		ink2text(shared->buffers+gpuBuf_get_loc(text)->address, ink_map);
+		camera_move();
+		next_out_buf();
+		transform_cube();
+		draw_cube(false, LEN<<16);
+		show_out_buf();
+		if (! --camera.target->nb_steps) {
+			if (++target >= sizeof_array(targets_scene2)) target=0;//break;
+			camera.target = &targets_scene2[target];
+			camera.target->nb_steps = 150;
+		}
+	} while (1);
+	free(ink_map);
 }
 
 /*
@@ -646,10 +799,13 @@ static void scene1(void) {
  */
 
 int main(void) {
+	srand(time(NULL));
+	Fix_trig_init();
 	if (gpuOK != gpuOpen()) {
 		assert(0);
 	}
 	scene1();
+	scene2();
 	gpuClose();
 	return EXIT_SUCCESS;	// do an exec instead
 }

@@ -85,14 +85,14 @@ static void display(struct buffer_loc const *loc) {
 		return;
 	}
 	// draw...
-	for (y = ctx.view.winHeight; y--; ) {
+	for (y = SCREEN_HEIGHT; y--; ) {
 		Uint32 *restrict dst = (Uint32*)((Uint8*)sdl_screen->pixels + y*sdl_screen->pitch);
 		uint32_t *restrict src = &shared->buffers[loc->address + ((y+ctx.view.winPos[1])<<loc->width_log) + ctx.view.winPos[0]];
-		memcpy(dst, src, ctx.view.winWidth<<2);
+		memcpy(dst, src, SCREEN_WIDTH<<2);
 	}
 	if (SDL_MUSTLOCK(sdl_screen)) SDL_UnlockSurface(sdl_screen);
 	SDL_BlitSurface(sdl_console, NULL, sdl_screen, NULL);
-	SDL_UpdateRect(sdl_screen, 0, 0, ctx.view.winWidth, ctx.view.winHeight);
+	SDL_UpdateRect(sdl_screen, 0, 0, SCREEN_WIDTH, SCREEN_HEIGHT);
 #endif
 	perftime_enter(in_target, NULL);
 }
@@ -183,14 +183,14 @@ static void ctx_reset(void) {
 	my_memset(&ctx, 0, sizeof ctx);
 	ctx.location.out.width_log = next_power_of_2(SCREEN_WIDTH+6);
 	ctx.location.out.height = SCREEN_HEIGHT+6;
-	ctx.view.winPos[0] = ((1<<ctx.location.out.width_log)-SCREEN_WIDTH)>>1;
-	ctx.view.winPos[1] = 3;
-	ctx.view.clipMin[0] = (-SCREEN_WIDTH>>1)-1;
-	ctx.view.clipMin[1] = (-SCREEN_HEIGHT>>1)-1;
-	ctx.view.clipMax[0] = (SCREEN_WIDTH>>1)+1;
-	ctx.view.clipMax[1] = (SCREEN_HEIGHT>>1)+1;
-	ctx.view.winWidth = SCREEN_WIDTH;
-	ctx.view.winHeight = SCREEN_HEIGHT;
+	ctx.view.winPos[0] = GPU_DEFAULT_WINPOS0;
+	ctx.view.winPos[1] = GPU_DEFAULT_WINPOS1;
+	ctx.view.clipMin[0] = GPU_DEFAULT_CLIPMIN0;
+	ctx.view.clipMin[1] = GPU_DEFAULT_CLIPMIN1;
+	ctx.view.clipMax[0] = GPU_DEFAULT_CLIPMAX0;
+	ctx.view.clipMax[1] = GPU_DEFAULT_CLIPMAX1;
+	ctx.view.winWidth = ctx.view.clipMax[0] - ctx.view.clipMin[0];
+	ctx.view.winHeight = ctx.view.clipMax[1] - ctx.view.clipMin[1];
 	ctx.view.dproj = GPU_DEFAULT_DPROJ;
 	reset_clipPlanes();
 	ctx.view.nb_clipPlanes = 5;
@@ -264,6 +264,7 @@ static void do_setView(void) {
 	ctx.view.winPos[1] = allCmds.setView.winPos[1];
 	ctx.view.winWidth = ctx.view.clipMax[0] - ctx.view.clipMin[0];
 	ctx.view.winHeight = ctx.view.clipMax[1] - ctx.view.clipMin[1];
+	reset_clipPlanes();
 }
 static void do_setOutBuf(void) {
 	read_from_cmdBuf(&allCmds.setOutBuf, sizeof(allCmds.setOutBuf));
@@ -280,10 +281,10 @@ static void do_setTxtBuf(void) {
 	unsigned new_mask = (1<<ctx.location.txt.width_log)-1;
 	if (new_mask != ctx.location.txt_mask) {
 		ctx.location.txt_mask = new_mask;
-		extern uint16_t patch_uv_width_code;
+		extern uint16_t patch_uv_width;
 		// Never ever _read_ this value, or it will be loaded in DCache ; so
 		// that there is no need to clean and flush DCache.
-		patch_uv_width_code = 0xc00b | (ctx.location.txt.width_log<<7);
+		patch_uv_width= 0x1002 | (ctx.location.txt.width_log<<7);
 		__asm__ volatile (	// Drain write buffer then fush ICache
 			"mov r0, #0\n"
 			"mcr p15, 0, r0, c7, c10, 4\n"
@@ -307,6 +308,9 @@ static void do_showBuf(void) {
 	}
 	displist[displist_end] = allCmds.showBuf.loc;
 	displist_end = next_displist_end;
+#ifndef GP2X
+	vertical_interrupt();
+#endif
 }
 static void do_point(void) {}
 static void do_line(void) {}
@@ -533,7 +537,7 @@ void mymain(void) {	// to please autoconf, we call this 'main'
 	// enable dithering
 	gp2x_regs8[0x2946] = 1;	// this does nothing (??)
 	// enhance contrast and brightness
-	gp2x_regs16[0x2934>>1] = 0x033f;	
+//	gp2x_regs16[0x2934>>1] = 0x033f;	
 	// init the vertical interrupt
 	gp2x_regs32[0x0808>>2] |= 1U;	// kernel don't want these
 	gp2x_regs32[0x4504>>2] = 0;	// IRQs not FIQs
@@ -541,7 +545,6 @@ void mymain(void) {	// to please autoconf, we call this 'main'
 	gp2x_regs32[0x450c>>2] = 0;	// kernel does this
 	gp2x_regs32[0x4500>>2] = -1;	// kernel does this
 	gp2x_regs32[0x4510>>2] = -1;	// kernel does this
-	gp2x_regs16[0x3b42>>1] = -1;	// DUALINT940
 	// enable VSYNC IRQ in display controler
 	gp2x_regs16[0x2846>>1] |= 0x20;
 	// and now, enable IRQs
@@ -558,10 +561,10 @@ quit:;
 	// TODO halt the 940
 }
 #else
-static void alrm_handler(int dummy) {
-	(void)dummy;
-	vertical_interrupt();
-}
+//static void alrm_handler(int dummy) {
+//	(void)dummy;
+//	vertical_interrupt();
+//}
 int main(void) {
 	if (-1 == perftime_begin(0, NULL, 0)) return EXIT_FAILURE;
 	int fd = open(CMDFILE, O_RDWR|O_CREAT|O_TRUNC, 0644);
@@ -581,27 +584,27 @@ int main(void) {
 	shared_reset();
 	// Open SDL screen of default window size
 	if (0 != SDL_Init(SDL_INIT_VIDEO)) return EXIT_FAILURE;
-	sdl_screen = SDL_SetVideoMode(ctx.view.winWidth, ctx.view.winHeight, 32, SDL_SWSURFACE);
+	sdl_screen = SDL_SetVideoMode(SCREEN_WIDTH, SCREEN_HEIGHT, 32, SDL_SWSURFACE);
 	if (! sdl_screen) return EXIT_FAILURE;
 	// use itimer for simulation of vertical interrupt
-	if (0 != sigaction(SIGALRM, &(struct sigaction){ .sa_handler = alrm_handler }, NULL)) {
+/*	if (0 != sigaction(SIGALRM, &(struct sigaction){ .sa_handler = alrm_handler }, NULL)) {
 		perror("sigaction");
 		return EXIT_FAILURE;
 	}
 	struct itimerval itimer = {
 		.it_interval = {
 			.tv_sec = 0,
-			.tv_usec = 50000,
+			.tv_usec = 20000,
 		},
 		.it_value = {
 			.tv_sec = 0,
-			.tv_usec = 50000,
+			.tv_usec = 20000,
 		},
 	};
 	if (0 != setitimer(ITIMER_REAL, &itimer, NULL)) {
 		perror("setitimer");
 		return EXIT_FAILURE;
-	}
+	}*/
 	console_begin();
 	console_setup();
 	run();

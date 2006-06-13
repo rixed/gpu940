@@ -33,6 +33,12 @@
 #define SCREEN_HEIGHT 240
 #define MAX_FACET_SIZE 16
 #define GPU_DEFAULT_DPROJ 8
+#define GPU_DEFAULT_CLIPMIN0 ((-SCREEN_WIDTH>>1)-1)
+#define GPU_DEFAULT_CLIPMIN1 ((-SCREEN_HEIGHT>>1)-1)
+#define GPU_DEFAULT_CLIPMAX0 ((SCREEN_WIDTH>>1)+1)
+#define GPU_DEFAULT_CLIPMAX1 ((SCREEN_HEIGHT>>1)+1)
+#define GPU_DEFAULT_WINPOS0 ((512-SCREEN_WIDTH)>>1)
+#define GPU_DEFAULT_WINPOS1 3
 #define GPU_NB_PARAMS 3
 #define GPU_NB_CLIPPLANES (5+2)
 #define GPU_DISPLIST_SIZE 64
@@ -101,6 +107,7 @@ typedef struct {
 } gpuCmdReset;
 
 typedef struct {
+	gpuOpcode opcode;
 	uint32_t dproj;
 	int32_t clipMin[2], clipMax[2];	// (0,0) = center of projection
 	int32_t winPos[2];	// coordinate of the lower left corner where to draw the window ((0,0) = center of screen)
