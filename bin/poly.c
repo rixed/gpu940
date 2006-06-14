@@ -106,6 +106,9 @@ static void draw_line_uv(void) {
 	} while (ctx.line.count >= 0);
 }
 #endif
+#ifdef GP2X
+extern void draw_line_uvi(void);
+#else
 static void draw_line_uvi(void) {
 #ifdef GP2X
 	ctx.line.param[2] *= 55;
@@ -138,6 +141,7 @@ static void draw_line_uvi(void) {
 		ctx.line.count --;
 	} while (ctx.line.count >= 0);
 }
+#endif
 
 // buffers are so lower coords have lower addresses. direct coord system was just a convention, right ?
 #define min(a,b) ((a)<=(b) ? (a):(b))
@@ -182,16 +186,14 @@ static void draw_line(void) {
 	{	// patch code
 		bool patched = false;
 		// nc_log
-		extern uint16_t patch_uv_nc_log;
-		extern uint16_t patch_ci_nc_log;
+		extern uint16_t patch_uv_nc_log, patch_ci_nc_log, patch_uvi_nc_log;
 		static uint32_t nc_log = ~0;
 		if (ctx.poly.nc_log != nc_log) {
 			patched = true;
 			nc_log = ctx.poly.nc_log;
-			patch_uv_nc_log = patch_ci_nc_log = 0x2001 | (nc_log<<7);
+			patch_uv_nc_log = patch_ci_nc_log = patch_uvi_nc_log = 0x2001 | (nc_log<<7);
 		}
-		extern uint32_t patch_uv_dw;
-		extern uint32_t patch_ci_dw;
+		extern uint32_t patch_uv_dw, patch_ci_dw, patch_uvi_dw;
 		static int32_t dw = ~0;
 		if (ctx.line.dw != dw) {
 			patched = true;
@@ -208,7 +210,7 @@ static void draw_line(void) {
 				dw_rot ++;
 			}
 			if (dw_rot) dw_rot = 16-dw_rot;	// rotate right
-			patch_uv_dw = patch_ci_dw = 0xe2000000 | (sign<<16) | (dw_rot<<8) | dw_imm;
+			patch_uv_dw = patch_ci_dw = patch_uvi_dw = 0xe2000000 | (sign<<16) | (dw_rot<<8) | dw_imm;
 		}
 		if (patched) {
 			__asm__ volatile (	// Drain write buffer then fush ICache

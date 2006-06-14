@@ -1,3 +1,6 @@
+2005-06-14 rixed@free.fr
+	* rendering_uvi in straightforward ARM assembly.
+
 2005-06-08 rixed@free.fr
 	* New z_alpha computations.
 

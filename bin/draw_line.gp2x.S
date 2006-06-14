@@ -23,11 +23,15 @@
 .globl draw_line_c
 .globl draw_line_ci
 .globl draw_line_uv
+.globl draw_line_uvi
 .globl patch_uv_width
+.globl patch_uvi_width
 .globl patch_uv_nc_log
 .globl patch_ci_nc_log
+.globl patch_uvi_nc_log
 .globl patch_uv_dw
 .globl patch_ci_dw
+.globl patch_uvi_dw
 .align 4
 draw_line_c:
 	ldr r3, .ctx
@@ -119,6 +123,65 @@ patch_uv_dw:
 	bge 0b
 	// quit
 	ldmfd	sp!, {r4-r10, pc}
+
+draw_line_uvi:
+	stmfd	sp!, {r4-r12, lr}
+	ldr lr, .ctx
+	ldr r0, [lr, #OFF_ctx.line.w]
+	ldr r3, [lr, #OFF_ctx.line.decliv]
+	ldr r4, [lr, #OFF_ctx.line.ddecliv]
+	ldr r5, [lr, #OFF_ctx.line.param]	// U
+	ldr r6, [lr, #OFF_ctx.line.dparam]	// DU
+	ldr r7, [lr, #OFF_ctx.line.param+4]	// V
+	ldr r8, [lr, #OFF_ctx.line.dparam+4]	// DV
+	ldr r11, [lr, #OFF_ctx.line.param+8]	// I
+	add r9, r11, r11, lsl #1	// r9 = I*3
+	add r11, r9, r11, lsl #3	// r11 = I*3+I*8 = I*11
+	add r11, r11, r11, lsl #2	// r11 = I*11+(I*11)*4 = I*55
+	ldr r12, [lr, #OFF_ctx.line.dparam+8]	// DI
+	add r9, r12, r12, lsl #1
+	add r12, r9, r12, lsl #3
+	add r12, r12, r12, lsl #2
+	ldr r9, [lr, #OFF_ctx.location.txt_mask]
+	ldr r10, [lr, #OFF_ctx.location.txt.address]
+	mov r10, r10, lsl #2
+	add r10, r10, #BUFFERS_ADDR
+	ldr lr, [lr, #OFF_ctx.line.count]
+0:
+	// peek
+	and r1, r9, r5, asr #16	// r1 = U
+	and r2, r9, r7, asr #16	// r2 = V
+	add r5, r5, r6	// U += DU
+patch_uvi_width:
+	add r1, r1, r2, lsl #8	// r1 = VU (this #8 to be patched when txt width change)
+	add r7, r7, r8	// V += DV
+	ldr r2, [r10, r1, lsl #2]	// r2 = texel
+	// transform Y
+	and r1, r2, #0xff	// r1 = Y
+	
+	adds r1, r1, r11, asr #22	// r2 = Y + intens
+	movmi r1, #0	// saturate
+	cmp r1, #0x100
+	movpl r1, #0xff
+
+	bic r2, r2, #0xff
+	bic r2, r2, #0xff0000
+	add r11, r11, r12
+	orr r2, r2, r1, lsl #16
+	orr r2, r2, r1
+	
+	// poke
+	mov r1, r3, asr #16	// r1 = decliv>>16
+	add r3, r3, r4	// decliv += ddecliv
+	subs lr, lr, #1	// count--
+patch_uvi_nc_log:
+	str r2, [r0, r1, asl #2]	// write color into that addy (shifted by nc_log, patched)
+	// loop
+patch_uvi_dw:
+	add r0, r0, #0x12	// w += dw
+	bge 0b
+	// quit
+	ldmfd	sp!, {r4-r12, pc}
 
 .shared: .word shared
 .ctx: .word ctx
