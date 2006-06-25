@@ -38,6 +38,7 @@ AC_C_VOLATILE
 AC_FUNC_MMAP
 AC_CHECK_FUNCS([getpagesize munmap])
 ###AC_CHECK_LIB(SDL, SDL_Init,, AC_MSG_ERROR([SDL is required]))
+AC_CHECK_LIB(png, png_create_read_struct,, AC_MSG_ERROR([libpng is required]))
 
 AC_CONFIG_FILES([
 	Makefile

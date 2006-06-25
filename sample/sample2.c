@@ -17,13 +17,13 @@
  */
 #include <stdio.h>
 #include <string.h>
+#include <assert.h>
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <unistd.h>
 #include <fcntl.h>
 #include <gpu940.h>
 #include <stdlib.h>
-#include <sched.h>
 #include "fixmath.h"
 
 static uint8_t img[64*64][3];
@@ -66,7 +66,7 @@ static int randc(void) {
 	return ((rand()>>5)&3);
 }
 static void gen_img(void) {
-	memset(img, 28, 64*64*3);
+	memset(img, 128, 64*64*3);
 	for (unsigned i=600; i--; ) {
 		pass(randi(), randi(), randu(), randu(), randc(), randc(), randc());
 	}
@@ -155,12 +155,8 @@ static void send_facet(unsigned v0) {
 	cmdvec[2].iov_base = vectors+v0+1;
 	cmdvec[3].iov_base = vectors+v0+2;
 	cmdvec[4].iov_base = vectors+v0+3;
-	while (1) {
-		gpuErr err = gpuWritev(cmdvec, sizeof_array(cmdvec));
-		if (gpuOK == err) break;
-		else if (gpuENOSPC == err) (void)sched_yield();
-		else exit(EXIT_FAILURE);
-	}
+	gpuErr err = gpuWritev(cmdvec, sizeof_array(cmdvec), true);
+	assert(gpuOK == err);
 }
 
 int main(void) {
@@ -169,7 +165,7 @@ int main(void) {
 		return EXIT_FAILURE;
 	}
 	gen_img();
-	struct gpuBuf *txtGenBuf = gpuAlloc(6, 64);
+	struct gpuBuf *txtGenBuf = gpuAlloc(6, 64, false);
 	if (! txtGenBuf) {
 		fprintf(stderr, "Cannot alloc buf for texture\n");
 		return EXIT_FAILURE;
@@ -203,28 +199,16 @@ int main(void) {
 		}
 		struct gpuBuf *outBuf;
 		gpuErr err;
-		while (1) {
-			outBuf = gpuAlloc(9, 250);
-			if (outBuf) break;
-			(void)sched_yield();
-		}
-		while (1) {
-			err = gpuSetOutBuf(outBuf);
-			if (gpuOK == err) break;
-			else if (gpuENOSPC == err) (void)sched_yield();
-			else return EXIT_FAILURE;
-		}
-		if (gpuOK != gpuSetTxtBuf(txtGenBuf)) {
+		outBuf = gpuAlloc(9, 250, true);
+		err = gpuSetOutBuf(outBuf, true);
+		assert(gpuOK == err);
+		if (gpuOK != gpuSetTxtBuf(txtGenBuf, false)) {
 			fprintf(stderr, "Cannot set texture buffer.\n");
 			return EXIT_FAILURE;
 		}
 		for (unsigned f=0; f<6; f++) send_facet(f*4);
-		while (1) {
-			err = gpuShowBuf(outBuf);
-			if (gpuOK == err) break;
-			else if  (gpuENOSPC == err) (void)sched_yield();
-			else return EXIT_FAILURE;
-		}
+		err = gpuShowBuf(outBuf, false);
+		assert(gpuOK == err);
 	}
 	gpuFree(txtGenBuf);
 	gpuClose();

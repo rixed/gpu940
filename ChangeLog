@@ -1,39 +1,43 @@
-2005-06-14 rixed@free.fr
+2006-06-25 rixed@free/fr
+	* Command to add the user-defined clipplanes.
+	* Shadow rendering.
+
+2006-06-14 rixed@free.fr
 	* rendering_uvi in straightforward ARM assembly.
 
-2005-06-08 rixed@free.fr
+2006-06-08 rixed@free.fr
 	* New z_alpha computations.
 
-2005-05-31 rixed@free.fr
+2006-05-31 rixed@free.fr
 	* New rasterizer (slower but more understandable).
 	* Closer memory setup to have all buffers cacheable/bufferables.
 
-2005-05-28 rixed@free.fr
+2006-05-28 rixed@free.fr
 	* Downclock when iddle on GP2X.
 	* Better division.
 	* Fix textures when size is not 256.
 	* Add a reset command.
 
-2005-05-27 rixed@free.fr
+2006-05-27 rixed@free.fr
 	* CLocking the 940T to full speed.
 	* Better division routine.
 
-2005-05-25 rixed@free.fr
+2006-05-25 rixed@free.fr
 	* OSD uses colors.
 	* Fix OSD rendering of chars > 128 on PC.
 	* Fix flat drawing routine on PC.
 	* rendering_c, _ci and _uv are now in ARM asm, which change nothing.
 
-2005-05-25 rixed@free.fr
+2006-05-25 rixed@free.fr
 	* Fix DISPINT IRQ on GP2X (thank you Squidge).
 	* Fix OSD on GP2X.
 	* Add perfmeters.
 
-2005-05-21 rixed@free.fr
+2006-05-21 rixed@free.fr
 	* Now GP2X rendering uses YUV (better lightning)
 	* OSD OK on PC, not working (yet) on GP2X for unknown reason.
 
-2005-05-14 rixed@free.fr
+2006-05-14 rixed@free.fr
 
 	* Initial submission at gna.org
 

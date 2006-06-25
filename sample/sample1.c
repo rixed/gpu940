@@ -16,13 +16,13 @@
  * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
  */
 #include <stdio.h>
+#include <assert.h>
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <unistd.h>
 #include <fcntl.h>
 #include <gpu940.h>
 #include <stdlib.h>
-#include <sched.h>
 #include "fixmath.h"
 
 static uint8_t pascale[256*256][3];
@@ -39,8 +39,13 @@ int main(void) {
 	}
 	lseek(fd, 18, SEEK_SET);
 	read(fd, pascale, sizeof(pascale));
+	for (unsigned p=0; p<256*256; p++) {	// B, G, R -> R, G, B
+		uint8_t r = pascale[p][2];
+		pascale[p][2] = pascale[p][0];
+		pascale[p][0] = r;
+	}
 	close(fd);
-	struct gpuBuf *txtBuf = gpuAlloc(8, 256);
+	struct gpuBuf *txtBuf = gpuAlloc(8, 256, false);
 	if (! txtBuf) {
 		fprintf(stderr, "Cannot alloc buf for texture\n");
 		return EXIT_FAILURE;
@@ -49,7 +54,7 @@ int main(void) {
 		fprintf(stderr, "Cannot load texture.\n");
 		return EXIT_FAILURE;
 	}
-	if (gpuOK != gpuSetTxtBuf(txtBuf)) {
+	if (gpuOK != gpuSetTxtBuf(txtBuf, false)) {
 		fprintf(stderr, "Cannot set texture buffer.\n");
 		return EXIT_FAILURE;
 	}
@@ -121,29 +126,13 @@ int main(void) {
 		}
 		struct gpuBuf *outBuf;
 		gpuErr err;
-		while (1) {
-			outBuf = gpuAlloc(9, 250);
-			if (outBuf) break;
-			(void)sched_yield();
-		}
-		while (1) {
-			err = gpuSetOutBuf(outBuf);
-			if (gpuOK == err) break;
-			else if (gpuENOSPC == err) (void)sched_yield();
-			else return EXIT_FAILURE;
-		}
-		while (1) {
-			err = gpuWritev(cmdvec, sizeof_array(cmdvec));
-			if (gpuOK == err) break;
-			else if (gpuENOSPC == err) (void)sched_yield();
-			else return EXIT_FAILURE;
-		}	
-		while (1) {
-			err = gpuShowBuf(outBuf);
-			if (gpuOK == err) break;
-			else if  (gpuENOSPC == err) (void)sched_yield();
-			else return EXIT_FAILURE;
-		}
+		outBuf = gpuAlloc(9, 250, true);
+		err = gpuSetOutBuf(outBuf, true);
+		assert(gpuOK == err);
+		err = gpuWritev(cmdvec, sizeof_array(cmdvec), true);
+		assert(gpuOK == err);
+		err = gpuShowBuf(outBuf, true);
+		assert(gpuOK == err);
 		if (shared->error_flags) printf("ERROR: %u\n", shared->error_flags);
 //		printf("frame %u, missed %u\n", shared->frame_count, shared->frame_miss);
 	}

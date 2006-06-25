@@ -126,23 +126,14 @@ int clip_poly(void) {
 	unsigned previous_target = perftime_target();
 	perftime_enter(PERF_CLIP, "clip & proj");
 	// init facet
-	switch (ctx.poly.cmdFacet.rendering_type) {
-		case rendering_c:
-			ctx.poly.nb_params = 0;
-			break;
-		case rendering_ci:
-			ctx.poly.nb_params = 1;
-			break;
-		case rendering_uv:
-			ctx.poly.nb_params = 2;
-			break;
-		case rendering_uvi:
-			ctx.poly.nb_params = 3;
-			break;
-		default:
-			set_error_flag(gpuEPARAM);
-			goto ret;
+	unsigned nb_params_for_rendering[NB_RENDERING_TYPES] = {
+		0, 1, 2, 3, 2, 0, 2
+	};
+	if (ctx.poly.cmdFacet.rendering_type >= NB_RENDERING_TYPES) {
+		set_error_flag(gpuEPARAM);
+		goto ret;
 	}
+	ctx.poly.nb_params = nb_params_for_rendering[ctx.poly.cmdFacet.rendering_type];
 	// init vectors
 	unsigned v;
 	ctx.poly.first_vector = 0;

@@ -154,22 +154,17 @@ draw_line_uvi:
 	add r5, r5, r6	// U += DU
 patch_uvi_width:
 	add r1, r1, r2, lsl #8	// r1 = VU (this #8 to be patched when txt width change)
-	add r7, r7, r8	// V += DV
 	ldr r2, [r10, r1, lsl #2]	// r2 = texel
+	add r7, r7, r8	// V += DV
 	// transform Y
 	and r1, r2, #0xff	// r1 = Y
-	
 	adds r1, r1, r11, asr #22	// r2 = Y + intens
 	movmi r1, #0	// saturate
 	cmp r1, #0x100
 	movpl r1, #0xff
-
-	bic r2, r2, #0xff
-	bic r2, r2, #0xff0000
-	add r11, r11, r12
-	orr r2, r2, r1, lsl #16
+	bic r2, r2, #0xff	// we only put Y here, because the upper copy (bits 16-23) seams useless by now
+	add r11, r11, r12	// I += DI
 	orr r2, r2, r1
-	
 	// poke
 	mov r1, r3, asr #16	// r1 = decliv>>16
 	add r3, r3, r4	// decliv += ddecliv

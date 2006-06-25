@@ -19,6 +19,7 @@
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <fcntl.h>
+#include <sched.h>
 #include <sys/mman.h>
 #include <assert.h>
 #include <unistd.h>
@@ -94,7 +95,7 @@ gpuErr gpuOpen(void) {
 		return gpuESYS;
 	}
 	static gpuCmdReset reset = { .opcode = gpuRESET };
-	gpuErr err = gpuWrite(&reset, sizeof(reset));
+	gpuErr err = gpuWrite(&reset, sizeof(reset), true);
 	if (gpuOK != err) return err;
 	while (shared->frame_count != 0) ;
 	return gpuOK;
@@ -106,20 +107,26 @@ void gpuClose(void) {
 	(void)close(shared_fd);
 }
 
-gpuErr gpuWrite(void *cmd/* must be word aligned*/, size_t size) {
+gpuErr gpuWrite(void *cmd/* must be word aligned*/, size_t size, bool can_wait) {
 	assert(!(size&3));
 	size >>= 2;
-	if (avail_cmd_space() < size) return gpuENOSPC;
+	while (avail_cmd_space() < size) {
+		if (! can_wait) return gpuENOSPC;
+		(void)sched_yield();
+	}
 	shared->cmds_end = append_to_cmdbuf(shared->cmds_end, cmd, size);
 	flush_writes();
 	return gpuOK;
 }
 
-gpuErr gpuWritev(const struct iovec *cmdvec, size_t count) {
+gpuErr gpuWritev(const struct iovec *cmdvec, size_t count, bool can_wait) {
 	size_t size = 0;
 	for (unsigned c=0; c<count; c++) size += cmdvec[c].iov_len;
 	assert(!(size&3));
-	if (avail_cmd_space() < size>>2) return gpuENOSPC;
+	while (avail_cmd_space() < size>>2) {
+		if (! can_wait) return gpuENOSPC;
+		(void)sched_yield();
+	}
 	int end = shared->cmds_end;
 	for (unsigned c=0; c<count; c++) {
 		end = append_to_cmdbuf(end, cmdvec[c].iov_base, cmdvec[c].iov_len>>2);

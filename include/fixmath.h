@@ -32,8 +32,8 @@ typedef struct {
 } FixMat;
 
 void FixMat_x_Vec(int32_t dest[3], FixMat const *mat, FixVec const *src, bool translate);
-static inline int32_t FixMat_scalar(int32_t v1[3], int32_t v2[3]) {
-	int64_t res = v1[0]*v2[0] + v1[1]*v2[1] + v1[2]*v2[2];
+static inline int32_t Fix_scalar(int32_t v1[3], int32_t v2[3]) {
+	int64_t res = (int64_t)v1[0]*v2[0] + (int64_t)v1[1]*v2[1] + (int64_t)v1[2]*v2[2];
 	return res>>16;
 }
 

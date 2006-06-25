@@ -39,19 +39,45 @@ static int start_poly = 0;	// DEBUG
 typedef void (*draw_line_t)(void);
 
 #define SAT8(x) do { if ((x)>=256) (x)=255; else if ((x)<0) (x)=0; } while(0)
+
+static void shadow(uint32_t *w, int32_t intens) {
+	uint32_t c = *w;
+#ifdef GP2X
+	int32_t y = (c&0xff)+intens;
+	SAT8(y);
+	*w = (c&~0xff)|y;
+#else
+	int32_t r = (c>>16)+intens;
+	int32_t g = ((c>>8)&0xff)+intens;
+	int32_t b = (c&0xff)+intens;
+	SAT8(r);
+	SAT8(g);
+	SAT8(b);
+	*w = (r<<16)|(g<<8)|b;
+#endif
+}
+
 #ifdef GP2X
 extern void draw_line_c(void);
 #else
 static void draw_line_c(void) {
 	do {
 		uint32_t *w = (uint32_t *)(ctx.line.w);
-//		if (start_poly) *w = ctx.poly.scan_dir ? 0x3e0 : 0xf800; else
+		if (start_poly) *w = ctx.poly.scan_dir ? 0x3e0 : 0xf800; else
 		*w = ctx.poly.cmdFacet.color;
 		ctx.line.w += ctx.line.dw;
 		ctx.line.count --;
 	} while (ctx.line.count >= 0);
 }
 #endif
+static void draw_line_shadow(void) {	// used for shadowing a flat polygon
+	do {
+		uint32_t *w = (uint32_t *)(ctx.line.w);
+		shadow(w, ctx.poly.cmdFacet.intens);
+		ctx.line.w += ctx.line.dw;
+		ctx.line.count --;
+	} while (ctx.line.count >= 0);
+}
 #ifdef GP2X
 extern void draw_line_ci(void);
 #else
@@ -106,6 +132,30 @@ static void draw_line_uv(void) {
 	} while (ctx.line.count >= 0);
 }
 #endif
+static void draw_line_uvk(void) {
+	do {
+		uint32_t color = texture_color(&ctx.location.txt, ctx.line.param[0], ctx.line.param[1]);
+		uint32_t *w = (uint32_t *)(ctx.line.w + ((ctx.line.decliv>>16)<<ctx.poly.nc_log));
+		if (color != ctx.poly.cmdFacet.color) *w = color;
+		ctx.line.w += ctx.line.dw;
+		ctx.line.decliv += ctx.line.ddecliv;
+		ctx.line.param[0] += ctx.line.dparam[0];
+		ctx.line.param[1] += ctx.line.dparam[1];
+		ctx.line.count --;
+	} while (ctx.line.count >= 0);
+}
+static void draw_line_uvk_shadow(void) {	// used to shadow a keyed uv poly (read texture for keycolor)
+	do {
+		uint32_t color = texture_color(&ctx.location.txt, ctx.line.param[0], ctx.line.param[1]);
+		uint32_t *w = (uint32_t *)(ctx.line.w + ((ctx.line.decliv>>16)<<ctx.poly.nc_log));
+		if (color != ctx.poly.cmdFacet.color) shadow(w, ctx.poly.cmdFacet.intens);
+		ctx.line.w += ctx.line.dw;
+		ctx.line.decliv += ctx.line.ddecliv;
+		ctx.line.param[0] += ctx.line.dparam[0];
+		ctx.line.param[1] += ctx.line.dparam[1];
+		ctx.line.count --;
+	} while (ctx.line.count >= 0);
+}
 #ifdef GP2X
 extern void draw_line_uvi(void);
 #else
@@ -179,7 +229,7 @@ static void draw_line(void) {
 		ctx.line.dw <<= ctx.location.out.width_log;
 	}
 	static draw_line_t const draw_lines[NB_RENDERING_TYPES] = {
-		draw_line_c, draw_line_ci, draw_line_uv, draw_line_uvi,
+		draw_line_c, draw_line_ci, draw_line_uv, draw_line_uvi, draw_line_uvk, draw_line_shadow, draw_line_uvk_shadow
 	};
 	perftime_enter(PERF_POLY_DRAW, "poly_draw");
 #ifdef GP2X

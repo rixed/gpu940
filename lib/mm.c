@@ -21,6 +21,7 @@
 #include <stdio.h>
 #include <assert.h>
 #include <stddef.h>
+#include <sched.h>
 #include "gpu940.h"
 #include "kernlist.h"
 #include "fixmath.h"
@@ -96,15 +97,11 @@ static void free_fc(void) {
 	}
 }
 
-/*
- * Public Functions
- */
-
-struct gpuBuf *gpuAlloc(unsigned width_log, unsigned height) {
-	free_fc();
+struct gpuBuf *gpuAlloc_(unsigned width_log, unsigned height) {
 	struct gpuBuf *buf = NULL;
 	unsigned size = height << width_log;
 	unsigned next_free = 0;
+	free_fc();
 	list_for_each_entry(buf, &list, list) {
 		assert(buf->loc.address >= next_free);	// supposed to be sorted in ascending order
 		if (buf->loc.address - next_free >= size) {
@@ -121,6 +118,22 @@ struct gpuBuf *gpuAlloc(unsigned width_log, unsigned height) {
 	return new;
 }
 
+/*
+ * Public Functions
+ */
+
+struct gpuBuf *gpuAlloc(unsigned width_log, unsigned height, bool can_wait) {
+	struct gpuBuf *buf;
+	do {
+		buf = gpuAlloc_(width_log, height);
+		if (buf || !can_wait) return buf;
+		unsigned fc = shared->frame_count;
+		do {
+			(void)sched_yield();
+		} while (shared->frame_count == fc);
+	} while (1);
+}
+		
 void gpuFree(struct gpuBuf *buf) {
 	assert(buf);
 	free_buf(buf);
@@ -132,39 +145,39 @@ void gpuFreeFC(struct gpuBuf *buf, unsigned fc) {
 	list_add_tail(&buf->fc_list, &fc_list);
 }
 
-gpuErr gpuSetOutBuf(struct gpuBuf *buf) {
+gpuErr gpuSetOutBuf(struct gpuBuf *buf, bool can_wait) {
 	static gpuCmdSetOutBuf setOutBuf = {
 		.opcode = gpuSETOUTBUF,
 	};
 	assert(buf);
 	setOutBuf.loc = buf->loc;
-	return gpuWrite(&setOutBuf, sizeof(setOutBuf));
+	return gpuWrite(&setOutBuf, sizeof(setOutBuf), can_wait);
 }
-gpuErr gpuSetTxtBuf(struct gpuBuf *buf) {
+gpuErr gpuSetTxtBuf(struct gpuBuf *buf, bool can_wait) {
 	static gpuCmdSetTxtBuf setTxtBuf = {
 		.opcode = gpuSETTXTBUF,
 	};
 	assert(buf);
 	if (! is_power_of_2(buf->loc.height)) return gpuEPARAM;
 	setTxtBuf.loc = buf->loc;
-	return gpuWrite(&setTxtBuf, sizeof(setTxtBuf));
+	return gpuWrite(&setTxtBuf, sizeof(setTxtBuf), can_wait);
 }
-gpuErr gpuSetZBuf(struct gpuBuf *buf) {
+gpuErr gpuSetZBuf(struct gpuBuf *buf, bool can_wait) {
 	static gpuCmdSetZBuf setZBuf = {
 		.opcode = gpuSETZBUF,
 	};
 	assert(buf);
 	setZBuf.loc = buf->loc;
-	return gpuWrite(&setZBuf, sizeof(setZBuf));
+	return gpuWrite(&setZBuf, sizeof(setZBuf), can_wait);
 }
-gpuErr gpuShowBuf(struct gpuBuf *buf) {
+gpuErr gpuShowBuf(struct gpuBuf *buf, bool can_wait) {
 	static gpuCmdShowBuf show = {
 		.opcode = gpuSHOWBUF,
 	};
 	assert(my_frame_count >= shared->frame_count);
 	if (my_frame_count-shared->frame_count >= GPU_DISPLIST_SIZE) return gpuENOSPC;
 	show.loc = buf->loc;
-	gpuErr err = gpuWrite(&show, sizeof(show));
+	gpuErr err = gpuWrite(&show, sizeof(show), can_wait);
 	if (gpuOK != err) goto sb_quit;
 	gpuFreeFC(buf, 1);
 	my_frame_count ++;

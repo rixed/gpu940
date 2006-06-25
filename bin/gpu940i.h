@@ -29,6 +29,8 @@
 #	include <assert.h>
 #endif
 
+#define GPU_NB_CLIPPLANES (5+GPU_NB_USER_CLIPPLANES)
+
 #ifdef GP2X
 extern volatile uint32_t *gp2x_regs;	// 32-bit version of the MMSP2 registers, from the 940T
 #	define gp2x_regs32 gp2x_regs

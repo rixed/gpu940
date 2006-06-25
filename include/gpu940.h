@@ -40,7 +40,7 @@
 #define GPU_DEFAULT_WINPOS0 ((512-SCREEN_WIDTH)>>1)
 #define GPU_DEFAULT_WINPOS1 3
 #define GPU_NB_PARAMS 3
-#define GPU_NB_CLIPPLANES (5+2)
+#define GPU_NB_USER_CLIPPLANES 5
 #define GPU_DISPLIST_SIZE 64
 #define SHARED_PHYSICAL_ADDR 0x2100000	// this is from 920T or for the video controler.
 
@@ -87,6 +87,7 @@ extern struct gpuShared {
 typedef enum {
 	gpuRESET,
 	gpuSETVIEW,
+	gpuSETUSRCLIPPLANES,
 	gpuSETOUTBUF,	// change view parameters
 	gpuSETTXTBUF,
 	gpuSETZBUF,
@@ -115,6 +116,12 @@ typedef struct {
 
 typedef struct {
 	gpuOpcode opcode;
+	uint32_t nb_planes;
+	gpuPlane planes[GPU_NB_USER_CLIPPLANES];
+} gpuCmdSetUserClipPlanes;
+
+typedef struct {
+	gpuOpcode opcode;
 	struct buffer_loc loc;
 } gpuCmdSetOutBuf;
 
@@ -136,12 +143,16 @@ typedef struct {
 typedef struct {
 	gpuOpcode opcode;
 	uint32_t size;	// >=3
-	uint32_t color;
+	uint32_t color;	// used for flat rendering or keyed textures
+	int32_t intens;	// used for shadowing
 	enum {
 		rendering_c,	// use color for flat rendering
 		rendering_ci,	// use color and vectors param i
 		rendering_uv,	// use vectors param u, v
 		rendering_uvi,	// use vectors param u, v, i
+		rendering_uvk,	// use vectors param u, v, and color for keying texture
+		rendering_shadow,	// use intens for shadowing the region
+		rendering_uvk_shadow,	// use vectors param u, v, and color for keying texture, and intens to then shadow the region
 		NB_RENDERING_TYPES
 	} rendering_type;
 } gpuCmdFacet;
@@ -165,8 +176,8 @@ typedef union {
 gpuErr gpuOpen(void);
 void gpuClose(void);
 
-gpuErr gpuWrite(void *cmd, size_t size);
-gpuErr gpuWritev(const struct iovec *cmdvec, size_t count);
+gpuErr gpuWrite(void *cmd, size_t size, bool can_wait);
+gpuErr gpuWritev(const struct iovec *cmdvec, size_t count, bool can_wait);
 
 uint32_t gpuReadErr(void);
 gpuErr gpuLoadImg(struct buffer_loc const *loc, uint8_t (*rgb)[3], unsigned lod);
@@ -182,13 +193,13 @@ static inline uint32_t gpuColor(unsigned r, unsigned g, unsigned b) {
 #endif
 }
 
-struct gpuBuf *gpuAlloc(unsigned width_log, unsigned height);
+struct gpuBuf *gpuAlloc(unsigned width_log, unsigned height, bool can_wait);
 void gpuFree(struct gpuBuf *buf);
 void gpuFreeFC(struct gpuBuf *buf, unsigned fc);
-gpuErr gpuSetOutBuf(struct gpuBuf *buf);
-gpuErr gpuSetTxtBuf(struct gpuBuf *buf);
-gpuErr gpuSetZBuf(struct gpuBuf *buf);
-gpuErr gpuShowBuf(struct gpuBuf *buf);
+gpuErr gpuSetOutBuf(struct gpuBuf *buf, bool can_wait);
+gpuErr gpuSetTxtBuf(struct gpuBuf *buf, bool can_wait);
+gpuErr gpuSetZBuf(struct gpuBuf *buf, bool can_wait);
+gpuErr gpuShowBuf(struct gpuBuf *buf, bool can_wait);
 struct buffer_loc const *gpuBuf_get_loc(struct gpuBuf const *buf);
 
 #endif

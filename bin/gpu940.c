@@ -174,9 +174,14 @@ static void reset_clipPlanes(void) {
 
 static int32_t next_power_of_2(int32_t x) {
 	// TODO: on ARM use CLZ
-	int32_t ret = 0;
-	while ((1<<ret) < x) ret ++;
-	return ret;
+	x--;
+	x |= x >> 1;
+	x |= x >> 2;
+	x |= x >> 4;
+	x |= x >> 8;
+	x |= x >> 16;
+	x++;
+	return x;
 }
 
 static void ctx_reset(void) {
@@ -247,6 +252,7 @@ static void read_from_cmdBuf(void *dest, size_t size_) {
 static union {
 	gpuCmdReset reset;
 	gpuCmdSetView setView;
+	gpuCmdSetUserClipPlanes setCP;
 	gpuCmdSetOutBuf setOutBuf;
 	gpuCmdSetTxtBuf setTxtBuf;
 	gpuCmdSetZBuf setZBuf;
@@ -265,6 +271,13 @@ static void do_setView(void) {
 	ctx.view.winWidth = ctx.view.clipMax[0] - ctx.view.clipMin[0];
 	ctx.view.winHeight = ctx.view.clipMax[1] - ctx.view.clipMin[1];
 	reset_clipPlanes();
+}
+static void do_setUsrClipPlanes(void) {
+	read_from_cmdBuf(&allCmds.setCP, sizeof(allCmds.setCP));
+	ctx.view.nb_clipPlanes = 5 + allCmds.setCP.nb_planes;
+	for (unsigned cp=0; cp<allCmds.setCP.nb_planes; cp++) {
+		my_memcpy(ctx.view.clipPlanes+5+cp, allCmds.setCP.planes+cp, sizeof(ctx.view.clipPlanes[0]));
+	}
 }
 static void do_setOutBuf(void) {
 	read_from_cmdBuf(&allCmds.setOutBuf, sizeof(allCmds.setOutBuf));
@@ -345,6 +358,9 @@ static void fetch_command(void) {
 			break;
 		case gpuSETVIEW:
 			do_setView();
+			break;
+		case gpuSETUSRCLIPPLANES:
+			do_setUsrClipPlanes();
 			break;
 		case gpuSETOUTBUF:
 			do_setOutBuf();
