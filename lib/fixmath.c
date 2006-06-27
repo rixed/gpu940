@@ -34,6 +34,20 @@ void FixMat_x_Vec(int32_t dest[3], FixMat const *mat, FixVec const *src, bool tr
 		if (translate) dest[i] += mat->trans[i];
 	}
 }
+
+void FixMatT_x_Vec(int32_t dest[3], FixMat const *mat, int32_t const src[3], bool translate) {
+	int32_t transT[3];
+	if (translate) {
+		FixMatT_x_Vec(transT, mat, mat->trans, false);
+	}
+	for (unsigned i=0; i<3; i++) {
+		dest[i] = 0;
+		for (unsigned j=0; j<3; j++) {
+			dest[i] += ((int64_t)mat->rot[i][j] * src[j])>>16;
+		}
+		if (translate) dest[i] -= transT[i];
+	}
+}
  
 void Fix_proj(int32_t c2d[2], int32_t const c3d[3], int dproj) {
 	c2d[0] = (((int64_t)c3d[0]<<16)/(-c3d[2]))<<dproj;
@@ -67,8 +81,8 @@ int64_t Fix_mul64x64(int64_t v, int64_t w) {
 #define NB_STEPS 65536	// must be a power of 4
 static int32_t sincos[NB_STEPS+NB_STEPS/4];
 void Fix_trig_init(void) {
-#	define BITS_PREC 30
 	unsigned n;
+#	define BITS_PREC 30
 	int64_t c=1<<BITS_PREC;
 	int64_t s=0;
 	int64_t ku1 = 1073741819;
@@ -78,7 +92,7 @@ void Fix_trig_init(void) {
 		int64_t new_c = (Fix_mul64x64(c,ku1) - Fix_mul64x64(s,ku2))>>BITS_PREC;
 		s = (Fix_mul64x64(s,ku1) + Fix_mul64x64(c,ku2))>>BITS_PREC;
 		c = new_c;
-	}	
+	}
 #	undef BITS_PREC
 }
 

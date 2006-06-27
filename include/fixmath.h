@@ -32,6 +32,7 @@ typedef struct {
 } FixMat;
 
 void FixMat_x_Vec(int32_t dest[3], FixMat const *mat, FixVec const *src, bool translate);
+void FixMatT_x_Vec(int32_t dest[3], FixMat const *mat, int32_t const src[3], bool translate);
 static inline int32_t Fix_scalar(int32_t v1[3], int32_t v2[3]) {
 	int64_t res = (int64_t)v1[0]*v2[0] + (int64_t)v1[1]*v2[1] + (int64_t)v1[2]*v2[2];
 	return res>>16;
@@ -58,6 +59,7 @@ void Fix_proj(int32_t c2d[2], int32_t const c3d[3], int dproj);
 
 int64_t Fix_mul64x64(int64_t v, int64_t w);
 void Fix_trig_init(void);
+// These returns 16.16 as usual
 int32_t Fix_cos(int32_t ang);
 int32_t Fix_sin(int32_t ang);
 
