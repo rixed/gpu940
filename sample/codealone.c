@@ -823,6 +823,33 @@ static struct target targets_scene2[] = {
 	}
 };
 
+static void locate_pic(FixVec *pic_vec, int32_t ang1, int32_t ang2) {
+	int32_t c1 = Fix_cos(ang1);
+	int32_t s1 = Fix_sin(ang1);
+	int32_t c2 = Fix_cos(ang2);
+	int32_t s2 = Fix_sin(ang2);
+	static FixVec vec[4] = {
+		{ .c = { -1<<15, -1<<15, -1<<16 }, .xy =  1<<14 },
+		{ .c = {  1<<15, -1<<15, -1<<16 }, .xy = -1<<14 },
+		{ .c = {  1<<15,  1<<15, -1<<16 }, .xy =  1<<14 },
+		{ .c = { -1<<15,  1<<15, -1<<16 }, .xy = -1<<14 }
+	};
+	FixMat m = {
+		.rot = {
+			{ c2, -((int64_t)s1*s2)>>16, -((int64_t)c1*s2)>>16 },
+			{ 0, c1, -s1 },
+			{ s2, ((int64_t)s1*c2)>>16, ((int64_t)c1*c2)>>16 },
+		},
+	};
+	for (unsigned i=0; i<3; i++) {
+		m.ab[i] = ((int64_t)m.rot[0][i]*m.rot[1][i])>>16;
+	}
+	for (unsigned v=0; v<4; v++) {
+		FixMat_x_Vec(pic_vec[v].c, &m, vec+v, false);
+		pic_vec[v].xy = ((int64_t)pic_vec[v].c[0]*pic_vec[v].c[1])>>16;
+	}
+}
+
 enum draw_what { PIC, SHADOWS };
 static void transf_draw_pic(struct gpuBuf *pic_txt, FixVec *pic_vec, enum draw_what draw_what) {
 	static gpuCmdFacet pic_facet = {
@@ -850,16 +877,23 @@ static void transf_draw_pic(struct gpuBuf *pic_txt, FixVec *pic_vec, enum draw_w
 	if (draw_what == PIC) {	// Simply rotate and draw
 		pic_facet.rendering_type = rendering_uvk;
 		for (unsigned v=4; v--; ) {
-			FixMat_x_Vec(vecs[v].geom.c3d, &camera.transf, pic_vec+v, true);
+		//	FixMat_x_Vec(vecs[v].geom.c3d, &camera.transf, pic_vec+v, true);
+			for (unsigned c=0; c<3; c++)
+				vecs[v].geom.c3d[c] = pic_vec[v].c[c];
 		}
 		gpuErr err = gpuWritev(cmdvec, sizeof_array(cmdvec), true);
 		assert(gpuOK == err);
 	} else {	// SHADOWS
 		pic_facet.rendering_type = rendering_uvk_shadow;
-		int32_t L[3] = { 0<<16, 0<<16, 50000 };
+		int32_t L[3] = { -LEN<<16, -LEN<<16, LEN<<16 };
 		static gpuCmdSetUserClipPlanes setCpCmd = {
 			.opcode = gpuSETUSRCLIPPLANES,
 		};
+		// we need pic coordinate in world basis
+		int32_t abs_vecs[4][3];
+		for (unsigned v=4; v--; ) {
+			FixMatT_x_Vec(abs_vecs[v], &camera.transf, pic_vec[v].c, true);
+		}
 		setCpCmd.nb_planes = 5;
 		for (unsigned f=0; f<sizeof_array(cube_facet); f++) {
 			unsigned cp = 0;
@@ -872,15 +906,18 @@ static void transf_draw_pic(struct gpuBuf *pic_txt, FixVec *pic_vec, enum draw_w
 			for (unsigned v=0; v<4; v++) {
 				FixVec M;
 				unsigned c = cube_normal[f].notnull;
+				if (Fix_same_sign(cube_normal[f].normal.c[c], abs_vecs[v][c]-L[c])) {
+					goto skip_shad;
+				}
 				M.c[c] = cube_vec[cube_facet[f][0]].c[c];
 				for (unsigned i = 1; i < sizeof_array(M.c); i ++) {
 					unsigned c_prev = c;
 					if (++c >= sizeof_array(M.c)) c = 0;
-					int64_t a = ((int64_t)L[c]-pic_vec[v].c[c])*(M.c[c_prev]-pic_vec[v].c[c_prev]);
-					int32_t l_v = (L[c_prev]-pic_vec[v].c[c_prev]);
+					int64_t a = ((int64_t)L[c]-abs_vecs[v][c])*(M.c[c_prev]-abs_vecs[v][c_prev]);
+					int32_t l_v = (L[c_prev]-abs_vecs[v][c_prev]);
 					if (! l_v) goto skip_shad;
 					a /= l_v;
-					a += pic_vec[v].c[c];
+					a += abs_vecs[v][c];
 					M.c[c] = a;
 				}
 				M.xy = ((int64_t)M.c[0]*M.c[1])>>16;
@@ -891,11 +928,11 @@ static void transf_draw_pic(struct gpuBuf *pic_txt, FixVec *pic_vec, enum draw_w
 			assert(gpuOK == err);
 			err = gpuWritev(cmdvec, sizeof_array(cmdvec), true);
 			assert(gpuOK == err);
-			setCpCmd.nb_planes = 0;
-			err = gpuWrite(&setCpCmd, sizeof(setCpCmd), true);
-			assert(gpuOK == err);
 skip_shad:;
 		}
+		setCpCmd.nb_planes = 0;
+		gpuErr err = gpuWrite(&setCpCmd, sizeof(setCpCmd), true);
+		assert(gpuOK == err);
 	}
 }
 
@@ -909,14 +946,18 @@ static void scene2(void) {
 	camera.acc_pos[1] /= 2;
 	camera.acc_pos[2] /= 2;
 	camera.pos[0] = -50000;
-	struct gpuBuf *pic_txt = pic2txt("pic1.png");
-	set_dproj(7);
-	static FixVec pic_vec[4] = {
-		{ .c = { -1<<16, -1<<16, -20000 }, .xy =  1<<16 },
-		{ .c = {  1<<16, -1<<16, -20000 }, .xy = -1<<16 },
-		{ .c = {  1<<16,  1<<16, -20000 }, .xy =  1<<16 },
-		{ .c = { -1<<16,  1<<16, -20000 }, .xy = -1<<16 }
+	struct {
+		struct gpuBuf *txt;
+		int32_t ang1;
+	} pic_anims[] = {
+		{ pic2txt("pic1.png"), 2000 },
+		{ pic2txt("pic2.png"), -5000 },
+		{ pic2txt("pic4.png"), 4000 },
+		{ pic2txt("pic3.png"), 5000 },
 	};
+	unsigned pic_anim = 0;
+	int32_t ang2 = 0;
+	set_dproj(7);
 	do {
 		// build a new texture
 		struct gpuBuf *text;
@@ -930,8 +971,18 @@ static void scene2(void) {
 		next_out_buf();
 		transform_cube();
 		draw_cube(false, LEN<<16);
-		transf_draw_pic(pic_txt, pic_vec, SHADOWS);
-		transf_draw_pic(pic_txt, pic_vec, PIC);
+		static FixVec pic_vec[4];
+		ang2 += 100;
+		if (ang2 >= 65536) {
+			ang2 = 0;
+			pic_anim ++;
+			if (pic_anim >= sizeof_array(pic_anims)) {
+				pic_anim = 0;
+			}
+		}
+		locate_pic(pic_vec, pic_anims[pic_anim].ang1, ang2);
+		transf_draw_pic(pic_anims[pic_anim].txt, pic_vec, SHADOWS);
+		transf_draw_pic(pic_anims[pic_anim].txt, pic_vec, PIC);
 		show_out_buf();
 		if (! --camera.target->nb_steps) {
 			if (++target >= sizeof_array(targets_scene2)) target=0;//break;
@@ -939,7 +990,9 @@ static void scene2(void) {
 			camera.target->nb_steps = 150;
 		}
 	} while (1);
-	gpuFreeFC(pic_txt, 1);
+	for (unsigned p=0; p<sizeof_array(pic_anims); p++) {
+		gpuFreeFC(pic_anims[p].txt, 1);
+	}
 	free(ink_map);
 }
 
