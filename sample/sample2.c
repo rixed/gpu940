@@ -195,7 +195,7 @@ int main(void) {
 		// rotate all vecs
 		for (unsigned v=0; v<sizeof_array(vectors); v++) {
 			FixMat_x_Vec(vectors[v].geom.c3d, &mat, vec3d+v, true);
-			vectors[v].uvi_params.i = vectors[v].geom.c3d[2]-mat.trans[2];
+			vectors[v].uvi_params.i = -(vectors[v].geom.c3d[2]-mat.trans[2]);
 		}
 		struct gpuBuf *outBuf;
 		gpuErr err;
