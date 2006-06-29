@@ -828,11 +828,12 @@ static void locate_pic(FixVec *pic_vec, int32_t ang1, int32_t ang2) {
 	int32_t s1 = Fix_sin(ang1);
 	int32_t c2 = Fix_cos(ang2);
 	int32_t s2 = Fix_sin(ang2);
+#	define R 50000
 	static FixVec vec[4] = {
-		{ .c = { -1<<15, -1<<15, -1<<16 }, .xy =  1<<14 },
-		{ .c = {  1<<15, -1<<15, -1<<16 }, .xy = -1<<14 },
-		{ .c = {  1<<15,  1<<15, -1<<16 }, .xy =  1<<14 },
-		{ .c = { -1<<15,  1<<15, -1<<16 }, .xy = -1<<14 }
+		{ .c = { -1<<15, -1<<15, -R }, .xy =  1<<14 },
+		{ .c = {  1<<15, -1<<15, -R }, .xy = -1<<14 },
+		{ .c = {  1<<15,  1<<15, -R }, .xy =  1<<14 },
+		{ .c = { -1<<15,  1<<15, -R }, .xy = -1<<14 }
 	};
 	FixMat m = {
 		.rot = {
@@ -848,6 +849,7 @@ static void locate_pic(FixVec *pic_vec, int32_t ang1, int32_t ang2) {
 		FixMat_x_Vec(pic_vec[v].c, &m, vec+v, false);
 		pic_vec[v].xy = ((int64_t)pic_vec[v].c[0]*pic_vec[v].c[1])>>16;
 	}
+#	undef R
 }
 
 enum draw_what { PIC, SHADOWS };
@@ -885,7 +887,11 @@ static void transf_draw_pic(struct gpuBuf *pic_txt, FixVec *pic_vec, enum draw_w
 		assert(gpuOK == err);
 	} else {	// SHADOWS
 		pic_facet.rendering_type = rendering_uvk_shadow;
-		int32_t L[3] = { -LEN<<16, -LEN<<16, LEN<<16 };
+		int32_t L[3] = {
+			camera.pos[0] + camera.transf.rot[0][2] + camera.transf.rot[0][1]/2,
+			camera.pos[1] + camera.transf.rot[1][2] + camera.transf.rot[1][1]/2,
+			camera.pos[2] + camera.transf.rot[2][2] + camera.transf.rot[2][1]/2
+		};
 		static gpuCmdSetUserClipPlanes setCpCmd = {
 			.opcode = gpuSETUSRCLIPPLANES,
 		};
@@ -951,12 +957,15 @@ static void scene2(void) {
 		int32_t ang1;
 	} pic_anims[] = {
 		{ pic2txt("pic1.png"), 2000 },
-		{ pic2txt("pic2.png"), -5000 },
-		{ pic2txt("pic4.png"), 4000 },
-		{ pic2txt("pic3.png"), 5000 },
+		{ pic2txt("pic2.png"), 2000 },
+		{ pic2txt("pic4.png"), 2000 },
+		{ pic2txt("pic5.png"), 2000 },
+		{ pic2txt("pic3.png"), -2100 },
 	};
 	unsigned pic_anim = 0;
-	int32_t ang2 = 0;
+#	define ANG2_LIM 7000
+	int32_t ang2 = -ANG2_LIM;
+	int32_t dang2 = +50;
 	set_dproj(7);
 	do {
 		// build a new texture
@@ -972,9 +981,9 @@ static void scene2(void) {
 		transform_cube();
 		draw_cube(false, LEN<<16);
 		static FixVec pic_vec[4];
-		ang2 += 100;
-		if (ang2 >= 65536) {
-			ang2 = 0;
+		ang2 += dang2;
+		if (ang2 >= ANG2_LIM || ang2 <= -ANG2_LIM) {
+			dang2 = -dang2;
 			pic_anim ++;
 			if (pic_anim >= sizeof_array(pic_anims)) {
 				pic_anim = 0;
@@ -994,6 +1003,7 @@ static void scene2(void) {
 		gpuFreeFC(pic_anims[p].txt, 1);
 	}
 	free(ink_map);
+#	undef ANG2_LIM
 }
 
 /*
