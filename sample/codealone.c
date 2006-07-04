@@ -124,6 +124,7 @@ static struct gpuBuf *grab_menu_texture(void) {
 	return menu_texture;
 }
 
+#if 0
 static struct gpuBuf *pic2txt(char const *name) {
 	struct gpuBuf *buf = gpuAlloc(7, 128, true);
 	assert(buf);
@@ -144,52 +145,6 @@ static struct gpuBuf *pic2txt(char const *name) {
 	}
 	png_destroy_read_struct(&png_ptr, &info_ptr, NULL);
 	(void)fclose(infile);
-	gpuLoadImg(gpuBuf_get_loc(buf), (void *)image, 0);
-	free(image);
-	return buf;
-}
-#if 0
-static struct gpuBuf *pic2txt(char const *name) {
-	struct gpuBuf *buf = gpuAlloc(7, 128);
-	assert(buf);
-	// Allocate and initialize a JPEG decompression object
-	struct jpeg_decompress_struct cinfo;
-	struct jpeg_error_mgr jerr;
-	cinfo.err = jpeg_std_error(&jerr);
-	jpeg_create_decompress(&cinfo);
-	// Specify the source of the compressed data (eg, a file)
-	FILE *infile = fopen(name, "r");
-	assert(infile);
-	jpeg_stdio_src(&cinfo, infile);
-	// Call jpeg_read_header() to obtain image info
-	jpeg_read_header(&cinfo, TRUE);
-	// Set parameters for decompression
-	// jpeg_start_decompress(...);
-	jpeg_start_decompress(&cinfo);
-	// while (scan lines remain to be read)
-	uint8_t *image = malloc(128*128*3);
-	assert(image);
-	assert(cinfo.output_width*cinfo.output_components == 128*3);
-	while (cinfo.output_scanline < cinfo.output_height) {
-	// 	jpeg_read_scanlines(...);
-		uint8_t *scanlines = image + 128*3*cinfo.output_scanline;
-		jpeg_read_scanlines(&cinfo, &scanlines, 1);
-	}
-	//	jpeg_finish_decompress(...);
-	jpeg_finish_decompress(&cinfo);
-	// Release the JPEG decompression object
-	jpeg_destroy_decompress(&cinfo);
-	(void)fclose(infile);
-	// Clear key color likes
-#	define COL_EPS 130
-	for (unsigned p=0; p<128*128; p++) {
-		uint32_t b = image[3*p+2];
-		uint32_t rg = image[3*p+0] + image[3*p+1];
-		if (b > 256-COL_EPS && rg < 2*COL_EPS) {
-			image[3*p+0] = image[3*p+1] = image[3*p+2] = 255;
-		}
-	}
-#	undef COL_EPS
 	gpuLoadImg(gpuBuf_get_loc(buf), (void *)image, 0);
 	free(image);
 	return buf;
@@ -387,7 +342,6 @@ static struct gpuBuf *facet_text[6];
 
 static void draw_facet(unsigned f, bool ext, int32_t i_dec) {
 	assert(f < sizeof_array(cube_facet));
-	(void)ext;
 	int32_t normal[3] = { 0, 0, 0 };
 	static gpuCmdVector cmdVec[4];
 	for (unsigned v=4; v--; ) {
@@ -399,11 +353,8 @@ static void draw_facet(unsigned f, bool ext, int32_t i_dec) {
 		cmdVec[v].uvi_params.v = uvs[f][v][1];
 		cmdVec[v].uvi_params.i = (i_dec+c3d[ cube_facet[f][v] ][2])<<6;
 	}
-	int32_t scal = (
-		((int64_t)normal[0]*c3d[ cube_facet[f][0] ][0]) +
-		((int64_t)normal[1]*c3d[ cube_facet[f][0] ][1]) +
-		((int64_t)normal[2]*c3d[ cube_facet[f][0] ][2])
-	) >> 16;
+	Fix_normalize(normal);
+	int64_t scal = Fix_scalar(normal, c3d[ cube_facet[f][0] ]);
 	// is the facet backward ?
 	if (ext && scal > 0) return;
 	if (!ext && scal < 0) return;
@@ -828,7 +779,7 @@ static void locate_pic(FixVec *pic_vec, int32_t ang1, int32_t ang2) {
 	int32_t s1 = Fix_sin(ang1);
 	int32_t c2 = Fix_cos(ang2);
 	int32_t s2 = Fix_sin(ang2);
-#	define R 50000
+#	define R 60000
 	static FixVec vec[4] = {
 		{ .c = { -1<<15, -1<<15, -R }, .xy =  1<<14 },
 		{ .c = {  1<<15, -1<<15, -R }, .xy = -1<<14 },
@@ -862,9 +813,9 @@ static void transf_draw_pic(struct gpuBuf *pic_txt, FixVec *pic_vec, enum draw_w
 	pic_facet.color = gpuColor(0, 0, 255);
 	static gpuCmdVector vecs[4] = {
 		{ .uvi_params = { .u =   0<<16, .v =   0<<16 } },
-		{ .uvi_params = { .u = 127<<16, .v =   0<<16 } },
-		{ .uvi_params = { .u = 127<<16, .v = 127<<16 } },
-		{ .uvi_params = { .u =   0<<16, .v = 127<<16 } }
+		{ .uvi_params = { .u = 255<<16, .v =   0<<16 } },
+		{ .uvi_params = { .u = 255<<16, .v = 255<<16 } },
+		{ .uvi_params = { .u =   0<<16, .v = 255<<16 } }
 	};
 	static struct iovec cmdvec[4+1] = {
 		{ .iov_base = &pic_facet, .iov_len = sizeof(pic_facet) },
@@ -888,9 +839,9 @@ static void transf_draw_pic(struct gpuBuf *pic_txt, FixVec *pic_vec, enum draw_w
 	} else {	// SHADOWS
 		pic_facet.rendering_type = rendering_uvk_shadow;
 		int32_t L[3] = {
-			camera.pos[0] + camera.transf.rot[0][2] + camera.transf.rot[0][1]/2,
-			camera.pos[1] + camera.transf.rot[1][2] + camera.transf.rot[1][1]/2,
-			camera.pos[2] + camera.transf.rot[2][2] + camera.transf.rot[2][1]/2
+			camera.pos[0] + camera.transf.rot[0][2] + camera.transf.rot[0][1],
+			camera.pos[1] + camera.transf.rot[1][2] + camera.transf.rot[1][1],
+			camera.pos[2] + camera.transf.rot[2][2] + camera.transf.rot[2][1]
 		};
 		static gpuCmdSetUserClipPlanes setCpCmd = {
 			.opcode = gpuSETUSRCLIPPLANES,
@@ -952,20 +903,9 @@ static void scene2(void) {
 	camera.acc_pos[1] /= 2;
 	camera.acc_pos[2] /= 2;
 	camera.pos[0] = -50000;
-	struct {
-		struct gpuBuf *txt;
-		int32_t ang1;
-	} pic_anims[] = {
-		{ pic2txt("pic1.png"), 2000 },
-		{ pic2txt("pic2.png"), 2000 },
-		{ pic2txt("pic4.png"), 2000 },
-		{ pic2txt("pic5.png"), 2000 },
-		{ pic2txt("pic3.png"), -2100 },
-	};
-	unsigned pic_anim = 0;
-#	define ANG2_LIM 7000
-	int32_t ang2 = -ANG2_LIM;
-	int32_t dang2 = +50;
+	struct gpuBuf *txt = uncomp(pic4, 18, gpuColor(0, 0, 255), gpuColor(80, 20, 70));
+	int32_t ang1 = 2000;
+	int32_t ang2 = 0;
 	set_dproj(7);
 	do {
 		// build a new texture
@@ -981,17 +921,11 @@ static void scene2(void) {
 		transform_cube();
 		draw_cube(false, LEN<<16);
 		static FixVec pic_vec[4];
-		ang2 += dang2;
-		if (ang2 >= ANG2_LIM || ang2 <= -ANG2_LIM) {
-			dang2 = -dang2;
-			pic_anim ++;
-			if (pic_anim >= sizeof_array(pic_anims)) {
-				pic_anim = 0;
-			}
-		}
-		locate_pic(pic_vec, pic_anims[pic_anim].ang1, ang2);
-		transf_draw_pic(pic_anims[pic_anim].txt, pic_vec, SHADOWS);
-		transf_draw_pic(pic_anims[pic_anim].txt, pic_vec, PIC);
+		locate_pic(pic_vec, Fix_sin(ang1)>>4, Fix_sin(ang2)>>4);
+		ang2 += 207;
+		ang1 += 103;
+		transf_draw_pic(txt, pic_vec, SHADOWS);
+		transf_draw_pic(txt, pic_vec, PIC);
 		show_out_buf();
 		if (! --camera.target->nb_steps) {
 			if (++target >= sizeof_array(targets_scene2)) target=0;//break;
@@ -999,9 +933,7 @@ static void scene2(void) {
 			camera.target->nb_steps = 150;
 		}
 	} while (1);
-	for (unsigned p=0; p<sizeof_array(pic_anims); p++) {
-		gpuFreeFC(pic_anims[p].txt, 1);
-	}
+	gpuFreeFC(txt, 1);
 	free(ink_map);
 #	undef ANG2_LIM
 }
@@ -1016,7 +948,7 @@ int main(void) {
 	if (gpuOK != gpuOpen()) {
 		assert(0);
 	}
-	//scene1();
+	scene1();
 	scene2();
 	gpuClose();
 	return EXIT_SUCCESS;	// do an exec instead

@@ -49,6 +49,32 @@ void FixMatT_x_Vec(int32_t dest[3], FixMat const *mat, int32_t const src[3], boo
 	}
 }
  
+extern inline int64_t Fix_scalar(int32_t v1[3], int32_t v2[3]);
+extern inline bool Fix_same_sign(int32_t v0, int32_t v1);
+extern inline int32_t Fix_abs(int32_t v);
+extern inline int64_t Fix_abs64(int64_t v);
+extern inline int32_t Fix_inv(int32_t v);
+
+void Fix_normalize(int32_t v[3]) {
+	int32_t norm;
+	do {	// FIXME
+		int64_t scal = Fix_scalar(v, v);
+		if (scal < INT32_MAX) {
+			norm = scal;
+			break;
+		}
+		for (unsigned c=3; c--; ) {
+			v[c] >>= 1;
+		}
+	} while ( 1 );
+	norm = Fix_sqrt(norm)<<8;
+	if (norm) {
+		for (unsigned c=3; c--; ) {
+			v[c] = ((int64_t)v[c]<<16)/norm;
+		}
+	}
+}
+
 void Fix_proj(int32_t c2d[2], int32_t const c3d[3], int dproj) {
 	c2d[0] = (((int64_t)c3d[0]<<16)/(-c3d[2]))<<dproj;
 	c2d[1] = (((int64_t)c3d[1]<<16)/(-c3d[2]))<<dproj;

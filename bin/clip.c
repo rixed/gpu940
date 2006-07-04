@@ -52,7 +52,7 @@ static int clip_facet_by_plane(unsigned p) {
 		ctx.poly.vectors[v].h = 0;
 		for (unsigned c=3; c--; ) {
 			int32_t const ov = ctx.poly.vectors[v].cmdVector.geom.c3d[c] - ctx.view.clipPlanes[p].origin[c];
-			ctx.poly.vectors[v].h += ((int64_t)ov*ctx.view.clipPlanes[p].normal[c])>>8;	// we suppose normal is approx 8 bits wide
+			ctx.poly.vectors[v].h += ((int64_t)ov*ctx.view.clipPlanes[p].normal[c])>>16;
 		}
 		if (0 == ctx.poly.vectors[v].h) ctx.poly.vectors[v].h = 1;
 		v = ctx.poly.vectors[v].next;

@@ -160,16 +160,20 @@ static void vertical_interrupt(void) {
 static void reset_clipPlanes(void) {
 	int32_t d = 1<<ctx.view.dproj;
 	my_memset(ctx.view.clipPlanes, 0, sizeof(ctx.view.clipPlanes[0])*5);
-	ctx.view.clipPlanes[0].normal[2] = -1<<8;	// clipPlane 0 is z_near
-	ctx.view.clipPlanes[0].origin[2] = -1<<8;
-	ctx.view.clipPlanes[1].normal[0] = -d;	// clipPlane 1 is rightmost
-	ctx.view.clipPlanes[1].normal[2] = -ctx.view.clipMax[0];
-	ctx.view.clipPlanes[2].normal[1] = -d;	// clipPlane 2 is upper
-	ctx.view.clipPlanes[2].normal[2] = -ctx.view.clipMax[1];
-	ctx.view.clipPlanes[3].normal[0] = d;	// clipPlane 3 is leftmost
-	ctx.view.clipPlanes[3].normal[2] = ctx.view.clipMin[0];
-	ctx.view.clipPlanes[4].normal[1] = d;	// clipPlane 4 is bottom
-	ctx.view.clipPlanes[4].normal[2] = ctx.view.clipMin[1];
+	ctx.view.clipPlanes[0].normal[2] = -1<<16;	// clipPlane 0 is z_near
+	ctx.view.clipPlanes[0].origin[2] = -10000;
+	ctx.view.clipPlanes[1].normal[0] = -d<<16;	// clipPlane 1 is rightmost
+	ctx.view.clipPlanes[1].normal[2] = -ctx.view.clipMax[0]<<16;
+	Fix_normalize(ctx.view.clipPlanes[1].normal);
+	ctx.view.clipPlanes[2].normal[1] = -d<<16;	// clipPlane 2 is upper
+	ctx.view.clipPlanes[2].normal[2] = -ctx.view.clipMax[1]<<16;
+	Fix_normalize(ctx.view.clipPlanes[2].normal);
+	ctx.view.clipPlanes[3].normal[0] = d<<16;	// clipPlane 3 is leftmost
+	ctx.view.clipPlanes[3].normal[2] = ctx.view.clipMin[0]<<16;
+	Fix_normalize(ctx.view.clipPlanes[3].normal);
+	ctx.view.clipPlanes[4].normal[1] = d<<16;	// clipPlane 4 is bottom
+	ctx.view.clipPlanes[4].normal[2] = ctx.view.clipMin[1]<<16;
+	Fix_normalize(ctx.view.clipPlanes[4].normal);
 }
 
 static int32_t next_power_of_2(int32_t x) {

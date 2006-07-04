@@ -441,10 +441,10 @@ uninstall-am: uninstall-info-am
 	uninstall-info-am
 
 
-gimpcomp: gimpcomp.c
+gimpcomp: gimpcomp.c title.c greetz.c never.c gpu940_pic.c
 	@HOST_CC@ -std=c99 -DGNU_SOURCES -Wall -W $< -o $@
 
-pics.c: gimpcomp title.c greetz.c never.c
+pics.c: gimpcomp title.c greetz.c never.c gpu940_pic.c
 	./gimpcomp > $@
 # Tell versions [3.59,3.63) of GNU make to not export all variables.
 # Otherwise a system limit (for SysV at least) may be exceeded.

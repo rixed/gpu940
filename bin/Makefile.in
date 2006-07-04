@@ -56,7 +56,7 @@ am_gpu940_OBJECTS = gpu940.$(OBJEXT) poly.$(OBJEXT) clip.$(OBJEXT) \
 	crt0.$(OBJEXT) mydiv.$(OBJEXT)
 gpu940_OBJECTS = $(am_gpu940_OBJECTS)
 gpu940_DEPENDENCIES = ../console/libconsole.a \
-	../perftime/libperftime.a
+	../perftime/libperftime.a ../lib/fixmath.lo
 am_load940_OBJECTS = load940.$(OBJEXT)
 load940_OBJECTS = $(am_load940_OBJECTS)
 load940_LDADD = $(LDADD)
@@ -196,7 +196,7 @@ gpu940_SOURCES = \
 	crt0.S \
 	mydiv.c
 
-gpu940_LDADD = ../console/libconsole.a ../perftime/libperftime.a
+gpu940_LDADD = ../console/libconsole.a ../perftime/libperftime.a ../lib/fixmath.lo
 #AM_CFLAGS += -fno-pic -ffreestanding
 load940_SOURCES = load940.c
 @GP2X_TRUE@OBJCOPY = /usr/local/devkitPro/devkitGP2X/bin/arm-linux-objcopy

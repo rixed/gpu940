@@ -33,10 +33,11 @@ typedef struct {
 
 void FixMat_x_Vec(int32_t dest[3], FixMat const *mat, FixVec const *src, bool translate);
 void FixMatT_x_Vec(int32_t dest[3], FixMat const *mat, int32_t const src[3], bool translate);
-static inline int32_t Fix_scalar(int32_t v1[3], int32_t v2[3]) {
+static inline int64_t Fix_scalar(int32_t v1[3], int32_t v2[3]) {
 	int64_t res = (int64_t)v1[0]*v2[0] + (int64_t)v1[1]*v2[1] + (int64_t)v1[2]*v2[2];
 	return res>>16;
 }
+void Fix_normalize(int32_t v[3]);
 
 static inline bool Fix_same_sign(int32_t v0, int32_t v1) {
 	if (v0 == 0 || v1 == 0) return 1;	// 0 have both signs

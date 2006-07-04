@@ -62,7 +62,7 @@ typedef enum {	// also used for err_flags
 
 typedef struct {
 	int32_t origin[3];
-	int32_t normal[3];
+	int32_t normal[3];	// must be 16.16 normalized
 } gpuPlane;
 
 // Commands

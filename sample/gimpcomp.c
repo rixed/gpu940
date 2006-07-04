@@ -5,6 +5,7 @@
 #include "title.c"
 #include "greetz.c"
 #include "never.c"
+#include "gpu940_pic.c"
 
 static void write_pic(int p, unsigned char const *pixel_data) {
 	printf("static uint8_t pic%d[] = {\n", p);
@@ -44,6 +45,7 @@ int main(void) {
 	write_pic(1, title_pic.pixel_data);
 	write_pic(2, greetz_pic.pixel_data);
 	write_pic(3, never_pic.pixel_data);
+	write_pic(4, gpu940_pic.pixel_data);
 	return 0;
 }
 

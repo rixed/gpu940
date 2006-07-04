@@ -63,7 +63,7 @@ extern void draw_line_c(void);
 static void draw_line_c(void) {
 	do {
 		uint32_t *w = (uint32_t *)(ctx.line.w);
-		if (start_poly) *w = ctx.poly.scan_dir ? 0x3e0 : 0xf800; else
+//		if (start_poly) *w = ctx.poly.scan_dir ? 0x3e0 : 0xf800; else
 		*w = ctx.poly.cmdFacet.color;
 		ctx.line.w += ctx.line.dw;
 		ctx.line.count --;
