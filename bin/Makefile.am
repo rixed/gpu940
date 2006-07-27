@@ -31,7 +31,7 @@ draw_line.gp2x.o: offsets.S
 OBJCOPY = /usr/local/devkitPro/devkitGP2X/bin/arm-linux-objcopy
 OBJDUMP = /usr/local/devkitPro/devkitGP2X/bin/arm-linux-objdump
 gpu940: $(gpu940_OBJECTS) script.ld $(top_srcdir)/console/libconsole.a $(top_srcdir)/perftime/libperftime.a
-	$(LD) -o $@.elf $(LDFLAGS) -L$(top_srcdir)/console -L$(top_srcdir)/perftime -T script.ld -N -s
+	$(LD) -o $@.elf $(LDFLAGS) -L$(top_srcdir)/console -L$(top_srcdir)/perftime -L$(top_srcdir)/lib -T script.ld -N -s
 	$(OBJCOPY) --output-target binary --only-section upper32 $@.elf $@
 
 gpu940.source: gpu940

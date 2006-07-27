@@ -161,7 +161,7 @@ static void reset_clipPlanes(void) {
 	int32_t d = 1<<ctx.view.dproj;
 	my_memset(ctx.view.clipPlanes, 0, sizeof(ctx.view.clipPlanes[0])*5);
 	ctx.view.clipPlanes[0].normal[2] = -1<<16;	// clipPlane 0 is z_near
-	ctx.view.clipPlanes[0].origin[2] = -10000;
+	ctx.view.clipPlanes[0].origin[2] = -256;
 	ctx.view.clipPlanes[1].normal[0] = -d<<16;	// clipPlane 1 is rightmost
 	ctx.view.clipPlanes[1].normal[2] = -ctx.view.clipMax[0]<<16;
 	Fix_normalize(ctx.view.clipPlanes[1].normal);

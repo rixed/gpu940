@@ -319,7 +319,7 @@ link_all_deplibs=no
 sys_lib_search_path_spec=" /usr/lib/gcc-lib/i486-linux/3.3.5/ /usr/lib/gcc/i486-linux/3.3.5/ /usr/lib/gcc-lib/i486-linux/3.3.5/../../../../i486-linux/lib/i486-linux/3.3.5/ /usr/lib/gcc-lib/i486-linux/3.3.5/../../../../i486-linux/lib/ /usr/lib/gcc-lib/i486-linux/3.3.5/../../../i486-linux/3.3.5/ /usr/lib/gcc-lib/i486-linux/3.3.5/../../../ /lib/i486-linux/3.3.5/ /lib/ /usr/lib/i486-linux/3.3.5/ /usr/lib/"
 
 # Run-time system search path for libraries
-sys_lib_dlsearch_path_spec="/lib /usr/lib /usr/X11R6/lib /usr/lib/GNUstep/System/Library/Libraries /usr/local/lib "
+sys_lib_dlsearch_path_spec="/lib /usr/lib /usr/X11R6/lib /usr/lib/GNUstep/System/Library/Libraries /usr/local/lib /usr/lib/atlas "
 
 # Fix the shell variable $srcfile for the compiler.
 fix_srcfile_path=""
@@ -7041,7 +7041,7 @@ link_all_deplibs=no
 sys_lib_search_path_spec=" /usr/lib/gcc-lib/i486-linux/3.3.5/ /usr/lib/gcc/i486-linux/3.3.5/ /usr/lib/gcc-lib/i486-linux/3.3.5/../../../../i486-linux/lib/i486-linux/3.3.5/ /usr/lib/gcc-lib/i486-linux/3.3.5/../../../../i486-linux/lib/ /usr/lib/gcc-lib/i486-linux/3.3.5/../../../i486-linux/3.3.5/ /usr/lib/gcc-lib/i486-linux/3.3.5/../../../ /lib/i486-linux/3.3.5/ /lib/ /usr/lib/i486-linux/3.3.5/ /usr/lib/"
 
 # Run-time system search path for libraries
-sys_lib_dlsearch_path_spec="/lib /usr/lib /usr/X11R6/lib /usr/lib/GNUstep/System/Library/Libraries /usr/local/lib "
+sys_lib_dlsearch_path_spec="/lib /usr/lib /usr/X11R6/lib /usr/lib/GNUstep/System/Library/Libraries /usr/local/lib /usr/lib/atlas "
 
 # Fix the shell variable $srcfile for the compiler.
 fix_srcfile_path=""

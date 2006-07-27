@@ -15,37 +15,6 @@
  * along with gpu940; if not, write to the Free Software
  * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
  */
-/*
- * Scene 1 : Grab gp2x menu and make a texture with it, after a little pause
- * so that the user may have the impression to get back to menu after a crash.
- * The menu is mapped on a cube's face, that also provides other faces
- * for some "get ready" messages. While the tune gets more and more power, the cube
- * flips horizontaly showing various messages ("and now on to something more
- * fun", "codeIsAll", "credits", "greetz", "one is never alone with a spinning cube").
- * Then bash into the cube (severall times) to mimick trying to enter it (make the
- * cube react like a bubble). Then **flash**, we are inside !
- * Technically, the cube is a good old 6 facets cube (no round at the edge because
- * we need to project shadows. This is a "male" cube).
- *
- * Scene 2 : The 6 walls are mapped with the special texture "tw" with white/grey
- * colors, moving fast. Some pics appear (use flash) floating inside the cube, with
- * shadows on the walls (moving slightly, fast, like if the light was shaking).
- * Severall pics with many hot colors of severall people with beards (like a gnu,
- * RMS, Ritchie, Thompson, Marx, ...) Shaddows are rendered using clipplanes.
- * 
- * Scene 3 : Still in the cube, launch a "cube compo" : how many cubes can fit ?
- * launch many cubes (lines only) and watch them bounce around the big cube that's now
- * quickly rotating in all directions.
- *
- * Scene 4 : End with a more complex object (with many faces), like a psychedelic cow.
- * Use a fancy rendering technic, with flying colored spots (key color) with shaddows,
- * and a more colored texture for the walls.
- *
- * Camera : to have good looking moves, we need to control the camera with simple
- * commands such as "look at this from here, then go look at this from there", 
- * and with an added low amplitude signal for translation and rotation.
- */
-
 #include <stdlib.h>
 #include <stdio.h>
 #include <string.h>
@@ -921,7 +890,7 @@ static void scene2(void) {
 		transform_cube();
 		draw_cube(false, LEN<<16);
 		static FixVec pic_vec[4];
-		locate_pic(pic_vec, Fix_sin(ang1)>>4, Fix_sin(ang2)>>4);
+		locate_pic(pic_vec, 3000+(Fix_sin(ang1)>>5), Fix_sin(ang2)>>4);
 		ang2 += 207;
 		ang1 += 103;
 		transf_draw_pic(txt, pic_vec, SHADOWS);
