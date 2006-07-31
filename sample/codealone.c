@@ -897,9 +897,11 @@ static void scene2(void) {
 		transf_draw_pic(txt, pic_vec, PIC);
 		show_out_buf();
 		if (! --camera.target->nb_steps) {
+			static unsigned run = 6;
 			if (++target >= sizeof_array(targets_scene2)) target=0;//break;
 			camera.target = &targets_scene2[target];
 			camera.target->nb_steps = 150;
+			if (0 == run--) break;
 		}
 	} while (1);
 	gpuFreeFC(txt, 1);

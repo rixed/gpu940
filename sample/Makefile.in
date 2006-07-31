@@ -183,6 +183,7 @@ codealone_SOURCES = codealone.c
 sample1_LDADD = ../lib/libgpu940.la
 sample2_LDADD = ../lib/libgpu940.la
 codealone_LDADD = ../lib/libgpu940.la
+codealone_LDFLAGS = -static
 all: all-am
 
 .SUFFIXES:

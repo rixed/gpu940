@@ -27,6 +27,7 @@ extern SDL_Surface *sdl_console;
 
 void console_begin(void);
 void console_end(void);
+void console_enable(void);
 
 unsigned console_width(void);
 unsigned console_height(void);

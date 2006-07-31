@@ -65,6 +65,11 @@ void console_clear_rect_(unsigned x, unsigned y, unsigned width, unsigned height
  * Public Functions
  */
 
+void console_enable(void) {
+	// enable OSD
+	gp2x_regs16[0x2880>>1] |= 0x80;
+}
+
 void console_begin(void) {
 	color = 1;
 #ifdef GP2X
@@ -87,8 +92,6 @@ void console_begin(void) {
 	// color 3
 	gp2x_regs16[0x2956>>1] = 0xff10;
 	gp2x_regs16[0x2956>>1] = 0x90;	// color 3
-	// enable OSD
-	gp2x_regs16[0x2880>>1] |= 0x80;
 #else
 	sdl_console = SDL_CreateRGBSurface(SDL_SWSURFACE|SDL_SRCCOLORKEY, SCREEN_WIDTH, SCREEN_HEIGHT, 8, 0, 0, 0, 0);
 	if (! sdl_console) {
