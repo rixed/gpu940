@@ -16,3 +16,5 @@ gimpcomp: gimpcomp.c title.c greetz.c never.c gpu940_pic.c
 pics.c: gimpcomp title.c greetz.c never.c gpu940_pic.c
 	./gimpcomp > $@
 
+clean-local:
+	rm -f gimpcomp pics.c

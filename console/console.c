@@ -67,7 +67,9 @@ void console_clear_rect_(unsigned x, unsigned y, unsigned width, unsigned height
 
 void console_enable(void) {
 	// enable OSD
+#ifdef GP2X
 	gp2x_regs16[0x2880>>1] |= 0x80;
+#endif
 }
 
 void console_begin(void) {
