@@ -103,32 +103,6 @@ int64_t Fix_mul64x64(int64_t v, int64_t w) {
 	return res;
 }
 
-
-#define NB_STEPS 65536	// must be a power of 4
-static int32_t sincos[NB_STEPS+NB_STEPS/4];
-void Fix_trig_init(void) {
-	unsigned n;
-#	define BITS_PREC 30
-	int64_t c=1<<BITS_PREC;
-	int64_t s=0;
-	int64_t ku1 = 1073741819;
-	int64_t ku2 = 102944;
-	for (n=0; n<NB_STEPS+NB_STEPS/4; n++) {
-		sincos[n] = c>>(BITS_PREC-16);
-		int64_t new_c = (Fix_mul64x64(c,ku1) - Fix_mul64x64(s,ku2))>>BITS_PREC;
-		s = (Fix_mul64x64(s,ku1) + Fix_mul64x64(c,ku2))>>BITS_PREC;
-		c = new_c;
-	}
-#	undef BITS_PREC
-}
-
-int32_t Fix_cos(int32_t ang) {
-	return sincos[ang&(NB_STEPS-1)];
-}
-int32_t Fix_sin(int32_t ang) {
-	return sincos[NB_STEPS/4 + (ang&(NB_STEPS-1))];
-}
-
 // The following sqrt function was posted by Dijkstra on newsgroups
 #define iter1(N) \
 	try = root + (1 << (N)); \

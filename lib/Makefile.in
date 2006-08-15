@@ -57,7 +57,8 @@ am__installdirs = "$(DESTDIR)$(libdir)"
 libLTLIBRARIES_INSTALL = $(INSTALL)
 LTLIBRARIES = $(lib_LTLIBRARIES)
 libgpu940_la_LIBADD =
-am_libgpu940_la_OBJECTS = gpu940.lo fixmath.lo text.lo mm.lo
+am_libgpu940_la_OBJECTS = gpu940.lo fixmath.lo fixtrig.lo text.lo \
+	mm.lo
 libgpu940_la_OBJECTS = $(am_libgpu940_la_OBJECTS)
 DEFAULT_INCLUDES = -I. -I$(srcdir) -I$(top_builddir)
 depcomp = $(SHELL) $(top_srcdir)/depcomp
@@ -178,7 +179,7 @@ sysconfdir = @sysconfdir@
 target_alias = @target_alias@
 AM_CFLAGS = -I $(top_srcdir)/include -fstrict-aliasing -D_GNU_SOURCE -std=c99 -Wall -W -pedantic -pipe
 lib_LTLIBRARIES = libgpu940.la
-libgpu940_la_SOURCES = gpu940.c fixmath.c text.c mm.c
+libgpu940_la_SOURCES = gpu940.c fixmath.c fixtrig.c text.c mm.c
 libgpu940_la_LDFLAGS = -version-info 1:0:0 -Wl,--warn-common
 all: all-am
 
@@ -250,6 +251,7 @@ distclean-compile:
 	-rm -f *.tab.c
 
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/fixmath.Plo@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/fixtrig.Plo@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/gpu940.Plo@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/mm.Plo@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/text.Plo@am__quote@

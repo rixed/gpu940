@@ -8,3 +8,4 @@ fixmath.lo
 text.lo
 mm.lo
 mm.o
+fixtrig.lo
