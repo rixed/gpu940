@@ -25,7 +25,6 @@
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <fcntl.h>
-#include <png.h>
 #include <gpu940.h>
 #include <fixmath.h>
 
@@ -92,33 +91,6 @@ static struct gpuBuf *grab_menu_texture(void) {
 #endif
 	return menu_texture;
 }
-
-#if 0
-static struct gpuBuf *pic2txt(char const *name) {
-	struct gpuBuf *buf = gpuAlloc(7, 128, true);
-	assert(buf);
-	FILE *infile = fopen(name, "r");
-	assert(infile);
-	png_structp png_ptr = png_create_read_struct(PNG_LIBPNG_VER_STRING, NULL, NULL, NULL);
-	assert(png_ptr);
-	png_infop info_ptr = png_create_info_struct(png_ptr);
-	assert(info_ptr);
-	png_init_io(png_ptr, infile);
-	png_read_png(png_ptr, info_ptr, 0, NULL);
-	png_bytep *row_pointers;
-	row_pointers = png_get_rows(png_ptr, info_ptr);
-	uint8_t *image = malloc(128*128*3);
-	assert(image);
-	for (unsigned y=128; y--; ) {
-		memcpy(image+y*128*3, row_pointers[y], 128*3);
-	}
-	png_destroy_read_struct(&png_ptr, &info_ptr, NULL);
-	(void)fclose(infile);
-	gpuLoadImg(gpuBuf_get_loc(buf), (void *)image, 0);
-	free(image);
-	return buf;
-}
-#endif
 
 static struct gpuBuf *outBuf;
 static void next_out_buf(void) {
