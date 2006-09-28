@@ -20,30 +20,33 @@
  */
 #include <stdlib.h>
 #include <stdio.h>
+#include <inttypes.h>
 #include <sys/types.h>
 #include <sys/stat.h>
+#include <sys/time.h>
+#include <time.h>
 #include <fcntl.h>
 #include <unistd.h>
 #include <sys/mman.h>
-#include "gpu940.h"
 
 static unsigned offset = 0;
 
 static void syntax(void) {
-	printf("load940 [offset] file\n");
+	printf("load940 file [offset [bench]]\n");
 }
 
 int main(int nb_args, char **args) {
-	int opt = 1;
-	if (1 >= nb_args) {
+	int bench = 0;
+	if (nb_args <= 1 || nb_args > 4) {
 		syntax();
 		return EXIT_FAILURE;
 	}
-	if (3 == nb_args) {
-		offset = strtoul(args[opt++], NULL, 0);
+	if (nb_args >= 3) {
+		offset = strtoul(args[2], NULL, 0);
 	}
-	printf("Load file '%s'\n", args[opt]);
-	int prog = open(args[opt], O_RDONLY);
+	bench = nb_args == 4;
+	printf("Load file '%s' at offset %u\n", args[1], offset);
+	int prog = open(args[1], O_RDONLY);
 	if (-1 == prog) {
 		perror("open program");
 		return EXIT_FAILURE;
@@ -58,7 +61,7 @@ int main(int nb_args, char **args) {
 		perror("open /dev/mem");
 		return EXIT_FAILURE;
 	}
-	char *uppermem = mmap(NULL, progsize, PROT_WRITE, MAP_SHARED, mem, 0x2000000U + offset);
+	uint32_t *uppermem = mmap(NULL, progsize, PROT_READ|PROT_WRITE, MAP_SHARED, mem, 0x2000000U + offset);
 	volatile uint16_t *mp_regs = mmap(NULL, 0x10000, PROT_READ|PROT_WRITE, MAP_SHARED, mem, 0xC0000000U);
 	if (MAP_FAILED == uppermem || MAP_FAILED == mp_regs) {
 		perror("mmap /dev/mem");
@@ -70,9 +73,10 @@ int main(int nb_args, char **args) {
 	mp_regs[0x0904>>1] &= ~1;	// don't clock it
 	// copy
 	ssize_t err;
-	while ( 0 < (err=read(prog, uppermem, progsize)) ) {
+	char *dest = (void *)uppermem;
+	while ( 0 < (err=read(prog, dest, progsize)) ) {
 		printf("  writing %d bytes...\n", err);
-		uppermem += err;
+		dest += err;
 		progsize -= err;
 	}
 	if (-1 == err) {
@@ -86,6 +90,24 @@ int main(int nb_args, char **args) {
 	mp_regs[0x3B48>>1] &= ~(1<<7);	// clear reset bits
 	// OK, your program should be crashed now ;-)
 	puts("Ok");
+	if (! bench) return EXIT_SUCCESS;
+	// Wait until termination and display time
+	struct timeval start;
+	if (0 != gettimeofday(&start, NULL)) {
+		perror("gettimeofday start");
+		return EXIT_FAILURE;
+	}
+	while (uppermem[0]) {
+		struct timespec const ts = { .tv_sec = 0, .tv_nsec = 1000 /* 1microsec */ };
+		(void)nanosleep(&ts, NULL);
+	}
+	struct timeval end;
+	if (0 != gettimeofday(&end, NULL)) {
+		perror("gettimeofday end");
+		return EXIT_FAILURE;
+	}
+	uint64_t delay = (end.tv_sec*1000000 + end.tv_usec) - (start.tv_sec*1000000 + start.tv_usec);
+	printf("940 code run for approx %"PRIu64" usec\n", delay);
 	return EXIT_SUCCESS;
 }
 

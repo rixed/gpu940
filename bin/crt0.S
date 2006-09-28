@@ -43,6 +43,7 @@ _reset:
 	// Data region 0 is cacheable/bufferable, data region 1 is uncacheable/unbufferable, date region 2 is uncacheable/bufferable
 	mov r0, #0x1
 	mcr p15, 0, r0, c2, c0, 0
+	mov r0, #0x1
 	mcr p15, 0, r0, c2, c0, 1	// code region 0 is cacheable also
 	mov r0, #0x5
 	mcr p15, 0, r0, c3, c0, 0

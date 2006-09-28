@@ -26,6 +26,8 @@
 #include <fixmath.h>
 #ifndef GP2X
 #	define CMDFILE "/tmp/gpu940_buf"
+#else
+#	define CMDFILE "/dev/mem"
 #endif
 #define TOSTRX(X) #X
 #define TOSTR(X) TOSTRX(X)

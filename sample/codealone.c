@@ -356,7 +356,7 @@ static void transform_cube(void) {
  * Scene 1
  */
 
-#include "pics.c"
+#include "pics.h"
 
 static struct target targets_scene1[] = {
 	{

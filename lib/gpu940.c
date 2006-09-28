@@ -31,6 +31,7 @@
 
 struct gpuShared *shared;
 static int shared_fd;
+static size_t mmapsize;
 
 /*
  * Private Functions
@@ -80,17 +81,17 @@ static void flush_writes(void) {
 
 gpuErr gpuOpen(void) {
 #	ifdef GP2X
-	shared_fd = open("/dev/mem", O_RDWR);
-#	define MMAP_OFFSET SHARED_PHYSICAL_ADDR 
+#		define MMAP_OFFSET SHARED_PHYSICAL_ADDR 
 #	else
-	shared_fd = open(CMDFILE, O_RDWR);
-#	define MMAP_OFFSET 0
+#		define MMAP_OFFSET 0
 #	endif
+	shared_fd = open(CMDFILE, O_RDWR);
 	if (-1 == shared_fd) return gpuESYS;
 	int pg_size = getpagesize();
-	shared = mmap(NULL, ((sizeof(*shared)/pg_size)+1)*pg_size, PROT_READ|PROT_WRITE, MAP_SHARED, shared_fd, MMAP_OFFSET);
+	mmapsize = ((sizeof(*shared)/pg_size)+1)*pg_size;
+	shared = mmap(NULL, mmapsize, PROT_READ|PROT_WRITE, MAP_SHARED, shared_fd, MMAP_OFFSET);
 	if (MAP_FAILED == shared) {
-		perror("mmap /dev/mem");
+		perror("mmap " CMDFILE);
 		fprintf(stderr, "  @%x\n", (unsigned)SHARED_PHYSICAL_ADDR);
 		return gpuESYS;
 	}
@@ -103,7 +104,7 @@ gpuErr gpuOpen(void) {
 }
 
 void gpuClose(void) {
-	(void)munmap(shared, sizeof(*shared));
+	(void)munmap(shared, mmapsize);
 	(void)close(shared_fd);
 }
 

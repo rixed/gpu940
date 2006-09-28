@@ -154,7 +154,11 @@ static void vertical_interrupt(void) {
 		if (++ displist_begin >= sizeof_array(displist)) displist_begin = 0;
 		shared->frame_count ++;
 	}
-	update_console();
+	static int skip_upd_console = 0;
+	if ( ++skip_upd_console > 40 ) {
+		update_console();
+		skip_upd_console = 0;
+	}
 }
 
 static void reset_clipPlanes(void) {
@@ -326,7 +330,7 @@ static void do_showBuf(void) {
 	displist[displist_end] = allCmds.showBuf.loc;
 	displist_end = next_displist_end;
 #ifndef GP2X
-	vertical_interrupt();
+//	vertical_interrupt();
 #endif
 }
 static void do_point(void) {}
@@ -451,8 +455,8 @@ void set_speed(unsigned s) {
 #endif
 }
 static void run(void) {
-	//play_div_anim();
 	//play_nodiv_anim();
+	//play_div_anim();
 //	perftime_enter(PERF_WAITCMD, "idle");
 #ifdef GP2X
 	unsigned wait = 0;
@@ -470,6 +474,7 @@ static void run(void) {
 			if (wait <= TIME_FOR_A_BREAK) {
 				wait ++;
 			}
+			for (register volatile int i=100; i>0; i--) ;	// halt before reading RAM again
 #else
 			(void)sched_yield();
 #endif
@@ -527,7 +532,7 @@ void irq_handler(void) {
 	gp2x_regs32[0x4510>>2] = 1U<<irq;
 }
 
-void mymain(void) {	// to please autoconf, we call this 'main'
+void mymain(void) {
 	if (-1 == perftime_begin(0, NULL, 0)) goto quit;
 	// MLC_OVLAY_CNTR
 	uint16_t v = gp2x_regs16[0x2880>>1];
@@ -574,6 +579,7 @@ void mymain(void) {	// to please autoconf, we call this 'main'
 	shared_reset();
 	console_begin();
 	console_setup();
+	console_enable();
 	set_speed(FULL_THROTTLE);
 	run();
 	console_end();
@@ -581,10 +587,10 @@ quit:;
 	// TODO halt the 940
 }
 #else
-//static void alrm_handler(int dummy) {
-//	(void)dummy;
-//	vertical_interrupt();
-//}
+static void alrm_handler(int dummy) {
+	(void)dummy;
+	vertical_interrupt();
+}
 int main(void) {
 	if (-1 == perftime_begin(0, NULL, 0)) return EXIT_FAILURE;
 	int fd = open(CMDFILE, O_RDWR|O_CREAT|O_TRUNC, 0644);
@@ -607,7 +613,7 @@ int main(void) {
 	sdl_screen = SDL_SetVideoMode(SCREEN_WIDTH, SCREEN_HEIGHT, 32, SDL_SWSURFACE);
 	if (! sdl_screen) return EXIT_FAILURE;
 	// use itimer for simulation of vertical interrupt
-/*	if (0 != sigaction(SIGALRM, &(struct sigaction){ .sa_handler = alrm_handler }, NULL)) {
+	if (0 != sigaction(SIGALRM, &(struct sigaction){ .sa_handler = alrm_handler }, NULL)) {
 		perror("sigaction");
 		return EXIT_FAILURE;
 	}
@@ -624,7 +630,7 @@ int main(void) {
 	if (0 != setitimer(ITIMER_REAL, &itimer, NULL)) {
 		perror("setitimer");
 		return EXIT_FAILURE;
-	}*/
+	}
 	console_begin();
 	console_setup();
 	run();

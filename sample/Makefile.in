@@ -14,7 +14,7 @@
 
 @SET_MAKE@
 
-SOURCES = $(codealone_SOURCES) $(sample1_SOURCES) $(sample2_SOURCES)
+SOURCES = $(codealone_SOURCES) $(membench_SOURCES) $(sample1_SOURCES) $(sample2_SOURCES)
 
 srcdir = @srcdir@
 top_srcdir = @top_srcdir@
@@ -38,7 +38,8 @@ PRE_UNINSTALL = :
 POST_UNINSTALL = :
 build_triplet = @build@
 host_triplet = @host@
-noinst_PROGRAMS = sample1$(EXEEXT) sample2$(EXEEXT) codealone$(EXEEXT)
+noinst_PROGRAMS = sample1$(EXEEXT) sample2$(EXEEXT) codealone$(EXEEXT) \
+	membench$(EXEEXT)
 subdir = sample
 DIST_COMMON = $(srcdir)/Makefile.am $(srcdir)/Makefile.in
 ACLOCAL_M4 = $(top_srcdir)/aclocal.m4
@@ -52,6 +53,9 @@ PROGRAMS = $(noinst_PROGRAMS)
 am_codealone_OBJECTS = codealone.$(OBJEXT)
 codealone_OBJECTS = $(am_codealone_OBJECTS)
 codealone_DEPENDENCIES = ../lib/libgpu940.la
+am_membench_OBJECTS = membench.$(OBJEXT)
+membench_OBJECTS = $(am_membench_OBJECTS)
+membench_LDADD = $(LDADD)
 am_sample1_OBJECTS = sample1.$(OBJEXT)
 sample1_OBJECTS = $(am_sample1_OBJECTS)
 sample1_DEPENDENCIES = ../lib/libgpu940.la
@@ -69,9 +73,10 @@ LTCOMPILE = $(LIBTOOL) --tag=CC --mode=compile $(CC) $(DEFS) \
 CCLD = $(CC)
 LINK = $(LIBTOOL) --tag=CC --mode=link $(CCLD) $(AM_CFLAGS) $(CFLAGS) \
 	$(AM_LDFLAGS) $(LDFLAGS) -o $@
-SOURCES = $(codealone_SOURCES) $(sample1_SOURCES) $(sample2_SOURCES)
-DIST_SOURCES = $(codealone_SOURCES) $(sample1_SOURCES) \
+SOURCES = $(codealone_SOURCES) $(membench_SOURCES) $(sample1_SOURCES) \
 	$(sample2_SOURCES)
+DIST_SOURCES = $(codealone_SOURCES) $(membench_SOURCES) \
+	$(sample1_SOURCES) $(sample2_SOURCES)
 ETAGS = etags
 CTAGS = ctags
 DISTFILES = $(DIST_COMMON) $(DIST_SOURCES) $(TEXINFOS) $(EXTRA_DIST)
@@ -179,7 +184,8 @@ target_alias = @target_alias@
 AM_CFLAGS = -I $(top_srcdir)/include -fstrict-aliasing -D_GNU_SOURCE -std=c99 -Wall -W -pedantic -pipe
 sample1_SOURCES = sample1.c
 sample2_SOURCES = sample2.c
-codealone_SOURCES = codealone.c
+codealone_SOURCES = codealone.c pics.h
+membench_SOURCES = membench.c
 sample1_LDADD = ../lib/libgpu940.la
 sample2_LDADD = ../lib/libgpu940.la
 codealone_LDADD = ../lib/libgpu940.la
@@ -227,6 +233,9 @@ clean-noinstPROGRAMS:
 codealone$(EXEEXT): $(codealone_OBJECTS) $(codealone_DEPENDENCIES) 
 	@rm -f codealone$(EXEEXT)
 	$(LINK) $(codealone_LDFLAGS) $(codealone_OBJECTS) $(codealone_LDADD) $(LIBS)
+membench$(EXEEXT): $(membench_OBJECTS) $(membench_DEPENDENCIES) 
+	@rm -f membench$(EXEEXT)
+	$(LINK) $(membench_LDFLAGS) $(membench_OBJECTS) $(membench_LDADD) $(LIBS)
 sample1$(EXEEXT): $(sample1_OBJECTS) $(sample1_DEPENDENCIES) 
 	@rm -f sample1$(EXEEXT)
 	$(LINK) $(sample1_LDFLAGS) $(sample1_OBJECTS) $(sample1_LDADD) $(LIBS)
@@ -241,6 +250,7 @@ distclean-compile:
 	-rm -f *.tab.c
 
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/codealone.Po@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/membench.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/sample1.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/sample2.Po@am__quote@
 
@@ -445,11 +455,11 @@ uninstall-am: uninstall-info-am
 gimpcomp: gimpcomp.c title.c greetz.c never.c gpu940_pic.c
 	@HOST_CC@ -std=c99 -DGNU_SOURCES -Wall -W $< -o $@
 
-pics.c: gimpcomp title.c greetz.c never.c gpu940_pic.c
+pics.h: gimpcomp title.c greetz.c never.c gpu940_pic.c
 	./gimpcomp > $@
 
 clean-local:
-	rm -f gimpcomp pics.c
+	rm -f gimpcomp pics.h
 # Tell versions [3.59,3.63) of GNU make to not export all variables.
 # Otherwise a system limit (for SysV at least) may be exceeded.
 .NOEXPORT:

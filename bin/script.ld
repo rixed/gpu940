@@ -5,6 +5,7 @@ SECTIONS {
 		gpu940.o(.text)
 		mylib.o(.text)
 		clip.o(.text)
+		raster.o(.text)
 		poly.o(.text)
 		draw_line.gp2x.o(.text)
 		text.o(.text)
