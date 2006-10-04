@@ -29,11 +29,11 @@ writeoffs: writeoffs.c gpu940i.h ../include/gpu940.h
 #	$(CC) $(CFLAGS) $(AM_CFLAGS) $(LDFLAGS) $(AM_LDFLAGS) -std=c99 -Wall -W -o writeoffs writeoffs.c
 	@HOST_CC@ -std=c99 -Wall -W -o $@ $< -I$(top_srcdir)/include
 offsets.S: writeoffs $(top_srcdir)/include/gpu940.h $(top_srcdir)/bin/gpu940i.h
-	$< > $@
+	./$< > $@
 draw_line.gp2x.o: offsets.S
 
-OBJCOPY = /usr/local/devkitPro/devkitGP2X/bin/arm-linux-objcopy
-OBJDUMP = /usr/local/devkitPro/devkitGP2X/bin/arm-linux-objdump
+OBJCOPY = $(GP2XDEVDIR)/bin/arm-linux-objcopy
+OBJDUMP = $(GP2XDEVDIR)/bin/arm-linux-objdump
 gpu940: $(gpu940_OBJECTS) script.ld $(top_srcdir)/console/libconsole.a $(top_srcdir)/perftime/libperftime.a
 	$(LD) -o $@.elf $(LDFLAGS) -L$(top_srcdir)/console -L$(top_srcdir)/perftime -L$(top_srcdir)/lib -T script.ld -N -s
 	$(OBJCOPY) --output-target binary --only-section upper32 $@.elf $@
@@ -48,4 +48,3 @@ clean-local:
 	rm -f writeoffs offsets.S gpu940.elf bench940.elf
 
 endif
-

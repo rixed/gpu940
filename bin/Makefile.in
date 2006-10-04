@@ -206,8 +206,8 @@ gpu940_LDADD = ../console/libconsole.a ../perftime/libperftime.a ../lib/fixmath.
 #AM_CFLAGS += -fno-pic -ffreestanding
 load940_SOURCES = load940.c
 bench940_SOURCES = bench.S
-@GP2X_TRUE@OBJCOPY = /usr/local/devkitPro/devkitGP2X/bin/arm-linux-objcopy
-@GP2X_TRUE@OBJDUMP = /usr/local/devkitPro/devkitGP2X/bin/arm-linux-objdump
+@GP2X_TRUE@OBJCOPY = $(GP2XDEVDIR)/bin/arm-linux-objcopy
+@GP2X_TRUE@OBJDUMP = $(GP2XDEVDIR)/bin/arm-linux-objdump
 all: all-am
 
 .SUFFIXES:
@@ -511,7 +511,7 @@ uninstall-am: uninstall-binPROGRAMS uninstall-info-am
 #	$(CC) $(CFLAGS) $(AM_CFLAGS) $(LDFLAGS) $(AM_LDFLAGS) -std=c99 -Wall -W -o writeoffs writeoffs.c
 @GP2X_TRUE@	@HOST_CC@ -std=c99 -Wall -W -o $@ $< -I$(top_srcdir)/include
 @GP2X_TRUE@offsets.S: writeoffs $(top_srcdir)/include/gpu940.h $(top_srcdir)/bin/gpu940i.h
-@GP2X_TRUE@	$< > $@
+@GP2X_TRUE@	./$< > $@
 @GP2X_TRUE@draw_line.gp2x.o: offsets.S
 @GP2X_TRUE@gpu940: $(gpu940_OBJECTS) script.ld $(top_srcdir)/console/libconsole.a $(top_srcdir)/perftime/libperftime.a
 @GP2X_TRUE@	$(LD) -o $@.elf $(LDFLAGS) -L$(top_srcdir)/console -L$(top_srcdir)/perftime -L$(top_srcdir)/lib -T script.ld -N -s

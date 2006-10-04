@@ -6,16 +6,18 @@
 	.align
 _start:
 	// We run straight from here, ignoring other interrupts
-	// First, setup the protection unit : we disable dcache and write buffer altogether, and enable icache everywhere.
+	// First, setup the protection unit : we enable dcache, write buffer and icache.
 	mov r0, #0x3F	// 4GB page starting at 0x0
 	mcr p15, 0, r0, c6, c0, 0	// this is data region 0
 	mcr p15, 0, r0, c6, c0, 1	// this is code region 0
-	mov r0, #0x0
+	// Data region 1 is for the MP registers, at address 0xC0000000-0x2000000
+	mov r0, #0x1F
+	orr r0, r0, #0xBE000000
+	mcr p15, 0, r0, c6, c1, 0
+	mov r0, #0x1	// data region 0 is cacheable, data region 1 is not
 	mcr p15, 0, r0, c2, c0, 0	// data region 0 is not cacheable
-	mov r0, #0x1
 	mcr p15, 0, r0, c2, c0, 1	// code region 0 is cacheable
-	mov r0, #0x0
-	mcr p15, 0, r0, c3, c0, 0	// no write buffer anywhere
+	mcr p15, 0, r0, c3, c0, 0	// WB active for data region 0, but not for data region 1
 	// Full access for all runlevels to everything
 	mov r0, #0xFF
 	mcr p15, 0, r0, c5, c0, 0	// data
@@ -23,8 +25,7 @@ _start:
 	// Now do it
 	mov r0, #0xC0000000	// Asynchronous (+FastBus) clocking (don't know what's this, but sounds quite kewl)
 	orr r0, r0, #0x1000	// ICache enable
-	orr r0, r0, #0x79		// DCache disabled, Protection Unit enabled
-	
+	orr r0, r0, #0x7D //79		// DCache disabled, Protection Unit enabled
 	mcr p15, 0, r0, c1, c0, 0
 	
 	mov r13, #0x10000		// Just in case we add subfunctions in this little test, locate our stack there
@@ -50,7 +51,9 @@ _start:
 	ldr r4, =N	// the distance between 2 writes
 	ldr r5, =0xFFFFF	// Mask for 1Mb
 0:
-	str r3, [r1, r2]	// write a word
+//	str r3, [r1, r2]	// write a word
+	add r6, r1, r2
+	stmia r6, { r1, r2, r3, r4 }
 	add r2, r2, r4, LSL #2	// increment offset by N words
 	and r2, r2, r5	// make offset loop after 16Mb
 	subs r0, r0, #0x1	// dec counter
