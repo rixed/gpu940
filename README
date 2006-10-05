@@ -1,6 +1,6 @@
-* GPU940
+1. Introduction
 
-Gpu940 is a soft 3D renderer that can do many rendering type, including true
+Gpu940 is a soft 3D renderer that can do many rendering types, including true
 perspective texture mapping. The software is designed to operate as a separate 
 process. It's mainly targeted at GPH's GP2X (http://www.gp2x.com) but can be 
 used on other platforms as well.
@@ -15,4 +15,72 @@ Geometry can be drawn onto as many video buffers as you need (not limited to
 z-buffer can be drawed onto, and that any previous video buffer can serve as a 
 texture or z-buffer.
 
+Advantages of GPU940 :
+
+- Uses a separate process to render in background (on the GP2X, on the 940) ;
+- Can achieve true perspective mapping ;
+- Manage clipping in 3D against view borders and user clip-planes ;
+- Generalized working buffer that can be drawn into as well as read as a 
+  texture ;
+- Accept any sized polygon (not just triangles) ;
+- YUV rendering on the GP2X for a better lighting ;
+- Very few divisions per polygons even in true perspective mode ;
+
+Drawbacks :
+
+- Zbuffer is not implemented yet ;
+- Projections are done each time a vertex is used in a polygon ;
+- The GP2X is very bad for drawing in true-perspective mode (write access far 
+  apart from each others are inexplicably slow) ;
+
+
+2. Overall organization
+
+The GPU and the user application share a common data structure in memory 
+that's mainly composed of a big cyclic buffer (1Mb in size) for commands sent 
+by the user application to the GPU ("the command buffer"). Also, an error flag 
+provides some feedback to the application.
+
+Commands are small data structures of which the first word gives the operation 
+code. The main command is the 'draw polygon' command, which gives all 
+rendering information and the 3D coordinates of all involved vertexes.  When 
+it encounters this command, the GPU first clips the polygon, projects vertexes 
+and draws the polygon onto the current 'out' buffer. There are no camera nor 
+'modelview' matrix stack as far as the GPU is concerned ; all 3D 
+transformations must have been performed by the user application before 
+sending the draw command.
+
+GPU uses several buffers :
+
+- the 'out' buffer, into which everything is drawn ;
+- the 'txt' buffer, into which it reads texels ;
+- the 'z' buffer, where z values are stored and read to perform
+  z filtering ;
+
+Each buffer is defined by it's starting address, width and height (all width 
+being constrained to a power of 2). All these are taken into a common pool of 
+memory (approx 30Mb in size). User application have to set all these 
+explicitly.  For the GPU standpoint, any memory is the same ; there are no 
+memory specialized for writing picture and other specialized for reading 
+textures.  Thus, user applications can mix all kind of buffer freely and 
+easily (rendering into z-buffer for example).  Another advantage is that you 
+can draw several frames of an animation in advance (not just two as it's often 
+the case with similar libraries). The main drawback is that the user 
+application must handle memory allocations of these buffers. A set of 
+functions is provided to ease this task (see section 'user library').
+
+When all commands of a frame are sent, the user application send a 'show 
+buffer' command to publish the frame. This command, when executed by the GPU, 
+means to push the designated buffer to the list of displayable buffers. Each 
+time a vertical interrupt occur, the GPU take the next buffer from this list 
+and make it the current displayed buffer. If the list is empty, the interrupt 
+is 'missed' (missed frame count is displayed on the console), meaning that 
+there were to many commands to perform in one frame time. When, at the 
+contrary, more than one frames are published during one frame time, the GPU 
+will display them one at a time, synchronized with the vertical interrupt ; in 
+other words, it will not skip frames. It's assumed than it's better to have 
+some work done in advance in case the next frame require more than one 
+vertical period to complete. For synchronisation purposes, the user 
+application can read the frame counters frame_count and frame_miss that 
+account for each displayed frame and missed interrupt.
 
