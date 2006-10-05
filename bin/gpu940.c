@@ -396,7 +396,7 @@ static void fetch_command(void) {
 	}
 }
 
-static void __unused play_nodiv_anim(void) {
+static void GCCunused play_nodiv_anim(void) {
 	int x = ctx.view.clipMin[0], y = ctx.view.clipMin[1];
 	int dx = 1, dy = 1;
 	while (1) {
@@ -410,7 +410,7 @@ static void __unused play_nodiv_anim(void) {
 	}
 }
 
-static void __unused play_div_anim(void) {
+static void GCCunused play_div_anim(void) {
 	for (int64_t x = ctx.view.clipMin[0]; x<ctx.view.clipMax[0]; x++) {
 		int64_t y = x? ctx.view.clipMax[1]/x : 0;
 		uint32_t *w = &shared->buffers[ctx.location.out.address + ((y+ctx.view.winPos[1]+ctx.view.winHeight/2)<<ctx.location.out.width_log) + x+ctx.view.winPos[0]+ctx.view.winWidth/2];

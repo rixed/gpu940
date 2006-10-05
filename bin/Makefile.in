@@ -14,7 +14,7 @@
 
 @SET_MAKE@
 
-SOURCES = $(bench940_SOURCES) $(gpu940_SOURCES) $(load940_SOURCES)
+SOURCES = $(gpu940_SOURCES) $(load940_SOURCES)
 
 srcdir = @srcdir@
 top_srcdir = @top_srcdir@
@@ -38,7 +38,7 @@ PRE_UNINSTALL = :
 POST_UNINSTALL = :
 build_triplet = @build@
 host_triplet = @host@
-bin_PROGRAMS = gpu940$(EXEEXT) load940$(EXEEXT) bench940$(EXEEXT)
+bin_PROGRAMS = gpu940$(EXEEXT) load940$(EXEEXT)
 subdir = bin
 DIST_COMMON = $(srcdir)/Makefile.am $(srcdir)/Makefile.in
 ACLOCAL_M4 = $(top_srcdir)/aclocal.m4
@@ -51,9 +51,6 @@ CONFIG_CLEAN_FILES =
 am__installdirs = "$(DESTDIR)$(bindir)"
 binPROGRAMS_INSTALL = $(INSTALL_PROGRAM)
 PROGRAMS = $(bin_PROGRAMS)
-am_bench940_OBJECTS = bench.$(OBJEXT)
-bench940_OBJECTS = $(am_bench940_OBJECTS)
-bench940_LDADD = $(LDADD)
 am_gpu940_OBJECTS = gpu940.$(OBJEXT) poly.$(OBJEXT) clip.$(OBJEXT) \
 	mylib.$(OBJEXT) text.$(OBJEXT) raster.$(OBJEXT) \
 	draw_line.gp2x.$(OBJEXT) crt0.$(OBJEXT) mydiv.$(OBJEXT)
@@ -77,9 +74,8 @@ LTCOMPILE = $(LIBTOOL) --tag=CC --mode=compile $(CC) $(DEFS) \
 CCLD = $(CC)
 LINK = $(LIBTOOL) --tag=CC --mode=link $(CCLD) $(AM_CFLAGS) $(CFLAGS) \
 	$(AM_LDFLAGS) $(LDFLAGS) -o $@
-SOURCES = $(bench940_SOURCES) $(gpu940_SOURCES) $(load940_SOURCES)
-DIST_SOURCES = $(bench940_SOURCES) $(gpu940_SOURCES) \
-	$(load940_SOURCES)
+SOURCES = $(gpu940_SOURCES) $(load940_SOURCES)
+DIST_SOURCES = $(gpu940_SOURCES) $(load940_SOURCES)
 ETAGS = etags
 CTAGS = ctags
 DISTFILES = $(DIST_COMMON) $(DIST_SOURCES) $(TEXINFOS) $(EXTRA_DIST)
@@ -205,7 +201,6 @@ gpu940_SOURCES = \
 gpu940_LDADD = ../console/libconsole.a ../perftime/libperftime.a ../lib/fixmath.lo
 #AM_CFLAGS += -fno-pic -ffreestanding
 load940_SOURCES = load940.c
-bench940_SOURCES = bench.S
 @GP2X_TRUE@OBJCOPY = $(GP2XDEVDIR)/bin/arm-linux-objcopy
 @GP2X_TRUE@OBJDUMP = $(GP2XDEVDIR)/bin/arm-linux-objdump
 all: all-am
@@ -269,9 +264,6 @@ clean-binPROGRAMS:
 	  echo " rm -f $$p $$f"; \
 	  rm -f $$p $$f ; \
 	done
-@GP2X_FALSE@bench940$(EXEEXT): $(bench940_OBJECTS) $(bench940_DEPENDENCIES) 
-@GP2X_FALSE@	@rm -f bench940$(EXEEXT)
-@GP2X_FALSE@	$(LINK) $(bench940_LDFLAGS) $(bench940_OBJECTS) $(bench940_LDADD) $(LIBS)
 @GP2X_FALSE@gpu940$(EXEEXT): $(gpu940_OBJECTS) $(gpu940_DEPENDENCIES) 
 @GP2X_FALSE@	@rm -f gpu940$(EXEEXT)
 @GP2X_FALSE@	$(LINK) $(gpu940_LDFLAGS) $(gpu940_OBJECTS) $(gpu940_LDADD) $(LIBS)
@@ -516,7 +508,7 @@ uninstall-am: uninstall-binPROGRAMS uninstall-info-am
 @GP2X_TRUE@gpu940: $(gpu940_OBJECTS) script.ld $(top_srcdir)/console/libconsole.a $(top_srcdir)/perftime/libperftime.a
 @GP2X_TRUE@	$(LD) -o $@.elf $(LDFLAGS) -L$(top_srcdir)/console -L$(top_srcdir)/perftime -L$(top_srcdir)/lib -T script.ld -N -s
 @GP2X_TRUE@	$(OBJCOPY) --output-target binary --only-section upper32 $@.elf $@
-@GP2X_TRUE@bench940: $(bench940_OBJECTS) bench.ld
+@GP2X_TRUE@bench940: bench940.o bench.ld
 @GP2X_TRUE@	$(LD) -o $@.elf $(LDFLAGS) -T bench.ld -N -s
 @GP2X_TRUE@	$(OBJCOPY) --output-target binary --only-section upper32 $@.elf $@
 

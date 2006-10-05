@@ -1,3 +1,4 @@
+#ifdef GP2X
 #ifndef N
 #	define N 1000
 #endif
@@ -67,3 +68,4 @@ end:
 	
 gp2x_regs: .word 0xC0000000-0x2000000
 	
+#endif

@@ -3,7 +3,6 @@
 /* From Robert Love's 'http://rlove.org/log/2005102601'
  */
 #if __GNUC__ >= 3
-# define inline		inline __attribute__ ((always_inline))
 /* A "pure" function is one that has no effects except its return value and its
  * return value is a function of only the function's parameters or non-volatile
  * global variables. Any parameter or global variable access must be read-only.
@@ -12,7 +11,7 @@
  * function's return value (its only effect) is invariant across multiple
  * invocations and thus can be pulled out of a loop and called but once.
  */
-# define __pure		__attribute__ ((pure))
+# define GCCpure		__attribute__ ((pure))
 /* A "const" function is a stricter variant of a pure function: Such functions
  * cannot access global variables and no parameters may be pointers. Thus their
  * return value is a function of nothing but their passed-by-value parameters.
@@ -21,41 +20,41 @@
  * state or otherwise pull tricks in the name of optimization). It makes no
  * sense for a const or pure function to return void.
  */
-# define __const	__attribute__ ((const))
+# define GCCconst	__attribute__ ((const))
 /* If a function never returns (perhaps because it calls exit()), it can be
  * marked as such and GCC can optimize the call site without regard to the
  * potentiality of the function actually returning. It makes no sense for such
  * a function to have a return value other than void.
  */
-# define __noreturn	__attribute__ ((noreturn))
+# define GCCnoreturn	__attribute__ ((noreturn))
 /* If a function returns pointers that can never alias any other data (almost
  * assuredly because it just allocated memory), the function can be marked as
  * such and GCC can improve optimizations.
  */
-# define __malloc	__attribute__ ((malloc))
+# define GCCmalloc	__attribute__ ((malloc))
 /* This attribute instructs GCC to generate a warning whenever the return value
  * from the function is not stored or used in an expression during invocation.
  * This allows functions whose return value is crucial to ensure that the value
  * is always used.
  */
-# define __must_check	__attribute__ ((warn_unused_result))
+# define GCCmust_check	__attribute__ ((warn_unused_result))
 /* This attribute instructs GCC to generate a warning, at the call site,
  * whenever the function is used. This helps developers wean off of deprecated
  * interfaces.
  */
-# define __deprecated	__attribute__ ((deprecated))
+# define GCCdeprecated	__attribute__ ((deprecated))
 /* This attribute tells GCC that, despite apparent reality, a function really
  * is used and to always output the assembly for the function. This is useful
  * if the function is only invoked from assembly and GCC is unaware. It also
  * disables warnings due to lack of use.
  */
-# define __used		__attribute__ ((used))
+# define GCCused		__attribute__ ((used))
 /* This attribute tells GCC that the programmer is aware that a given parameter
  * is unused and not to emit warnings to that end. This is useful if compiling
  * with -W or -Wunused but forced to have unused parameters, as is common in
  * event-driven GUI programming.
  */
-# define __unused	__attribute__ ((unused))
+# define GCCunused	__attribute__ ((unused))
 /* This attribute tells GCC that a type or variable should be packed into
  * memory, using the minimum amount of space possible, potentially disregarding
  * alignment requirements. If specified on a struct or union, all variables
@@ -67,7 +66,7 @@
  * packed structure lacks this packing, potentially consuming less memory but
  * failing to meet architecture alignment requirements.
  */
-# define __packed	__attribute__ ((packed))
+# define GCCpacked	__attribute__ ((packed))
 /* The likely() and unlikely() directives instruct GCC that the results of the
  * expression contained within are likely true or unlikely true. GCC can then
  * perform block reordering and other optimizations to improve the performance
@@ -79,15 +78,15 @@
 # define unlikely(x)	__builtin_expect (!!(x), 0)
 #else
 # define inline		/* no inline */
-# define __pure		/* no pure */
-# define __const	/* no const */
-# define __noreturn	/* no noreturn */
-# define __malloc	/* no malloc */
-# define __must_check	/* no warn_unused_result */
-# define __deprecated	/* no deprecated */
-# define __used		/* no used */
-# define __unused	/* no unused */
-# define __packed	/* no packed */
+# define GCCpure		/* no pure */
+# define GCCconst	/* no const */
+# define GCCnoreturn	/* no noreturn */
+# define GCCmalloc	/* no malloc */
+# define GCCmust_check	/* no warn_unused_result */
+# define GCCdeprecated	/* no deprecated */
+# define GCCused		/* no used */
+# define GCCunused	/* no unused */
+# define GCCpacked	/* no packed */
 # define likely(x)	(x)
 # define unlikely(x)	(x)
 #endif
