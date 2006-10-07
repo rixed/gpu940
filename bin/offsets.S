@@ -7,7 +7,6 @@ OFF_ctx.view.dproj=276
 OFF_ctx.poly.cmdFacet=320
 OFF_ctx.poly.cmdFacet.size=324
 OFF_ctx.poly.cmdFacet.color=328
-OFF_ctx.poly.cmdFacet.rendering_type=336
 OFF_ctx.poly.vectors=340
 OFF_ctx.poly.z_alpha=2248
 OFF_ctx.poly.scan_dir=2224

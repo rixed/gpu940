@@ -508,9 +508,10 @@ uninstall-am: uninstall-binPROGRAMS uninstall-info-am
 @GP2X_TRUE@gpu940: $(gpu940_OBJECTS) script.ld $(top_srcdir)/console/libconsole.a $(top_srcdir)/perftime/libperftime.a
 @GP2X_TRUE@	$(LD) -o $@.elf $(LDFLAGS) -L$(top_srcdir)/console -L$(top_srcdir)/perftime -L$(top_srcdir)/lib -T script.ld -N -s
 @GP2X_TRUE@	$(OBJCOPY) --output-target binary --only-section upper32 $@.elf $@
-@GP2X_TRUE@bench940: bench940.o bench.ld
+@GP2X_TRUE@bench940: bench.o bench.ld
 @GP2X_TRUE@	$(LD) -o $@.elf $(LDFLAGS) -T bench.ld -N -s
 @GP2X_TRUE@	$(OBJCOPY) --output-target binary --only-section upper32 $@.elf $@
+@GP2X_TRUE@all: bench940
 
 @GP2X_TRUE@gpu940.source: gpu940
 @GP2X_TRUE@	$(OBJDUMP) --target=binary --architecture=arm -D $< > $@

@@ -77,6 +77,7 @@ int main(void) {
 		.size = sizeof_array(vectors),
 		.color = gpuColor(20, 30, 180),
 		.rendering_type = rendering_uv,
+		.perspective = 1,
 	};
 	gpuCmdVector vec_bg[] = {
 		{ .geom = { .c3d = { -10<<16, -10<<16, -257 } }, },
@@ -89,6 +90,7 @@ int main(void) {
 		.size = sizeof_array(vec_bg),
 		.color = gpuColor(0, 0, 0),
 		.rendering_type = rendering_c,
+		.perspective = 1,
 	};
 	struct iovec cmdvec[1+4+1+sizeof_array(vectors)] = {
 		{ .iov_base = &facet_bg, .iov_len = sizeof(facet_bg) },	// first facet to clear the background

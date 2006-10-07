@@ -32,7 +32,6 @@ int main(void) {
 	printctxoff(poly.cmdFacet);
 	printctxoff(poly.cmdFacet.size);
 	printctxoff(poly.cmdFacet.color);
-	printctxoff(poly.cmdFacet.rendering_type);
 	printctxoff(poly.vectors);
 	printctxoff(poly.z_alpha);
 	printctxoff(poly.scan_dir);

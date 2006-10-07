@@ -71,7 +71,7 @@ static void flush_writes(void) {
 	// we must ensure that our writes are seen by the other peer in that order, that is data first, then pointer update
 #ifdef GP2X
 	// on th eGP2X, this mean drain the write buffer (reading uncached memory is enought)
-	volatile uint32_t __unused dummy = shared->error_flags;
+	volatile uint32_t GCCunused dummy = shared->error_flags;
 #endif
 }
 

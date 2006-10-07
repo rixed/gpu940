@@ -35,9 +35,10 @@ OBJDUMP = $(GP2XDEVDIR)/bin/arm-linux-objdump
 gpu940: $(gpu940_OBJECTS) script.ld $(top_srcdir)/console/libconsole.a $(top_srcdir)/perftime/libperftime.a
 	$(LD) -o $@.elf $(LDFLAGS) -L$(top_srcdir)/console -L$(top_srcdir)/perftime -L$(top_srcdir)/lib -T script.ld -N -s
 	$(OBJCOPY) --output-target binary --only-section upper32 $@.elf $@
-bench940: bench940.o bench.ld
+bench940: bench.o bench.ld
 	$(LD) -o $@.elf $(LDFLAGS) -T bench.ld -N -s
 	$(OBJCOPY) --output-target binary --only-section upper32 $@.elf $@
+all: bench940
 
 gpu940.source: gpu940
 	$(OBJDUMP) --target=binary --architecture=arm -D $< > $@

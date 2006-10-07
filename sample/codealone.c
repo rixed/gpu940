@@ -225,6 +225,7 @@ static gpuCmdFacet cube_cmdFacet = {
 	.size = 4,
 	.color = 0xF08080,
 	.rendering_type = rendering_uvi,
+	.perspective = 1,
 };
 static unsigned cube_facet[6][4] = {
 	{ 0, 4, 5, 1 },
@@ -332,6 +333,7 @@ static void clear_screen(void) {
 		.size = sizeof_array(vec_bg),
 		.color = 0,
 		.rendering_type = rendering_c,
+		.perspective = 0,
 	};
 	facet_bg.color = gpuColor(0, 0, 0);
 	static struct iovec cmdvec[1+4] = {
@@ -848,6 +850,7 @@ static void scene2(void) {
 	int32_t ang1 = 2000;
 	int32_t ang2 = 0;
 	set_dproj(7);
+	cube_cmdFacet.perspective = 0;
 	do {
 		// build a new texture
 		struct gpuBuf *text;

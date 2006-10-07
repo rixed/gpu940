@@ -93,7 +93,7 @@ typedef enum {
 	gpuSETOUTBUF,	// change view parameters
 	gpuSETTXTBUF,
 	gpuSETZBUF,
-	gpuSHOWBUF,	// show the buffer with that name
+	gpuSHOWBUF,
 	gpuPOINT,
 	gpuLINE,
 	gpuFACET,
@@ -142,21 +142,23 @@ typedef struct {
 	struct buffer_loc loc;
 } gpuCmdShowBuf;
 
+enum gpuRenderingType {
+	rendering_c,	// use color for flat rendering
+	rendering_ci,	// use color and vectors param i
+	rendering_uv,	// use vectors param u, v
+	rendering_uvi,	// use vectors param u, v, i
+	rendering_uvk,	// use vectors param u, v, and color for keying texture
+	rendering_shadow,	// use intens for shadowing the region
+	rendering_uvk_shadow,	// use vectors param u, v, and color for keying texture, and intens to then shadow the region
+	NB_RENDERING_TYPES
+};
 typedef struct {
 	gpuOpcode opcode;
 	uint32_t size;	// >=3
 	uint32_t color;	// used for flat rendering or keyed textures
 	int32_t intens;	// used for shadowing
-	enum {
-		rendering_c,	// use color for flat rendering
-		rendering_ci,	// use color and vectors param i
-		rendering_uv,	// use vectors param u, v
-		rendering_uvi,	// use vectors param u, v, i
-		rendering_uvk,	// use vectors param u, v, and color for keying texture
-		rendering_shadow,	// use intens for shadowing the region
-		rendering_uvk_shadow,	// use vectors param u, v, and color for keying texture, and intens to then shadow the region
-		NB_RENDERING_TYPES
-	} rendering_type;
+	uint32_t perspective:1;
+	uint32_t rendering_type:3;
 } gpuCmdFacet;
 
 typedef union {

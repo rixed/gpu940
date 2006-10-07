@@ -234,7 +234,7 @@ static void flush_shared(void) {
 #ifdef GP2X
 	// drain the write buffer
 	// reading from uncached memory is enought. shared, for exemple...
-	volatile uint32_t __unused dummy = shared->error_flags;
+	volatile uint32_t GCCunused dummy = shared->error_flags;
 #endif
 }
 
@@ -302,10 +302,10 @@ static void do_setTxtBuf(void) {
 	unsigned new_mask = (1<<ctx.location.txt.width_log)-1;
 	if (new_mask != ctx.location.txt_mask) {
 		ctx.location.txt_mask = new_mask;
-		extern uint16_t patch_uv_width, patch_uvi_width;
+		extern uint16_t patch_uv_width, patch_uvi_width, patch_uvi_lin_width;
 		// Never ever _read_ this value, or it will be loaded in DCache ; so
 		// that there is no need to clean and flush DCache.
-		patch_uv_width = patch_uvi_width = 0x1002 | (ctx.location.txt.width_log<<7);
+		patch_uv_width = patch_uvi_width = patch_uvi_lin_width = 0x1002 | (ctx.location.txt.width_log<<7);
 		__asm__ volatile (	// Drain write buffer then fush ICache
 			"mov r0, #0\n"
 			"mcr p15, 0, r0, c7, c10, 4\n"

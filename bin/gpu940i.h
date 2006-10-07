@@ -58,7 +58,7 @@ typedef struct {
 } gpuVector;
 
 extern struct ctx {
-	// Rendering Buffers
+	// View parameters
 	struct {
 		int32_t clipMin[2];
 		int32_t clipMax[2];
@@ -69,7 +69,7 @@ extern struct ctx {
 		uint32_t nb_clipPlanes;
 		uint32_t dproj;
 	} view;
-	// Buffer
+	// Buffers
 	struct {
 		struct buffer_loc out, txt, z;
 		uint32_t txt_mask;
@@ -103,6 +103,7 @@ extern struct ctx {
 			int32_t z_alpha_start, z_alpha_end;
 		} side[2];	// side dec, side inc
 	} trap;
+	// Current line
 	struct {
 		int32_t count;
 		uint8_t *restrict w;

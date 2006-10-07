@@ -22,8 +22,9 @@ void draw_line_c(void);
 void draw_line_shadow(void);
 void draw_line_ci(void);
 void draw_line_uv(void);
+void draw_line_uvi(void);
+void draw_line_uvi_lin(void);
 void draw_line_uvk(void);
 void draw_line_uvk_shadow(void);
-void draw_line_uvi(void);
 
 #endif

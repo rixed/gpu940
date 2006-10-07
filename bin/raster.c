@@ -183,3 +183,36 @@ void draw_line_uvi(void) {
 }
 #endif
 
+#ifndef GP2X
+void draw_line_uvi_lin(void) {
+#ifdef GP2X
+	ctx.line.param[2] *= 55;
+	ctx.line.dparam[2] *= 55;
+#endif
+	do {
+		uint32_t color = texture_color(&ctx.location.txt, ctx.line.param[0], ctx.line.param[1]);
+//		if (start_poly) color = ctx.poly.scan_dir ? 0x3e0 : 0xf800;
+		uint32_t *w = (uint32_t *)(ctx.line.w);
+		int32_t i = ctx.line.param[2]>>16;
+#ifdef GP2X	// gp2x uses YUV
+		int y = color&0xff;
+		y += i>>6; //(220*i)>>8;
+		SAT8(y);
+		*w = (color&0xff00ff00) | (y<<16) | y;
+#else
+		int r = (color>>16)+i;
+		int g = ((color>>8)&255)+i;
+		int b = (color&255)+i;
+		SAT8(r);
+		SAT8(g);
+		SAT8(b);
+		*w = (r<<16)|(g<<8)|b;
+#endif
+		ctx.line.w += 4;
+		ctx.line.param[0] += ctx.line.dparam[0];
+		ctx.line.param[1] += ctx.line.dparam[1];
+		ctx.line.param[2] += ctx.line.dparam[2];
+		ctx.line.count --;
+	} while (ctx.line.count >= 0);
+}
+#endif
