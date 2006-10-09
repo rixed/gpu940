@@ -112,16 +112,16 @@ void glGetIntegerv(GLenum pname, GLint *params)
 			params[0] = sizeof(gli_lights);	// at least 8
 			return;
 		case GL_MAX_MODELVIEW_STACK_DEPTH:
-			params[0] = sizeof(gli_modelview_stack);	// at least 16
+			params[0] = GLI_MAX_MODELVIEW_STACK_DEPTH;	// at least 16
 			return;
 		case GL_MAX_PROJECTION_STACK_DEPTH:
-			params[0] = sizeof(gli_projection_stack);	// at least 2
+			params[0] = GLI_MAX_PROJECTION_STACK_DEPTH; // at least 2
+			return;
+		case GL_MAX_TEXTURE_STACK_DEPTH:
+			params[0] = GLI_MAX_TEXTURE_STACK_DEPTH;	// at least 2
 			return;
 		case GL_MAX_TEXTURE_SIZE:
 			params[0] = 1<<10;
-			return;
-		case GL_MAX_TEXTURE_STACK_DEPTH:
-			params[0] = 0;	// TODO: at least 2
 			return;
 		case GL_MAX_TEXTURE_UNITS:
 			params[0] = GLI_MAX_TEXTURE_UNITS;	// We don't really care

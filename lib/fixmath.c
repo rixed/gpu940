@@ -21,6 +21,16 @@
  * Data Definitions
  */
 
+FixMat const matrix_id = {
+	.rot = {
+		{ 0x10000, 0, 0 },
+		{ 0, 0x10000, 0 },
+		{ 0, 0, 0x10000 },
+	},
+	.ab = { 0, 0, 0, },
+	.trans = { 0, 0, 0, },
+};
+
 /*
  * Public Functions
  */

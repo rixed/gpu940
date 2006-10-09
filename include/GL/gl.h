@@ -28,6 +28,7 @@ typedef uint8_t GLubyte;
 typedef int GLint;
 typedef ssize_t GLsizei;
 typedef void GLvoid;
+typedef int32_t GLfixed;
 
 // Replaces GLX, EGL, ...
 glBool glOpen(void);
@@ -48,12 +49,22 @@ enum gli_DrawMode { GL_POINTS, GL_LINE_STRIP, GL_LINE_LOOP, GL_LINES, GL_TRIANGL
 void glDrawArrays(GLenum mode, GLint first, GLsizei count);
 void glDrawElements(GLenum mode, GLsizei count, GLenum type, GLvoid const *indices);
 
-// Errors
-enum gli_Errors { GL_NO_ERROR, GL_INVALID_ENUM, GL_INVALID_VALUE, GL_INVALID_OPERATION, GL_STACK_OVERFLOW, GL_STACK_UNDERFLOW, GL_OUT_OF_MEMORY };
+// Coordinate Transformation
+enum gli_MatrixMode { GL_MODELVIEW, GL_PROJECTION, GL_TEXTURE };
+void glMatrixMode(GLenum mode);
+void glPushMatrix(void);
+void glPopMatrix(void);
+void glLoadMatrixx(GLfixed const *m);
+void glLoadIdentity(void);
+void glRotatex(GLfixed angle, GLfixed x, GLfixed y, GLfixed z);
+void glScalex(GLfixed x, GLfixed y, GLfixed z);
+void glTranslatex(GLfixed x, GLfixed y, GLfixed z);
+void glFrustumx(GLfixed left, GLfixed right, GLfixed bottom, GLfixed top, GLfixed near, GLfixed far);
 
 // State Queries
 enum gli_StringName { GL_VENDOR, GL_RENDERER, GL_VERSION, GL_EXTENSIONS };
 GLubyte const *glGetString(GLenum name);
+enum gli_Errors { GL_NO_ERROR, GL_INVALID_ENUM, GL_INVALID_VALUE, GL_INVALID_OPERATION, GL_STACK_OVERFLOW, GL_STACK_UNDERFLOW, GL_OUT_OF_MEMORY };
 GLenum glGetError(void);
 enum gli_ParamName {
 	GL_ALIASED_POINT_SIZE_RANGE, GL_ALIASED_LINE_WIDTH_RANGE, GL_ALPHA_BITS, GL_BLUE_BITS, GL_COMPRESSED_TEXTURE_FORMATS,
