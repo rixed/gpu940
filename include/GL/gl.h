@@ -18,6 +18,7 @@
 #ifndef GL_H_061009
 #define GL_H_061009
 
+#include <stdlib.h>
 #include <inttypes.h>
 
 // GL types
@@ -25,13 +26,30 @@ typedef enum { GL_FALSE, GL_TRUE } glBool;
 typedef unsigned GLenum;
 typedef uint8_t GLubyte;
 typedef int GLint;
+typedef ssize_t GLsizei;
+typedef void GLvoid;
 
 // Replaces GLX, EGL, ...
 glBool glOpen(void);
 void glClose(void);
 
+// Vertex Arrays
+#include <GL/texturenames.h>
+enum gli_Types { GL_FLOAT=0, GL_UNSIGNED_BYTE, GL_FIXED, GL_BYTE, GL_SHORT };
+void glColorPointer(GLint size, GLenum type, GLsizei stride, GLvoid const *pointer);
+void glNormalPointer(GLenum type, GLsizei stride, GLvoid const *pointer);
+void glVertexPointer(GLint size, GLenum type, GLsizei stride, GLvoid const *pointer);
+void glTexCoordPointer(GLint size, GLenum type, GLsizei stride, GLvoid const *pointer);
+void glClientActiveTexture(GLenum texture);
+enum gli_ClientState { GL_COLOR_ARRAY, GL_NORMAL_ARRAY, GL_VERTEX_ARRAY, GL_TEXTURE_COORD_ARRAY };
+void glEnableClientState(GLenum array);
+void glDisableClientState(GLenum array);
+enum gli_DrawMode { GL_POINTS, GL_LINE_STRIP, GL_LINE_LOOP, GL_LINES, GL_TRIANGLE_STRIP, GL_TRIANGLE_FAN, GL_TRIANGLES };
+void glDrawArrays(GLenum mode, GLint first, GLsizei count);
+void glDrawElements(GLenum mode, GLsizei count, GLenum type, GLvoid const *indices);
+
 // Errors
-enum glErrors { GL_NO_ERROR, GL_INVALID_ENUM, GL_INVALID_VALUE, GL_INVALID_OPERATION, GL_STACK_OVERFLOW, GL_STACK_UNDERFLOW, GL_OUT_OF_MEMORY };
+enum gli_Errors { GL_NO_ERROR, GL_INVALID_ENUM, GL_INVALID_VALUE, GL_INVALID_OPERATION, GL_STACK_OVERFLOW, GL_STACK_UNDERFLOW, GL_OUT_OF_MEMORY };
 
 // State Queries
 enum gli_StringName { GL_VENDOR, GL_RENDERER, GL_VERSION, GL_EXTENSIONS };

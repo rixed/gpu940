@@ -34,6 +34,7 @@ static GLenum error;
 int gli_state_begin(void)
 {
 	error = GL_NO_ERROR;
+	return 0;
 }
 
 extern inline void gli_state_end(void);
@@ -123,7 +124,7 @@ void glGetIntegerv(GLenum pname, GLint *params)
 			params[0] = 0;	// TODO: at least 2
 			return;
 		case GL_MAX_TEXTURE_UNITS:
-			params[0] = 255;	// We don't really care
+			params[0] = GLI_MAX_TEXTURE_UNITS;	// We don't really care
 			return;
 		case GL_MAX_VIEWPORT_DIMS:
 			params[0] = SCREEN_WIDTH;

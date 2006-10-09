@@ -15,15 +15,20 @@
  * along with gpu940; if not, write to the Free Software
  * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
  */
-#ifndef GLI_H_061009
-#define GLI_H_061009
+#ifndef ARRAYS_H_061009
+#define ARRAYS_H_061009
 
-#include "GL/gl.h"
-#include "gpu940.h"
+extern struct array {
+	const GLvoid *ptr;
+	GLsizei stride;
+	enum gli_Types type;
+	GLint size;
+	unsigned enabled:1;
+};
 
-#define GLI_MAX_TEXTURE_UNITS 32	// at least 1
+int gli_arrays_begin(void);
+static inline void gli_arrays_end(void) {}
 
-#include "state.h"
-#include "arrays.h"
+// get_veretxes(), etc...
 
 #endif
