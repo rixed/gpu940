@@ -29,6 +29,7 @@ typedef int GLint;
 typedef ssize_t GLsizei;
 typedef void GLvoid;
 typedef int32_t GLfixed;
+typedef int32_t GLclampx;
 
 // Replaces GLX, EGL, ...
 glBool glOpen(void);
@@ -57,9 +58,13 @@ void glPopMatrix(void);
 void glLoadMatrixx(GLfixed const *m);
 void glLoadIdentity(void);
 void glRotatex(GLfixed angle, GLfixed x, GLfixed y, GLfixed z);
+void glMultMatrixx(GLfixed const *m);
 void glScalex(GLfixed x, GLfixed y, GLfixed z);
 void glTranslatex(GLfixed x, GLfixed y, GLfixed z);
 void glFrustumx(GLfixed left, GLfixed right, GLfixed bottom, GLfixed top, GLfixed near, GLfixed far);
+void glOrthox(GLfixed left, GLfixed right, GLfixed bottom, GLfixed top, GLfixed near, GLfixed far);
+void glDepthRangex(GLclampx near, GLclampx far);
+void glViewport(GLint x, GLint y, GLsizei width, GLsizei height);
 
 // State Queries
 enum gli_StringName { GL_VENDOR, GL_RENDERER, GL_VERSION, GL_EXTENSIONS };

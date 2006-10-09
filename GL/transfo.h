@@ -18,12 +18,10 @@
 #ifndef TRANSFO_H_061009
 #define TRANSFO_H_061009
 
-#include "fixmath.h"
-
 struct matrix_stack {
 	unsigned top;
 	unsigned size;
-	FixMat *mat;
+	GLfixed (*mat)[16];
 };
 
 int gli_transfo_begin(void);

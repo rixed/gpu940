@@ -52,9 +52,9 @@ _start:
 	ldr r4, =N	// the distance between 2 writes
 	ldr r5, =0xFFFFF	// Mask for 1Mb
 0:
-//	str r3, [r1, r2]	// write a word
-	add r6, r1, r2
-	stmia r6, { r1, r2, r3, r4 }
+	str r3, [r1, r2]	// write a word
+//	add r6, r1, r2
+//	stmia r6, { r1, r2, r3, r4 }
 	add r2, r2, r4, LSL #2	// increment offset by N words
 	and r2, r2, r5	// make offset loop after 16Mb
 	subs r0, r0, #0x1	// dec counter

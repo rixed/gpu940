@@ -35,8 +35,6 @@ extern FixMat const matrix_id;
 
 void FixMat_x_Vec(int32_t dest[3], FixMat const *mat, FixVec const *src, bool translate);
 void FixMatT_x_Vec(int32_t dest[3], FixMat const *mat, int32_t const src[3], bool translate);
-void FixMat_x_Mat3(FixMat *dest, FixMat const *m1, FixMat const *m2);
-void FixMat_x_Mat2(FixMat *m1, FixMat const *m2);
 static inline int64_t Fix_scalar(int32_t v1[3], int32_t v2[3]) {
 	int64_t res = (int64_t)v1[0]*v2[0] + (int64_t)v1[1]*v2[1] + (int64_t)v1[2]*v2[2];
 	return res>>16;
@@ -62,6 +60,9 @@ static inline int32_t Fix_inv(int32_t v) {
 
 static inline int32_t Fix_mul(int32_t a, int32_t b) {
 	return ((int64_t)a*b)>>16;
+}
+static inline int32_t Fix_div(int32_t a, int32_t b) {
+	return (((int64_t)a)<<16)/b;
 }
 
 void Fix_proj(int32_t c2d[2], int32_t const c3d[3], int dproj);
