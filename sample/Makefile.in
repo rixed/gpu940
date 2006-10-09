@@ -442,6 +442,8 @@ uninstall-am: uninstall-info-am
 	uninstall-info-am
 
 
+codealone.o: pics.h
+
 gimpcomp: gimpcomp.c title.c greetz.c never.c gpu940_pic.c
 	@HOST_CC@ -std=c99 -DGNU_SOURCES -Wall -W $< -o $@
 
