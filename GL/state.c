@@ -86,7 +86,7 @@ void glGetIntegerv(GLenum pname, GLint *params)
 		case GL_ALPHA_BITS:
 		case GL_DEPTH_BITS:
 		case GL_STENCIL_BITS:
-			params[0] = 0;
+			params[0] = GLI_STENCIL_BITS;
 			return;
 		case GL_BLUE_BITS:
 		case GL_GREEN_BITS:

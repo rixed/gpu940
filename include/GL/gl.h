@@ -20,9 +20,10 @@
 
 #include <stdlib.h>
 #include <inttypes.h>
+#include <stdbool.h>
 
 // GL types
-typedef enum { GL_FALSE, GL_TRUE } glBool;
+typedef enum { GL_FALSE, GL_TRUE } GLboolean;
 typedef unsigned GLenum;
 typedef uint8_t GLubyte;
 typedef int GLint;
@@ -30,6 +31,7 @@ typedef ssize_t GLsizei;
 typedef void GLvoid;
 typedef int32_t GLfixed;
 typedef int32_t GLclampx;
+typedef unsigned GLbitfield;
 
 // Replaces GLX, EGL, ...
 glBool glOpen(void);
@@ -103,6 +105,31 @@ void glCullFace(GLenum mode);
 // Fog
 
 // Frame Buffer Operations
+void glScissor(GLint x, GLint y, GLsizei width, GLsizei height);
+enum gli_Func { GL_NEVER, GL_LESS, GL_EQUAL, GL_LEQUAL, GL_GREATER, GL_NOTEQUAL, GL_GEQUAL, GL_ALWAYS };
+void glAlphaFuncx(GLenum func, GLclampx ref);
+void glStencilFunc(GLenum func, GLint ref, GLuint mask);
+enum gli_SencilOp { GL_KEEP, GL_ZERO, GL_REPLACE, GL_INCR, GL_DECR, GL_INVERT };
+void glStencilOp(GLenum fail, GLenum zfail, GLenum zpass);
+void glDepthFunc(GLenum func);
+enum gli_BlendFunc {
+	GL_ZERO, GL_ONE, GL_DST_COLOR, GL_ONE_MINUS_DST_COLOR, GL_SRC_ALPHA,
+	GL_ONE_MINUS_SRC_ALPHA, GL_DST_ALPHA, GL_ONE_MINUS_DST_ALPHA, GL_SRC_ALPHA_SATURATE };
+void glBlendFunc(GLenum sfactor, GLenum dfactor);
+enum gli_LogicOp { GL_CLEAR, GL_SET, GL_COPY, GL_COPY_INVERTED, GL_NOOP, GL_INVERT, GL_AND,
+	GL_NAND, GL_OR, GL_NOR, GL_XOR, GL_EQUIV, GL_AND_REVERSE, GL_AND_INVERTED, GL_OR_REVERSE, GL_OR_INVERTED };
+void glLogicOp(GLenum opcode);
+#define GL_COLOR_BUFFER_BIT 1
+#define GL_DEPTH_BUFFER_BIT 2
+#define GL_STENCIL_BUFFER_BIT 4
+void glClear(GLbitfield mask);
+void glClearColorx(GLclampx red, GLclampx green, GLclampx blue, GLclampx alpha);
+void glClearDepthx(GLclampx depth);
+void glClearStencil(GLint s);
+void glColorMask(GLboolean red, GLboolean green, GLboolean blue, GLboolean alpha);
+void glDepthMask(GLboolean flag);
+void glStencilMask(GLuint mask);
+void glSampleCoveragex(GLclampx value, GLboolean invert);
 
 // Modes and Execution
 enum gli_Capability {
