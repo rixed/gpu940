@@ -35,6 +35,8 @@ typedef int32_t GLclampx;
 glBool glOpen(void);
 void glClose(void);
 
+// Primitives
+
 // Vertex Arrays
 #include <GL/texturenames.h>
 enum gli_Types { GL_FLOAT=0, GL_UNSIGNED_BYTE, GL_FIXED, GL_BYTE, GL_SHORT };
@@ -94,6 +96,47 @@ void glLineWidthx(GLfixed width);
 enum gli_CullFace { GL_FRONT, GL_BACK, GL_FRONT_AND_BACK };
 void glCullFace(GLenum mode);
 
+// Pixel Operations
+
+// Textures
+
+// Fog
+
+// Frame Buffer Operations
+
+// Modes and Execution
+enum gli_Capability {
+	/* GL_LIGHTi */
+	GL_ALPHA_TEST=0x1000 /* To skip GL_LIGHTs */,
+	GL_BLEND,
+	GL_COLOR_LOGIC_OP,
+	GL_COLOR_MATERIAL,
+	GL_CULL_FACE,
+	GL_DEPTH_TEST,
+	GL_DITHER,
+	GL_FOG,
+	GL_LIGHTING,
+	GL_LINE_SMOOTH,
+	GL_MULTISAMPLE,
+	GL_NORMALIZE,
+	GL_POINT_SMOOTH,
+	GL_POLYGON_OFFSET_FILL,
+	GL_RESCALE_NORMAL,
+	GL_SAMPLE_ALPHA_TO_MASK,
+	GL_SAMPLE_ALPHA_TO_ONE,
+	GL_SAMPLE_MASK,
+	GL_SCISSOR_TEST,
+	GL_STENCIL_TEST,
+	GL_TEXTURE_2D,
+};
+void glEnable(GLenum cap);
+void glDisable(GLenum cap);
+void glFinish(void);
+static inline void glFlush(void) {}
+enum gli_HintTarget { GL_FOG_HINT , GL_LINE_SMOOTH_HINT , GL_PERSPECTIVE_CORRECTION_HINT, GL_POINT_SMOOTH_HINT, NB_HINT_TARGETS };
+enum gli_HintMode { GL_FASTEST, GL_NICEST, GL_DONT_CARE };
+void glHint(GLenum target, GLenum mode)
+
 // State Queries
 enum gli_StringName { GL_VENDOR, GL_RENDERER, GL_VERSION, GL_EXTENSIONS };
 GLubyte const *glGetString(GLenum name);
@@ -107,5 +150,8 @@ enum gli_ParamName {
 	GL_RED_BITS, GL_SMOOTH_LINE_WIDTH_RANGE, GL_SMOOTH_POINT_SIZE_RANGE, GL_STENCIL_BITS, GL_SUBPIXEL_BITS,
 };
 void glGetIntegerv(GLenum pname, GLint *params);
+
+// OES Extensions
+
 
 #endif

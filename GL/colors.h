@@ -30,5 +30,7 @@ struct gli_material {
 
 int gli_colors_begin(void);
 static inline void gli_colors_end(void) { }
+void gli_light_enable(GLenum light);
+void gli_light_disable(GLenum light);
 
 #endif
