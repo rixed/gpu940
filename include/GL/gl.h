@@ -41,7 +41,7 @@ void glClose(void);
 
 // Vertex Arrays
 #include <GL/texturenames.h>
-enum gli_Types { GL_FLOAT=0, GL_UNSIGNED_BYTE, GL_FIXED, GL_BYTE, GL_SHORT };
+enum gli_Types { GL_FLOAT, GL_UNSIGNED_BYTE, GL_FIXED, GL_BYTE, GL_SHORT };
 void glColorPointer(GLint size, GLenum type, GLsizei stride, GLvoid const *pointer);
 void glNormalPointer(GLenum type, GLsizei stride, GLvoid const *pointer);
 void glVertexPointer(GLint size, GLenum type, GLsizei stride, GLvoid const *pointer);
@@ -101,6 +101,22 @@ void glCullFace(GLenum mode);
 // Pixel Operations
 
 // Textures
+#define GL_TEXTURE_2D 0
+enum gli_TexParam { GL_TEXTURE_MIN_FILTER, GL_TEXTURE_MAG_FILTER, GL_TEXTURE_WRAP_S, GL_TEXTURE_WRAP_T };
+enum gli_TexFilter { GL_NEAREST, GL_LINEAR, GL_NEAREST_MIPMAP_NEAREST, GL_LINEAR_MIPMAP_NEAREST, GL_NEAREST_MIPMAP_LINEAR, GL_LINEAR_MIPMAP_LINEAR };
+enum gli_TexWrap { GL_CLAMP, GL_CLAMP_TO_EDGE, GL_REPEAT };
+void glTexParameterx(GLenum target, GLenum pname, GLfixed param);
+#define GL_TEXTURE_ENV 0
+enum gli_TexEnv { GL_TEXTURE_ENV_MODE, GL_TEXTURE_ENV_COLOR };
+enum gli_TexEnvMode { GL_MODULATE, GL_DECAL, GL_BLEND, GL_REPLACE };
+void glTexEnvx(GLenum target, GLenum pname, GLfixed param);
+void glTexEnvxv(GLenum target, GLenum pname, GLfixed const *params);
+enum gli_TexFormat { GL_ALPHA, GL_RGB, GL_RGBA, GL_LUMINANCE, GL_LUMINANCE_ALPHA };
+enum gli_TexType { GL_UNSIGNED_SHORT_5_6_5=0x1000 /* avoid collision with gli_Types */, GL_UNSIGNED_SHORT_4_4_4_4, GL_UNSIGNED_SHORT_5_5_5_1 };
+void glTexImage2D(GLenum target, GLint level, GLint internalformat, GLsizei width, GLsizei height, GLint border, GLenum format, GLenum type, GLvoid const *pixels);
+void glBindTexture(GLenum target, GLuint texture);
+void glDeleteTextures(GLsizei n, GLuint const *textures);
+void glActiveTexture(GLenum texture);
 
 // Fog
 

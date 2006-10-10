@@ -21,12 +21,13 @@
 #include "GL/gl.h"
 #include "gpu940.h"
 
-#define GLI_MAX_TEXTURE_UNITS 32	// at least 1
+#define GLI_MAX_TEXTURE_UNITS 1	// at least 1
 #define GLI_MAX_MODELVIEW_STACK_DEPTH 64	// at least 16
 #define GLI_MAX_PROJECTION_STACK_DEPTH 2	// at least 2
 #define GLI_MAX_TEXTURE_STACK_DEPTH 2	// at least 2
 #define GLI_MAX_LIGHTS 8	// at least 8
 #define GLI_STENCIL_BITS 0
+#define GLI_MAX_TEXTURE_SIZE (1<<10)
 
 #define CLAMP(x, min, max) do { if (x<=min) x=min; else if (x>=max) x=max; } while(0)
 
@@ -37,5 +38,6 @@
 #include "raster.h"
 #include "modes.h"
 #include "framebuf.h"
+#include "texture.h"
 
 #endif

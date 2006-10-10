@@ -121,7 +121,7 @@ void glGetIntegerv(GLenum pname, GLint *params)
 			params[0] = GLI_MAX_TEXTURE_STACK_DEPTH;	// at least 2
 			return;
 		case GL_MAX_TEXTURE_SIZE:
-			params[0] = 1<<10;
+			params[0] = GLI_MAX_TEXTURE_SIZE;
 			return;
 		case GL_MAX_TEXTURE_UNITS:
 			params[0] = GLI_MAX_TEXTURE_UNITS;	// We don't really care
