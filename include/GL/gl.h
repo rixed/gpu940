@@ -66,6 +66,28 @@ void glOrthox(GLfixed left, GLfixed right, GLfixed bottom, GLfixed top, GLfixed 
 void glDepthRangex(GLclampx near, GLclampx far);
 void glViewport(GLint x, GLint y, GLsizei width, GLsizei height);
 
+// Color and Lighting
+void glColor4x(GLfixed red, GLfixed green, GLfixed blue, GLfixed alpha);
+void glNormal3x(GLfixed nx, GLfixed ny, GLfixed nz);
+#include <GL/lightnames.h>
+enum gli_ColorParam {
+	GL_SPOT_EXPONENT, GL_SPOT_CUTOFF, GL_CONSTANT_ATTENUATION, GL_LINEAR_ATTENUATION, GL_QUADRATIC_ATTENUATION,
+	GL_AMBIENT, GL_DIFFUSE, GL_SPECULAR, GL_POSITION, GL_SPOT_DIRECTION,
+	GL_SHININESS, GL_EMISSION, GL_AMBIENT_AND_DIFFUSE
+};
+void glLightx(GLenum light, GLenum pname, GLfixed param);
+void glLightxv(GLenum light, GLenum pname, GLfixed const *params);
+enum gli_MatFace { GL_FRONT_AND_BACK };
+void glMaterialx(GLenum face, GLenum pname, GLfixed param);
+void glMaterialxv(GLenum face, GLenum pname, GLfixed const *params);
+enum gli_LightModParam { GL_LIGHT_MODEL_AMBIENT, GL_LIGHT_MODEL_TWO_SIDE };
+void glLightModelx(GLenum pname, GLfixed param);
+void glLightModelxv(GLenum pname, GLfixed const *params);
+enum gli_ShadeModel { GL_FLAT, GL_SMOOTH };
+void glShadeModel(GLenum mode);
+enum gli_FrontFace { GL_CW, GL_CCW };
+void glFrontFace(GLenum mode);
+
 // State Queries
 enum gli_StringName { GL_VENDOR, GL_RENDERER, GL_VERSION, GL_EXTENSIONS };
 GLubyte const *glGetString(GLenum name);

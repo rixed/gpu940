@@ -109,7 +109,7 @@ void glGetIntegerv(GLenum pname, GLint *params)
 			params[0] = 2*(sizeof(shared->cmds)/sizeof(gpuCmdVector))/3;
 			return;
 		case GL_MAX_LIGHTS:
-			params[0] = sizeof(gli_lights);	// at least 8
+			params[0] = GLI_MAX_LIGHTS;	// at least 8
 			return;
 		case GL_MAX_MODELVIEW_STACK_DEPTH:
 			params[0] = GLI_MAX_MODELVIEW_STACK_DEPTH;	// at least 16
