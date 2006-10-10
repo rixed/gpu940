@@ -32,15 +32,19 @@ typedef void GLvoid;
 typedef int32_t GLfixed;
 typedef int32_t GLclampx;
 typedef unsigned GLbitfield;
+typedef unsigned GLuint;
 
 // Replaces GLX, EGL, ...
-glBool glOpen(void);
+GLboolean glOpen(void);
 void glClose(void);
 
 // Primitives
 
 // Vertex Arrays
-#include <GL/texturenames.h>
+#define GL_TEXTURE0 0
+#define GL_TEXTURE1 1
+#define GL_TEXTURE2 2
+#define GL_TEXTURE3 3
 enum gli_Types { GL_FLOAT, GL_UNSIGNED_BYTE, GL_FIXED, GL_BYTE, GL_SHORT };
 void glColorPointer(GLint size, GLenum type, GLsizei stride, GLvoid const *pointer);
 void glNormalPointer(GLenum type, GLsizei stride, GLvoid const *pointer);
@@ -73,7 +77,14 @@ void glViewport(GLint x, GLint y, GLsizei width, GLsizei height);
 // Color and Lighting
 void glColor4x(GLfixed red, GLfixed green, GLfixed blue, GLfixed alpha);
 void glNormal3x(GLfixed nx, GLfixed ny, GLfixed nz);
-#include <GL/lightnames.h>
+#define GL_LIGHT0 1
+#define GL_LIGHT1 2
+#define GL_LIGHT2 3
+#define GL_LIGHT3 4
+#define GL_LIGHT4 5
+#define GL_LIGHT5 6
+#define GL_LIGHT6 7
+#define GL_LIGHT7 8
 enum gli_ColorParam {
 	GL_SPOT_EXPONENT, GL_SPOT_CUTOFF, GL_CONSTANT_ATTENUATION, GL_LINEAR_ATTENUATION, GL_QUADRATIC_ATTENUATION,
 	GL_AMBIENT, GL_DIFFUSE, GL_SPECULAR, GL_POSITION, GL_SPOT_DIRECTION,
@@ -81,7 +92,6 @@ enum gli_ColorParam {
 };
 void glLightx(GLenum light, GLenum pname, GLfixed param);
 void glLightxv(GLenum light, GLenum pname, GLfixed const *params);
-enum gli_MatFace { GL_FRONT_AND_BACK };
 void glMaterialx(GLenum face, GLenum pname, GLfixed param);
 void glMaterialxv(GLenum face, GLenum pname, GLfixed const *params);
 enum gli_LightModParam { GL_LIGHT_MODEL_AMBIENT, GL_LIGHT_MODEL_TWO_SIDE };
@@ -101,14 +111,13 @@ void glCullFace(GLenum mode);
 // Pixel Operations
 
 // Textures
-#define GL_TEXTURE_2D 0
 enum gli_TexParam { GL_TEXTURE_MIN_FILTER, GL_TEXTURE_MAG_FILTER, GL_TEXTURE_WRAP_S, GL_TEXTURE_WRAP_T };
 enum gli_TexFilter { GL_NEAREST, GL_LINEAR, GL_NEAREST_MIPMAP_NEAREST, GL_LINEAR_MIPMAP_NEAREST, GL_NEAREST_MIPMAP_LINEAR, GL_LINEAR_MIPMAP_LINEAR };
 enum gli_TexWrap { GL_CLAMP, GL_CLAMP_TO_EDGE, GL_REPEAT };
 void glTexParameterx(GLenum target, GLenum pname, GLfixed param);
 #define GL_TEXTURE_ENV 0
 enum gli_TexEnv { GL_TEXTURE_ENV_MODE, GL_TEXTURE_ENV_COLOR };
-enum gli_TexEnvMode { GL_MODULATE, GL_DECAL, GL_BLEND, GL_REPLACE };
+enum gli_TexEnvMode { GL_MODULATE, GL_DECAL, GL_REPLACE };
 void glTexEnvx(GLenum target, GLenum pname, GLfixed param);
 void glTexEnvxv(GLenum target, GLenum pname, GLfixed const *params);
 enum gli_TexFormat { GL_ALPHA, GL_RGB, GL_RGBA, GL_LUMINANCE, GL_LUMINANCE_ALPHA };
@@ -117,6 +126,7 @@ void glTexImage2D(GLenum target, GLint level, GLint internalformat, GLsizei widt
 void glBindTexture(GLenum target, GLuint texture);
 void glDeleteTextures(GLsizei n, GLuint const *textures);
 void glActiveTexture(GLenum texture);
+void glGenTextures(GLsizei n, GLuint *textures);
 
 // Fog
 
@@ -125,7 +135,10 @@ void glScissor(GLint x, GLint y, GLsizei width, GLsizei height);
 enum gli_Func { GL_NEVER, GL_LESS, GL_EQUAL, GL_LEQUAL, GL_GREATER, GL_NOTEQUAL, GL_GEQUAL, GL_ALWAYS };
 void glAlphaFuncx(GLenum func, GLclampx ref);
 void glStencilFunc(GLenum func, GLint ref, GLuint mask);
-enum gli_SencilOp { GL_KEEP, GL_ZERO, GL_REPLACE, GL_INCR, GL_DECR, GL_INVERT };
+enum gli_StencilOp {
+	GL_KEEP=0x200 /* avoid conflict with gli_TexEnvMode which also define GL_REPLACE, and gli_BlendFunc for GL_ZERO */,
+	GL_INCR, GL_DECR
+};
 void glStencilOp(GLenum fail, GLenum zfail, GLenum zpass);
 void glDepthFunc(GLenum func);
 enum gli_BlendFunc {
@@ -150,7 +163,7 @@ void glSampleCoveragex(GLclampx value, GLboolean invert);
 // Modes and Execution
 enum gli_Capability {
 	/* GL_LIGHTi */
-	GL_ALPHA_TEST=0x1000 /* To skip GL_LIGHTs */,
+	GL_ALPHA_TEST=0x1000 /* To skip GL_LIGHTs and allow GL_BLEND in TexEnvMode */,
 	GL_BLEND,
 	GL_COLOR_LOGIC_OP,
 	GL_COLOR_MATERIAL,
@@ -178,7 +191,7 @@ void glFinish(void);
 static inline void glFlush(void) {}
 enum gli_HintTarget { GL_FOG_HINT , GL_LINE_SMOOTH_HINT , GL_PERSPECTIVE_CORRECTION_HINT, GL_POINT_SMOOTH_HINT, NB_HINT_TARGETS };
 enum gli_HintMode { GL_FASTEST, GL_NICEST, GL_DONT_CARE };
-void glHint(GLenum target, GLenum mode)
+void glHint(GLenum target, GLenum mode);
 
 // State Queries
 enum gli_StringName { GL_VENDOR, GL_RENDERER, GL_VERSION, GL_EXTENSIONS };

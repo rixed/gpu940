@@ -28,7 +28,7 @@ static GLclampx alpha_ref;
 static GLint stencil_ref;
 static GLuint stencil_mask;
 static struct {
-	enum gli_SencilOp fail, zfail, zpass;
+	enum gli_StencilOp fail, zfail, zpass;
 } stencil_ops;
 static GLclampx clear_colors[4];
 static GLclampx clear_depth;
@@ -38,6 +38,11 @@ static GLboolean color_mask[4], depth_mask;
 /*
  * Private Functions
  */
+
+static bool valid_stencil_op(GLenum op)
+{
+	return (op >= GL_KEEP && op <= GL_INVERT) || op == GL_REPLACE || op == GL_ZERO || op == GL_INVERT;
+}
 
 /*
  * Public Functions
@@ -58,6 +63,7 @@ int gli_framebuf_begin(void)
 	clear_stencil = 0;
 	color_mask[0] = color_mask[1] = color_mask[2] = color_mask[3] = GL_TRUE;
 	depth_mask = GL_TRUE;
+	return 0;
 }
 
 extern inline void gli_framebuf_end(void);
@@ -100,7 +106,7 @@ void glStencilFunc(GLenum func, GLint ref, GLuint mask)
 
 void glStencilOp(GLenum fail, GLenum zfail, GLenum zpass)
 {
-	if (fail < GL_KEEP || fail > GL_INVERT || zfail < GL_KEEP || zfail > GL_INVERT || zpass < GL_KEEP || zpass > GL_INVERT) {
+	if (!valid_stencil_op(fail) || !valid_stencil_op(zfail) || !valid_stencil_op(zpass)) {
 		return gli_set_error(GL_INVALID_ENUM);
 	}
 	stencil_ops.fail = fail;
@@ -119,11 +125,14 @@ void glDepthFunc(GLenum func)
 void glBlendFunc(GLenum sfactor, GLenum dfactor)
 {
 	// TODO
+	(void)sfactor;
+	(void)dfactor;
 }
 
 void glLogicOp(GLenum opcode)
 {
 	// TODO
+	(void)opcode;
 }
 
 void glClear(GLbitfield mask)
@@ -156,6 +165,8 @@ void glClearStencil(GLint s)
 {
 #  if GLI_STENCIL_BITS > 0
 	clear_stencil = s & ((1<<GLI_STENCIL_BITS)-1);
+#	else
+	(void)s;
 #	endif
 }
 
@@ -180,4 +191,6 @@ void glStencilMask(GLuint mask)
 void glSampleCoveragex(GLclampx value, GLboolean invert)
 {
 	// TODO
+	(void)value;
+	(void)invert;
 }

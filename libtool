@@ -65,8 +65,8 @@ allow_libtool_libs_with_static_runtimes=no
 fast_install=yes
 
 # The host system.
-host_alias=arm-linux
-host=arm-unknown-linux-gnu
+host_alias=
+host=i686-pc-linux-gnu
 
 # An echo program that does not interpret backslashes.
 echo="echo"
@@ -76,10 +76,10 @@ AR="ar"
 AR_FLAGS="cru"
 
 # A C compiler.
-LTCC="/usr/local/devkitPro/devkitGP2X/bin/arm-linux-gcc"
+LTCC="colorgcc"
 
 # A language-specific compiler.
-CC="/usr/local/devkitPro/devkitGP2X/bin/arm-linux-gcc"
+CC="colorgcc"
 
 # Is the compiler the GNU C compiler?
 with_gcc=yes
@@ -88,13 +88,13 @@ with_gcc=yes
 EGREP="grep -E"
 
 # The linker used to build libraries.
-LD="/usr/local/devkitPro/devkitGP2X/bin/arm-linux-ld"
+LD="/usr/bin/ld"
 
 # Whether we need hard or soft links.
 LN_S="ln -s"
 
 # A BSD-compatible nm program.
-NM="nm"
+NM="/usr/bin/nm -B"
 
 # A symbol stripping program
 STRIP="strip"
@@ -316,7 +316,7 @@ variables_saved_for_relink="PATH  LD_RUN_PATH GCC_EXEC_PREFIX COMPILER_PATH LIBR
 link_all_deplibs=no
 
 # Compile-time system search path for libraries
-sys_lib_search_path_spec=" /usr/local/devkitPro/devkitGP2X/lib/gcc/arm-linux/4.0.2/ /usr/lib/gcc/arm-linux/4.0.2/ /usr/local/devkitPro/devkitGP2X/lib/gcc/arm-linux/4.0.2/../../../../arm-linux/lib/arm-linux/4.0.2/ /usr/local/devkitPro/devkitGP2X/lib/gcc/arm-linux/4.0.2/../../../../arm-linux/lib/ /usr/local/devkitPro/devkitGP2X/sysroot/lib/arm-linux/4.0.2/ /usr/local/devkitPro/devkitGP2X/sysroot/lib/ /usr/local/devkitPro/devkitGP2X/sysroot/usr/lib/arm-linux/4.0.2/ /usr/local/devkitPro/devkitGP2X/sysroot/usr/lib/"
+sys_lib_search_path_spec=" /usr/lib/gcc-lib/i486-linux/3.3.5/ /usr/lib/gcc/i486-linux/3.3.5/ /usr/lib/gcc-lib/i486-linux/3.3.5/../../../../i486-linux/lib/i486-linux/3.3.5/ /usr/lib/gcc-lib/i486-linux/3.3.5/../../../../i486-linux/lib/ /usr/lib/gcc-lib/i486-linux/3.3.5/../../../i486-linux/3.3.5/ /usr/lib/gcc-lib/i486-linux/3.3.5/../../../ /lib/i486-linux/3.3.5/ /lib/ /usr/lib/i486-linux/3.3.5/ /usr/lib/"
 
 # Run-time system search path for libraries
 sys_lib_dlsearch_path_spec="/lib /usr/lib /usr/X11R6/lib /usr/lib/GNUstep/System/Library/Libraries /usr/local/lib /usr/lib/atlas "
@@ -6790,8 +6790,8 @@ allow_libtool_libs_with_static_runtimes=no
 fast_install=yes
 
 # The host system.
-host_alias=arm-linux
-host=arm-unknown-linux-gnu
+host_alias=
+host=i686-pc-linux-gnu
 
 # An echo program that does not interpret backslashes.
 echo="echo"
@@ -6801,7 +6801,7 @@ AR="ar"
 AR_FLAGS="cru"
 
 # A C compiler.
-LTCC="/usr/local/devkitPro/devkitGP2X/bin/arm-linux-gcc"
+LTCC="colorgcc"
 
 # A language-specific compiler.
 CC="g++"
@@ -6813,13 +6813,13 @@ with_gcc=yes
 EGREP="grep -E"
 
 # The linker used to build libraries.
-LD="/usr/local/devkitPro/devkitGP2X/bin/arm-linux-ld"
+LD="/usr/bin/ld"
 
 # Whether we need hard or soft links.
 LN_S="ln -s"
 
 # A BSD-compatible nm program.
-NM="nm"
+NM="/usr/bin/nm -B"
 
 # A symbol stripping program
 STRIP="strip"

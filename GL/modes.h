@@ -18,7 +18,7 @@
 #ifndef GL_MODES_H_061010
 #define GL_MODES_H_061010
 
-int gli_modes_begin(void)
-static inline gli_modes_end(void) {}
+int gli_modes_begin(void);
+static inline void gli_modes_end(void) {}
 
 #endif

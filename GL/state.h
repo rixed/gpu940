@@ -19,7 +19,7 @@
 #define GL_STATE_H_061009
 
 int gli_state_begin(void);
-static inline void gli_state_end(void) { };
-static void gli_set_error(GLenum err);
+static inline void gli_state_end(void) {}
+void gli_set_error(GLenum err);
 
 #endif

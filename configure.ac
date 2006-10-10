@@ -45,7 +45,9 @@ AC_CONFIG_FILES([
 	lib/Makefile
 	sample/Makefile
 	include/Makefile
+	include/GL/Makefile
 	perftime/Makefile
 	console/Makefile
+	GL/Makefile
 ])
 AC_OUTPUT

@@ -16,6 +16,7 @@
  * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
  */
 #include "gli.h"
+#include <string.h>
 
 /*
  * Data Definitions
@@ -36,11 +37,12 @@ static enum gli_FrontFace front_face;
 static void light_ctor(struct gli_light *light)
 {
 	memset(light, 0, sizeof(*light));
-	light->param.named.spot_cutoff = 180<<16;
-	light->param.named.constant_attenuation = 1<<16;
-	light->param.named.ambient[3] = 1<<16;
-	light->param.named.position[2] = 1<<16;
-	light->param.named.spot_direction[2] = -1<<16;
+	light->spot_cutoff = 180<<16;
+	light->constant_attenuation = 1<<16;
+	light->ambient[3] = 1<<16;
+	light->position[2] = 1<<16;
+	light->spot_direction[2] = -1<<16;
+	light->enabled = GL_FALSE;
 }
 
 /*
@@ -55,8 +57,8 @@ int gli_color_begin(void)
 	for (unsigned i=0; i<sizeof_array(lights); i++) {
 		light_ctor(lights+i);
 	}
-	lights[0].param.named.diffuse[0] = lights[0].param.named.diffuse[1] = lights[0].param.named.diffuse[2] = lights[0].param.named.diffuse[3] = 1<<16;
-	lights[0].param.named.specular[0] = lights[0].param.named.specular[1] = lights[0].param.named.specular[2] = lights[0].param.named.specular[3] = 1<<16;
+	lights[0].diffuse[0] = lights[0].diffuse[1] = lights[0].diffuse[2] = lights[0].diffuse[3] = 1<<16;
+	lights[0].specular[0] = lights[0].specular[1] = lights[0].specular[2] = lights[0].specular[3] = 1<<16;
 	memset(&material, 0, sizeof(material));
 	material.ambient[0] = material.ambient[1] = material.ambient[2] = 13107;
 	material.ambient[3] = 1<<16;
@@ -68,9 +70,20 @@ int gli_color_begin(void)
 	ambient[3] = 1<<16;
 	shade_model = GL_SMOOTH;
 	front_face = GL_CCW;
+	return 0;
 }
 
-extern inline gli_color_end(void);
+extern inline void gli_color_end(void);
+
+void gli_light_enable(GLenum light)
+{
+	lights[light-GL_LIGHT0].enabled = GL_TRUE;
+}
+
+void gli_light_disable(GLenum light)
+{
+	lights[light-GL_LIGHT0].enabled = GL_FALSE;
+}
 
 void glColor4x(GLfixed red, GLfixed green, GLfixed blue, GLfixed alpha)
 {
@@ -90,7 +103,7 @@ void glNormal3x(GLfixed nx, GLfixed ny, GLfixed nz)
 void glLightx(GLenum light, GLenum pname, GLfixed param)
 {
 	unsigned l = light - GL_LIGHT0;
-	if (l < 0 || l > sizeof_array(lights)) {
+	if (l > sizeof_array(lights)) {
 		return gli_set_error(GL_INVALID_ENUM);
 	}
 	if ( param < 0 ) {
@@ -99,20 +112,20 @@ void glLightx(GLenum light, GLenum pname, GLfixed param)
 	switch ((enum gli_ColorParam)pname) {
 		case GL_SPOT_EXPONENT:
 			if (param > (128<<16)) return gli_set_error(GL_INVALID_VALUE);
-			light[l].spot_exponent = param;
+			lights[l].spot_exponent = param;
 			return;
 		case GL_SPOT_CUTOFF:
 			if (param > (90<<16) && param != (180<<16)) return gli_set_error(GL_INVALID_VALUE);
-			light[l].spot_cutoff = param;
+			lights[l].spot_cutoff = param;
 			return;
 		case GL_CONSTANT_ATTENUATION:
-			light[l].constant_attenuation = param;
+			lights[l].constant_attenuation = param;
 			return;
 		case GL_LINEAR_ATTENUATION:
-			light[l].linear_attenuation = param;
+			lights[l].linear_attenuation = param;
 			return;
 		case GL_QUADRATIC_ATTENUATION:
-			light[l].quadratic_attenuation = param;
+			lights[l].quadratic_attenuation = param;
 			return;
 		default:
 			return gli_set_error(GL_INVALID_ENUM);
@@ -125,27 +138,27 @@ void glLightxv(GLenum light, GLenum pname, GLfixed const *params)
 		return glLightx(light, pname, *params);
 	}
 	unsigned l = light - GL_LIGHT0;
-	if (l < 0 || l > sizeof_array(lights)) {
+	if (l > sizeof_array(lights)) {
 		return gli_set_error(GL_INVALID_ENUM);
 	}
 	GLfixed *dest;
 	unsigned nb_p = 4;
 	switch ((enum gli_ColorParam)pname) {
 		case GL_AMBIENT:
-			dest = &lights[l].ambient;
+			dest = lights[l].ambient;
 			break;
 		case GL_DIFFUSE:
-			dest = &lights[l].diffuse;
+			dest = lights[l].diffuse;
 			break;
 		case GL_SPECULAR:
-			dest = &lights[l].specular;
+			dest = lights[l].specular;
 			break;
 		case GL_POSITION:
-			dest = &lights[l].position;
+			dest = lights[l].position;
 			break;
 		case GL_SPOT_DIRECTION:
 			nb_p = 3;
-			dest = &lights[l].spot_direction;
+			dest = lights[l].spot_direction;
 			break;
 		default:
 			return gli_set_error(GL_INVALID_ENUM);
@@ -167,8 +180,6 @@ void glMaterialxv(GLenum face, GLenum pname, GLfixed const *params)
 		return gli_set_error(GL_INVALID_ENUM);
 	}
 	switch ((enum gli_ColorParam)pname) {
-		case GL_SHININESS:
-			return glMaterialx(face, pname, *params);
 		case GL_AMBIENT:
 			memcpy(material.ambient, params, sizeof(material.ambient));
 			return;
@@ -197,6 +208,7 @@ void glLightModelx(GLenum pname, GLfixed param)
 {
 	switch ((enum gli_LightModParam)pname) {
 		case GL_LIGHT_MODEL_TWO_SIDE:	// TODO: seams useless
+			(void)param;
 			return;
 		default:
 			return gli_set_error(GL_INVALID_ENUM);

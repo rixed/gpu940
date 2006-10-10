@@ -173,7 +173,7 @@ sbindir = @sbindir@
 sharedstatedir = @sharedstatedir@
 sysconfdir = @sysconfdir@
 target_alias = @target_alias@
-SUBDIRS = include lib console perftime bin sample
+SUBDIRS = include lib console perftime bin sample GL
 all: config.h
 	$(MAKE) $(AM_MAKEFLAGS) all-recursive
 

@@ -16,6 +16,7 @@
  * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
  */
 #include "gli.h"
+#include <string.h>
 
 /*
  * Data Definitions
@@ -28,11 +29,11 @@ static unsigned gli_active_texture;
  * Private Functions
  */
 
-static set_array(struct array *arr, GLint size, GLenum type, GLsizei stride, GLvoid const *pointer, GLint min_size, GLint max_size, enum gli_Types const *allowed_types, unsigned nb_allowed_types)
+static void set_array(struct array *arr, GLint size, GLenum type, GLsizei stride, GLvoid const *pointer, GLint min_size, GLint max_size, enum gli_Types const *allowed_types, unsigned nb_allowed_types)
 {
 	if (size < min_size || size > max_size || stride < 0) {
 		gli_set_error(GL_INVALID_VALUE);
-		arr.ptr = NULL;
+		arr->ptr = NULL;
 		return;
 	}
 	unsigned t;
@@ -41,14 +42,14 @@ static set_array(struct array *arr, GLint size, GLenum type, GLsizei stride, GLv
 	}
 	if (t == nb_allowed_types) {
 		gli_set_error(GL_INVALID_ENUM);
-		arr.ptr = NULL;
+		arr->ptr = NULL;
 		return;
 	}
-	if (arr.enabled) {
-		arr.type = type;
-		arr.stride = stride;
-		arr.ptr = pointer;
-		arr.size = size;
+	if (arr->enabled) {
+		arr->type = type;
+		arr->stride = stride;
+		arr->ptr = pointer;
+		arr->size = size;
 	}
 }
 
@@ -77,15 +78,16 @@ static void set_enable(GLenum array, int bit)
 
 int gli_arrays_begin(void)
 {
-	memset(colors, 0, sizeof(colors));
-	memset(normals, 0, sizeof(normals));
-	memset(vertexes, 0, sizeof(vertexes));
+	memset(&colors, 0, sizeof(colors));
+	memset(&normals, 0, sizeof(normals));
+	memset(&vertexes, 0, sizeof(vertexes));
 	memset(texcoords, 0, sizeof(texcoords));
 	colors.size = normals.size = vertexes.size = 4;
 	for (unsigned t=0; t<sizeof_array(texcoords); t++) {
 		texcoords[t].size = 4;
 	}
 	gli_active_texture = GL_TEXTURE0;
+	return 0;
 }
 
 extern  inline void gli_arrays_end(void);
@@ -135,12 +137,21 @@ void glDisableClientState(GLenum array)
 
 void glDrawArrays(GLenum mode, GLint first, GLsizei count)
 {
+	// TODO
 	// for triangles, call gli_triangle with 3 vertexes, normals, colors and texcoords
 	// (NULL if not set), of GLfixed type and size=4.
 	// The same for lines (2 vertexes etc) and points (1 vertex etc).
 	// gli_triangle/point/line performs rotation, culling, fog and lightning.
+	(void)mode;
+	(void)first;
+	(void)count;
 }
 
 void glDrawElements(GLenum mode, GLsizei count, GLenum type, GLvoid const *indices)
 {
+	// TODO
+	(void)mode;
+	(void)count;
+	(void)type;
+	(void)indices;
 }

@@ -29,7 +29,8 @@ static enum gli_HintMode hints[NB_HINT_TARGETS];
  * Private Functions
  */
 
-#define CAP_BIT(c) (1<<(c-GL_ALPHA_TEST));
+#define CAP_BIT(c) (1<<((c)-GL_ALPHA_TEST))
+
 /*
  * Public Functions
  */
@@ -43,7 +44,7 @@ int gli_modes_begin(void)
 	return 0;
 }
 
-extern inline gli_modes_end(void);
+extern inline void gli_modes_end(void);
 
 void glEnable(GLenum cap)
 {
@@ -78,7 +79,7 @@ extern inline void glFlush(void);
 
 void glHint(GLenum target, GLenum mode)
 {
-	if (target < 0 || target >= NB_HINT_TARGETS) {
+	if (target >= NB_HINT_TARGETS) {
 		return gli_set_error(GL_INVALID_ENUM);
 	}
 	if (mode < GL_FASTEST || mode > GL_DONT_CARE) {

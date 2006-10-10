@@ -16,13 +16,16 @@
  * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
  */
 #include "gli.h"
+#include <stdlib.h>
+#include <assert.h>
+#include <string.h>
 #include "fixmath.h"
 
 /*
  * Data Definitions
  */
 
-static struct matrix_stack ms[3];	// modelview, projection, texture
+static struct matrix_stack modelview_ms, projection_ms;
 static enum gli_MatrixMode matrix_mode;
 static GLfixed const gli_matrix_id[16] = {
 	0x10000, 0, 0, 0,
@@ -39,6 +42,21 @@ static GLsizei view_port_width, view_port_height;
  * Private Functions
  */
 
+static struct matrix_stack *get_ms(void)
+{
+	switch (matrix_mode) {
+		case GL_MODELVIEW:
+			return &modelview_ms;
+		case GL_PROJECTION:
+			return &projection_ms;
+		case GL_TEXTURE:
+			return &gli_get_texture_unit()->ms;
+		default:
+			assert(0);
+			return NULL;
+	}
+}
+
 static void compute_ab(FixMat *m)
 {
 	for (unsigned i=0; i<3; i++) {
@@ -46,7 +64,7 @@ static void compute_ab(FixMat *m)
 	}
 }
 
-static void do_matrix(FixMat *mat, GLfixed const *m)
+static void GCCunused do_matrix(FixMat *mat, GLfixed const *m)
 {
 	mat->rot[0][0] = m[0];
 	mat->rot[0][1] = m[1];
@@ -65,13 +83,14 @@ static void do_matrix(FixMat *mat, GLfixed const *m)
 
 static void mult_matrix(GLfixed const *mat)
 {
-	GLfixed (*const dest)[16] = ms[matrix_mode].mat + ms[matrix_mode].top;
+	struct matrix_stack *const ms = get_ms();
+	GLfixed (*const dest)[16] = ms->mat + ms->top;
 	GLfixed res[16];
 	for (unsigned c=0; c<4; c++) {
 		for (unsigned r=0; r<4; r++) {
 			res[4*c+r] = 0;
 			for (unsigned i=0; i<4; i++) {
-				res[4*c+r] += Fix_mul(dest[4*i+r], mat[4*c+i]);
+				res[4*c+r] += Fix_mul((*dest)[4*i+r], mat[4*c+i]);
 			}
 		}
 	}
@@ -87,7 +106,7 @@ static void scale_vec(int32_t vec[4], int32_t s)
 
 static void frustum_ortho(int frustrum, GLfixed left, GLfixed right, GLfixed bottom, GLfixed top, GLfixed near, GLfixed far)
 {
-	GLfixed (*const mat)[16];
+	GLfixed *const mat;
 	int32_t rli = Fix_inv(right-left);
 	int32_t tbi = Fix_inv(top-bottom);
 	int32_t fni = Fix_inv(far-near);
@@ -125,23 +144,26 @@ static void frustum_ortho(int frustrum, GLfixed left, GLfixed right, GLfixed bot
  * Public Functions
  */
 
+int gli_matrix_stack_ctor(struct matrix_stack *ms, unsigned size)
+{
+	assert(size > 0);
+	ms->size = size;
+	ms->top = 0;
+	ms->mat = malloc(sizeof(*ms->mat)*size);
+	if (! ms->mat) return -1;
+	memcpy(ms->mat, gli_matrix_id, sizeof(*ms->mat));
+	return 0;
+}
+
+void gli_matrix_stack_dtor(struct matrix_stack *ms)
+{
+	return free(ms->mat);
+}
+
 int gli_transfo_begin(void)
 {
-	ms[GL_MODELVIEW].size = GLI_MAX_MODELVIEW_STACK_DEPTH;
-	ms[GL_MODELVIEW].top = 0;
-	ms[GL_MODELVIEW].mat = malloc(sizeof(*ms[GL_MODELVIEW].mat)*ms[GL_MODELVIEW].size);
-	if (! ms[GL_MODELVIEW].mat) return -1;
-	ms[GL_MODELVIEW].mat[0] = gli_matrix_id;
-	ms[GL_PROJECTION].size = GLI_MAX_PROJECTION_STACK_DEPTH;
-	ms[GL_PROJECTION].top = 0;
-	ms[GL_PROJECTION].mat = malloc(sizeof(*ms[GL_PROJECTION].mat)*ms[GL_PROJECTION].size);
-	if (! ms[GL_PROJECTION].mat) return -1;
-	ms[GL_PROJECTION].mat[0] = gli_matrix_id;
-	ms[GL_TEXTURE].size = GLI_MAX_TEXTURE_STACK_DEPTH;
-	ms[GL_TEXTURE].top = 0;
-	ms[GL_TEXTURE].mat = malloc(sizeof(*ms[GL_TEXTURE].mat)*ms[GL_TEXTURE].size);
-	if (! ms[GL_TEXTURE].mat) return -1;
-	ms[GL_TEXTURE].mat[0] = gli_matrix_id;
+	if (! gli_matrix_stack_ctor(&modelview_ms, GLI_MAX_MODELVIEW_STACK_DEPTH)) return -1;
+	if (! gli_matrix_stack_ctor(&projection_ms, GLI_MAX_PROJECTION_STACK_DEPTH)) return -1;
 	matrix_mode = GL_MODELVIEW;
 	depth_range_near = 0;
 	depth_range_far = 0x10000;
@@ -166,32 +188,36 @@ void glMatrixMode(GLenum mode)
 
 void glPushMatrix(void)
 {
-	if (ms[matrix_mode].top >= ms[matrix_mode].size) {
+	struct matrix_stack *const ms = get_ms();
+	if (ms->top >= ms->size) {
 		gli_set_error(GL_STACK_OVERFLOW);
 		return;
 	}
-	ms[matrix_mode].mat[ms[matrix_mode].top+1] = ms[matrix_mode].mat[ms[matrix_mode].top];
-	ms[matrix_mode].top ++;
+	memcpy(ms->mat[ms->top+1], ms->mat[ms->top], sizeof(*ms->mat));
+	ms->top ++;
 }
 
 void glPopMatrix(void)
 {
-	if (ms[matrix_mode].top == 0) {
+	struct matrix_stack *const ms = get_ms();
+	if (ms->top == 0) {
 		gli_set_error(GL_STACK_UNDERFLOW);
 		return;
 	}
-	ms[matrix_mode].top --;
+	ms->top --;
 }
 
 void glLoadMatrixx(GLfixed const *m)
 {
-	GLfixed (*const mat)[16] = ms[matrix_mode].mat + ms[matrix_mode].top;
+	struct matrix_stack *const ms = get_ms();
+	GLfixed (*const mat)[16] = ms->mat + ms->top;
 	memcpy(mat, m, sizeof(mat));
 }
 
 void glLoadIdentity(void)
 {
-	ms[matrix_mode].mat[ ms[matrix_mode].top ] = gli_matrix_id;
+	struct matrix_stack *const ms = get_ms();
+	memcpy(ms->mat[ms->top], gli_matrix_id, sizeof(*ms->mat));
 }
 
 void glRotatex(GLfixed angle, GLfixed x, GLfixed y, GLfixed z)
@@ -233,7 +259,8 @@ void glMultMatrixx(GLfixed const *m)
 
 void glScalex(GLfixed x, GLfixed y, GLfixed z)
 {
-	GLfixed (*const mat)[16] = ms[matrix_mode].mat + ms[matrix_mode].top;
+	struct matrix_stack *const ms = get_ms();
+	GLfixed (*const mat)[16] = ms->mat + ms->top;
 	scale_vec(mat[0], x);
 	scale_vec(mat[4], y);
 	scale_vec(mat[8], z);
@@ -241,7 +268,8 @@ void glScalex(GLfixed x, GLfixed y, GLfixed z)
 
 void glTranslatex(GLfixed x, GLfixed y, GLfixed z)
 {
-	GLfixed (*const mat)[16] = gli_matrix_id;
+	GLfixed mat[16];
+	memcpy(mat, gli_matrix_id, sizeof(mat));
 	mat[12] = x;
 	mat[13] = y;
 	mat[14] = z;

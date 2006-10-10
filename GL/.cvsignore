@@ -1,0 +1,14 @@
+.deps
+.libs
+Makefile
+Makefile.in
+arrays.lo
+colors.lo
+egl.lo
+framebuf.lo
+libGL.la
+modes.lo
+raster.lo
+state.lo
+texture.lo
+transfo.lo

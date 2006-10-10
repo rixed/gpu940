@@ -18,7 +18,7 @@
 #ifndef ARRAYS_H_061009
 #define ARRAYS_H_061009
 
-extern struct array {
+struct array {
 	const GLvoid *ptr;
 	GLsizei stride;
 	enum gli_Types type;

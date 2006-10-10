@@ -18,7 +18,7 @@
 #ifndef GL_RASTER_H_061010
 #define GL_RASTER_H_061010
 
-void gli_raster_begin(void);
+int gli_raster_begin(void);
 static inline void gli_raster_end(void) { }
 
 #endif

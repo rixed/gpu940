@@ -15,23 +15,50 @@
  * along with gpu940; if not, write to the Free Software
  * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
  */
-#ifndef GL_COLORS_H_061010
-#define GL_COLORS_H_061010
+#include "gli.h"
 
-struct gli_light {
-	GLboolean enabled;
-	GLfixed spot_exponent, spot_cutoff, constant_attenuation, linear_attenuation, quadratic_attenuation;
-	GLfixed ambient[4], diffuse[4], specular[4], position[4], spot_direction[4];
-};
+/*
+ * Data Definitions
+ */
 
-struct gli_material {
-	GLfixed shininess;
-	GLfixed ambient[4], diffuse[4], specular[4], emission[4];
-};
+/*
+ * Private Functions
+ */
 
-int gli_colors_begin(void);
-static inline void gli_colors_end(void) { }
-void gli_light_enable(GLenum light);
-void gli_light_disable(GLenum light);
+/*
+ * Public Functions
+ */
 
-#endif
+GLboolean glOpen(void)
+{
+	typedef int (*begin_func)(void);
+	static begin_func const begins[] = {
+		gli_state_begin,
+		gli_arrays_begin,
+		gli_transfo_begin,
+		gli_colors_begin,
+		gli_raster_begin,
+		gli_modes_begin,
+		gli_framebuf_begin,
+		gli_texture_begin,
+	};
+	for (unsigned i=0; i<sizeof_array(begins); i++) {
+		if (0 != begins[i]()) {
+			return -1;
+		}
+	}
+	return 0;
+}
+
+void glClose(void)
+{
+	(void)gli_state_end();
+	(void)gli_arrays_end();
+	(void)gli_transfo_end();
+	(void)gli_colors_end();
+	(void)gli_raster_end();
+	(void)gli_modes_end();
+	(void)gli_framebuf_end();
+	(void)gli_texture_end();
+}
+

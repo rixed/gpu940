@@ -20,6 +20,7 @@ int gli_raster_begin(void)
 	point_size = 1<<16;
 	line_width = 1<<16;
 	cull_face = GL_BACK;
+	return 0;
 }
 
 extern inline void gli_raster_end(void);

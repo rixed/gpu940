@@ -25,6 +25,9 @@ struct matrix_stack {
 };
 
 int gli_transfo_begin(void);
-static inline void gli_state_end(void) { };
+static inline void gli_transfo_end(void) {}
+
+int gli_matrix_stack_ctor(struct matrix_stack *mt, unsigned size);
+void gli_matrix_stack_dtor(struct matrix_stack *mt);
 
 #endif
