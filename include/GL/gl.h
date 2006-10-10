@@ -88,6 +88,12 @@ void glShadeModel(GLenum mode);
 enum gli_FrontFace { GL_CW, GL_CCW };
 void glFrontFace(GLenum mode);
 
+// Rasterization
+void glPointSizex(GLfixed size);
+void glLineWidthx(GLfixed width);
+enum gli_CullFace { GL_FRONT, GL_BACK, GL_FRONT_AND_BACK };
+void glCullFace(GLenum mode);
+
 // State Queries
 enum gli_StringName { GL_VENDOR, GL_RENDERER, GL_VERSION, GL_EXTENSIONS };
 GLubyte const *glGetString(GLenum name);

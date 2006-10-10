@@ -15,22 +15,10 @@
  * along with gpu940; if not, write to the Free Software
  * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
  */
-#ifndef GLI_H_061009
-#define GLI_H_061009
+#ifndef GL_RASTER_H_061010
+#define GL_RASTER_H_061010
 
-#include "GL/gl.h"
-#include "gpu940.h"
-
-#define GLI_MAX_TEXTURE_UNITS 32	// at least 1
-#define GLI_MAX_MODELVIEW_STACK_DEPTH 64	// at least 16
-#define GLI_MAX_PROJECTION_STACK_DEPTH 2	// at least 2
-#define GLI_MAX_TEXTURE_STACK_DEPTH 2	// at least 2
-#define GLI_MAX_LIGHTS 8	// at least 8
-
-#include "state.h"
-#include "arrays.h"
-#include "transfo.h"
-#include "colors.h"
-#include "raster.h"
+void gli_raster_begin(void);
+static inline void gli_raster_end(void) { }
 
 #endif

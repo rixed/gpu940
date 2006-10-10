@@ -15,8 +15,8 @@
  * along with gpu940; if not, write to the Free Software
  * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
  */
-#ifndef TRANSFO_H_061009
-#define TRANSFO_H_061009
+#ifndef GL_TRANSFO_H_061009
+#define GL_TRANSFO_H_061009
 
 struct matrix_stack {
 	unsigned top;
