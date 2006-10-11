@@ -162,8 +162,8 @@ void gli_matrix_stack_dtor(struct matrix_stack *ms)
 
 int gli_transfo_begin(void)
 {
-	if (! gli_matrix_stack_ctor(&modelview_ms, GLI_MAX_MODELVIEW_STACK_DEPTH)) return -1;
-	if (! gli_matrix_stack_ctor(&projection_ms, GLI_MAX_PROJECTION_STACK_DEPTH)) return -1;
+	if (0 != gli_matrix_stack_ctor(&modelview_ms, GLI_MAX_MODELVIEW_STACK_DEPTH)) return -1;
+	if (0 != gli_matrix_stack_ctor(&projection_ms, GLI_MAX_PROJECTION_STACK_DEPTH)) return -1;
 	matrix_mode = GL_MODELVIEW;
 	depth_range_near = 0;
 	depth_range_far = 0x10000;

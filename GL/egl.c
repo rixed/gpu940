@@ -44,10 +44,10 @@ GLboolean glOpen(void)
 	};
 	for (unsigned i=0; i<sizeof_array(begins); i++) {
 		if (0 != begins[i]()) {
-			return -1;
+			return GL_FALSE;
 		}
 	}
-	return 0;
+	return gpuOK == gpuOpen() ? GL_TRUE:GL_FALSE;
 }
 
 void glClose(void)
@@ -60,5 +60,6 @@ void glClose(void)
 	(void)gli_modes_end();
 	(void)gli_framebuf_end();
 	(void)gli_texture_end();
+	gpuClose();
 }
 

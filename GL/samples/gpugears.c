@@ -30,6 +30,7 @@
 #include <string.h>
 #include <sys/time.h>
 #include <unistd.h>
+#include <assert.h>
 #include "GL/gl.h"
 #include "fixmath.h"
 
@@ -46,7 +47,15 @@ static GLfixed view_rotx = 20<<16, view_roty = 30<<16, view_rotz = 0;
 static GLfixed angle = 0;
 
 static GLfixed *gear1, *gear2, *gear3;
+static unsigned gear1_count, gear2_count, gear3_count;
 
+static void addVertex(GLfixed *arr, unsigned *c, GLfixed x, GLfixed y, GLfixed z) {
+	arr[3**c+0] = x;
+	arr[3**c+1] = y;
+	arr[3**c+2] = z;
+	*c++;
+}
+		
 /*
  *
  *  Draw a gear wheel.  You'll probably want to call this function when
@@ -58,13 +67,15 @@ static GLfixed *gear1, *gear2, *gear3;
  *          teeth - number of teeth
  *          tooth_depth - depth of tooth
  */
-static void gear(GLfixed **dest, GLfixed inner_radius, GLfixed outer_radius, GLfixed width, GLint teeth, GLfixed tooth_depth)
+static void gear(GLfixed **dest, unsigned *count, GLfixed inner_radius, GLfixed outer_radius, GLfixed width, GLint teeth, GLfixed tooth_depth)
 {
-#if 0
 	GLint i;
 	GLfixed r0, r1, r2;
 	GLfixed angle, da;
-	GLfixed u, v, len;
+	//GLfixed u, v, len;
+	unsigned nb_vec = 1000;
+	*dest = malloc(nb_vec*sizeof(GLfixed));
+	assert(*dest);
 
 	r0 = inner_radius;
 	r1 = (outer_radius - tooth_depth) >> 1;
@@ -74,22 +85,19 @@ static void gear(GLfixed **dest, GLfixed inner_radius, GLfixed outer_radius, GLf
 
 	glShadeModel(GL_FLAT);
 
-	glNormal3x(0, 0, 1<<16);
-#endif
-#if 0
+//	glNormal3x(0, 0, 1<<16);
 	/* draw front face */
-	glBegin(GL_QUAD_STRIP);
+	
 	for (i = 0; i <= teeth; i++) {
 		angle = i * 2 * FIXED_PI / teeth;
-		glVertex3x(Fix_mul(r0, Fix_cos(angle)), Fix_mul(r0, Fix_sin(angle)), width>>1);
-		glVertex3x(Fix_mul(r1, Fix_cos(angle)), Fix_mul(r1, Fix_sin(angle)), width>>1);
+		addVertex(*dest, count, Fix_mul(r0, Fix_cos(angle)), Fix_mul(r0, Fix_sin(angle)), width>>1);
+		addVertex(*dest, count, Fix_mul(r1, Fix_cos(angle)), Fix_mul(r1, Fix_sin(angle)), width>>1);
 		if (i < teeth) {
-			glVertex3x(Fix_mul(r0, Fix_cos(angle)), Fix_mul(r0, sin(angle)), width>>1);
-			glVertex3x(Fix_mul(r1, Fix_cos(angle + 3 * da)), Fix_mul(r1, Fix_sin(angle + 3 * da)), width>>1);
+			addVertex(*dest, count, Fix_mul(r0, Fix_cos(angle)), Fix_mul(r0, Fix_sin(angle)), width>>1);
+			addVertex(*dest, count, Fix_mul(r1, Fix_cos(angle + 3 * da)), Fix_mul(r1, Fix_sin(angle + 3 * da)), width>>1);
 		}
 	}
-	glEnd();
-
+#if 0
 	/* draw front sides of teeth */
 	glBegin(GL_QUADS);
 	for (i = 0; i < teeth; i++) {
@@ -101,22 +109,20 @@ static void gear(GLfixed **dest, GLfixed inner_radius, GLfixed outer_radius, GLf
 		glVertex3x(Fix_mul(r1, Fix_cos(angle + 3 * da)), Fix_mul(r1, Fix_sin(angle + 3 * da)), width>>1);
 	}
 	glEnd();
-
-	glNormal3x(0, 0, -1<<16);
+#endif
+//	glNormal3x(0, 0, -1<<16);
 
 	/* draw back face */
-	glBegin(GL_QUAD_STRIP);
 	for (i = 0; i <= teeth; i++) {
 		angle = i * 2 * FIXED_PI / teeth;
-		glVertex3x(Fix_mul(r1, Fix_cos(angle)), Fix_mul(r1, Fix_sin(angle)), -width>>1);
-		glVertex3x(Fix_mul(r0, Fix_cos(angle)), Fix_mul(r0, Fix_sin(angle)), -width>>1);
+		addVertex(*dest, count, Fix_mul(r1, Fix_cos(angle)), Fix_mul(r1, Fix_sin(angle)), -width>>1);
+		addVertex(*dest, count, Fix_mul(r0, Fix_cos(angle)), Fix_mul(r0, Fix_sin(angle)), -width>>1);
 		if (i < teeth) {
-			glVertex3x(Fix_mul(r1, Fix_cos(angle + 3 * da)), Fix_mul(r1, Fix_sin(angle + 3 * da)), -width>>1);
-			glVertex3x(Fix_mul(r0, Fix_cos(angle)), Fix_mul(r0, Fix_sin(angle)), -width>>1);
+			addVertex(*dest, count, Fix_mul(r1, Fix_cos(angle + 3 * da)), Fix_mul(r1, Fix_sin(angle + 3 * da)), -width>>1);
+			addVertex(*dest, count, Fix_mul(r0, Fix_cos(angle)), Fix_mul(r0, Fix_sin(angle)), -width>>1);
 		}
 	}
-	glEnd();
-
+#if 0
 	/* draw back sides of teeth */
 	glBegin(GL_QUADS);
 	for (i = 0; i < teeth; i++) {
@@ -198,6 +204,8 @@ static void draw(void)
 	glRotatex(angle, 0, 0, 1<<16);
 	glMaterialxv(GL_FRONT, GL_AMBIENT_AND_DIFFUSE, red);
 	//gear(1<<16, 4<<16, 1<<16, 20, 45875);
+	glVertexPointer(3, GL_FIXED, 0, gear1);
+	glDrawArrays(GL_TRIANGLE_STRIP, 0, gear1_count);
 	glPopMatrix();
 
 	glPushMatrix();
@@ -205,6 +213,8 @@ static void draw(void)
 	glRotatex(Fix_mul(-2<<16, angle) - (9<<16), 0, 0, 1<<16);
 	glMaterialxv(GL_FRONT, GL_AMBIENT_AND_DIFFUSE, green);
 	//gear(1<<15, 2<<16, 2<<16, 10, 45875);
+	glVertexPointer(3, GL_FIXED, 0, gear2);
+	glDrawArrays(GL_TRIANGLE_STRIP, 0, gear2_count);
 	glPopMatrix();
 
 	glPushMatrix();
@@ -212,6 +222,8 @@ static void draw(void)
 	glRotatex(Fix_mul(-2<<16, angle) - (25<<16), 0, 0, 1<<16);
 	glMaterialxv(GL_FRONT, GL_AMBIENT_AND_DIFFUSE, blue);
 	//gear(85197, 2<<16, 1<<15, 10, 45875);
+	glVertexPointer(3, GL_FIXED, 0, gear3);
+	glDrawArrays(GL_TRIANGLE_STRIP, 0, gear3_count);
 	glPopMatrix();
 
 	glPopMatrix();
@@ -222,9 +234,9 @@ static void init(void)
 {
 	static GLfixed pos[4] = { 5<<16, 5<<16, 10<<16, 0 };
 
-	gear(&gear1, 1<<16, 4<<16, 1<<16, 20, 45875);
-	gear(&gear2, 1<<15, 2<<16, 2<<16, 10, 45875);
-	gear(&gear3, 85197, 2<<16, 1<<15, 10, 45875);
+	gear(&gear1, &gear1_count, 1<<16, 4<<16, 1<<16, 20, 45875);
+	gear(&gear2, &gear2_count, 1<<15, 2<<16, 2<<16, 10, 45875);
+	gear(&gear3, &gear3_count, 85197, 2<<16, 1<<15, 10, 45875);
 	
 	glLightxv(GL_LIGHT0, GL_POSITION, pos);
 	glEnable(GL_CULL_FACE);
@@ -321,8 +333,6 @@ static void event_loop(void)
 
 int main(void)
 {
-	int i;
-
 	Fix_trig_init();
 	make_window();
 

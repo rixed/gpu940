@@ -2,3 +2,5 @@ Makefile
 Makefile.in
 gpugears.o
 gpugears
+.libs
+.deps
