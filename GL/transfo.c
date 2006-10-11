@@ -106,7 +106,7 @@ static void scale_vec(int32_t vec[4], int32_t s)
 
 static void frustum_ortho(int frustrum, GLfixed left, GLfixed right, GLfixed bottom, GLfixed top, GLfixed near, GLfixed far)
 {
-	GLfixed *const mat;
+	GLfixed mat[16];
 	int32_t rli = Fix_inv(right-left);
 	int32_t tbi = Fix_inv(top-bottom);
 	int32_t fni = Fix_inv(far-near);
