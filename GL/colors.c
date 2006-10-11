@@ -49,7 +49,7 @@ static void light_ctor(struct gli_light *light)
  * Public Functions
  */
 
-int gli_color_begin(void)
+int gli_colors_begin(void)
 {
 	color[0] = color[1] = color[2] = color[3] = 0x10000;
 	normal[0] = normal[1] = 0;
@@ -73,7 +73,7 @@ int gli_color_begin(void)
 	return 0;
 }
 
-extern inline void gli_color_end(void);
+extern inline void gli_colors_end(void);
 
 void gli_light_enable(GLenum light)
 {

@@ -82,7 +82,7 @@ void glHint(GLenum target, GLenum mode)
 	if (target >= NB_HINT_TARGETS) {
 		return gli_set_error(GL_INVALID_ENUM);
 	}
-	if (mode < GL_FASTEST || mode > GL_DONT_CARE) {
+	if (/*mode < GL_FASTEST ||*/ mode > GL_DONT_CARE) {
 		return gli_set_error(GL_INVALID_ENUM);
 	}
 	hints[target] = mode;

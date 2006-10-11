@@ -43,7 +43,7 @@ void glLineWidthx(GLfixed width)
 
 void glCullFace(GLenum mode)
 {
-	if (mode < GL_FRONT || mode > GL_FRONT_AND_BACK) {
+	if (/*mode < GL_FRONT ||*/ mode > GL_FRONT_AND_BACK) {
 		return gli_set_error(GL_INVALID_ENUM);
 	}
 	cull_face = mode;

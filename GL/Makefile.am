@@ -1,3 +1,5 @@
+SUBDIRS = . samples
+
 AM_CFLAGS = -I $(top_srcdir)/include -fstrict-aliasing -D_GNU_SOURCE -std=c99 -Wall -W -pipe
 
 lib_LTLIBRARIES = libGL.la

@@ -79,7 +79,7 @@ struct gli_texture_unit *gli_get_texture_unit(void)
 
 void glTexParameterx(GLenum target, GLenum pname, GLfixed param)
 {
-	if (target != GL_TEXTURE_2D || pname < GL_TEXTURE_MIN_FILTER || pname > GL_TEXTURE_WRAP_T) {
+	if (target != GL_TEXTURE_2D || /*pname < GL_TEXTURE_MIN_FILTER ||*/ pname > GL_TEXTURE_WRAP_T) {
 		return gli_set_error(GL_INVALID_ENUM);
 	}
 	switch ((enum gli_TexParam)pname) {
@@ -143,7 +143,7 @@ void glTexEnvxv(GLenum target, GLenum pname, GLfixed const *params)
 
 void glMultiTexCoord4x(GLenum target, GLfixed s, GLfixed t, GLfixed r, GLfixed q)
 {
-	if (target < GL_TEXTURE0 || target > GL_TEXTURE0+GLI_MAX_TEXTURE_UNITS) {
+	if (/*target < GL_TEXTURE0 ||*/ target > GL_TEXTURE0+GLI_MAX_TEXTURE_UNITS) {
 		return gli_set_error(GL_INVALID_ENUM);
 	}
 	struct gli_texture_unit *const unit = &texture_units[target-GL_TEXTURE0];
@@ -157,7 +157,7 @@ void glTexImage2D(GLenum target, GLint level, GLint internalformat, GLsizei widt
 {
 	if (
 		target != GL_TEXTURE_2D ||
-		format < GL_ALPHA || format > GL_LUMINANCE_ALPHA ||
+		/*format < GL_ALPHA ||*/ format > GL_LUMINANCE_ALPHA ||
 		internalformat < GL_ALPHA || internalformat > GL_LUMINANCE_ALPHA ||
 		(type != GL_UNSIGNED_BYTE && (type < GL_UNSIGNED_SHORT_5_6_5 || type > GL_UNSIGNED_SHORT_5_5_5_1))
 	) {
@@ -214,7 +214,7 @@ void glDeleteTextures(GLsizei n, GLuint const *textures)
 
 void glActiveTexture(GLenum texture)
 {
-	if (texture < GL_TEXTURE0 || texture > GL_TEXTURE0+GLI_MAX_TEXTURE_UNITS) {
+	if (/*texture < GL_TEXTURE0 ||*/ texture > GL_TEXTURE0+GLI_MAX_TEXTURE_UNITS) {
 		return gli_set_error(GL_INVALID_ENUM);
 	}
 	active_texture_unit = texture-GL_TEXTURE0;

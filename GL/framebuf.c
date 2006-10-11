@@ -81,7 +81,7 @@ void glScissor(GLint x, GLint y, GLsizei width, GLsizei height)
 
 void glAlphaFuncx(GLenum func, GLclampx ref)
 {
-	if (func < GL_NEVER || func > GL_ALWAYS) {
+	if (/*func < GL_NEVER ||*/ func > GL_ALWAYS) {
 		return gli_set_error(GL_INVALID_ENUM);
 	}
 	CLAMP(ref, 0, 0x10000);
@@ -91,7 +91,7 @@ void glAlphaFuncx(GLenum func, GLclampx ref)
 
 void glStencilFunc(GLenum func, GLint ref, GLuint mask)
 {
-	if (func < GL_NEVER || func > GL_ALWAYS) {
+	if (/*func < GL_NEVER ||*/ func > GL_ALWAYS) {
 		return gli_set_error(GL_INVALID_ENUM);
 	}
 #	if GLI_STENCIL_BITS > 0
@@ -116,7 +116,7 @@ void glStencilOp(GLenum fail, GLenum zfail, GLenum zpass)
 
 void glDepthFunc(GLenum func)
 {
-	if (func < GL_NEVER || func > GL_ALWAYS) {
+	if (/*func < GL_NEVER ||*/ func > GL_ALWAYS) {
 		return gli_set_error(GL_INVALID_ENUM);
 	}
 	depth_func = func;
