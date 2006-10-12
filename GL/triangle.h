@@ -15,24 +15,12 @@
  * along with gpu940; if not, write to the Free Software
  * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
  */
-#ifndef GL_COLORS_H_061010
-#define GL_COLORS_H_061010
+#ifndef GL_TRIANGLE_H_061012
+#define GL_TRIANGLE_H_061012
 
-struct gli_light {
-	GLboolean enabled;
-	GLfixed spot_exponent, spot_cutoff, constant_attenuation, linear_attenuation, quadratic_attenuation;
-	GLfixed ambient[4], diffuse[4], specular[4], position[4], spot_direction[4];
-};
+int gli_triangle_begin(void);
+static inline void gli_triangle_end(void) {}
 
-struct gli_material {
-	GLfixed shininess;
-	GLfixed ambient[4], diffuse[4], specular[4], emission[4];
-};
-
-int gli_colors_begin(void);
-static inline void gli_colors_end(void) { }
-void gli_light_enable(GLenum light);
-void gli_light_disable(GLenum light);
-uint32_t gli_color_get(void);
+void gli_triangle_array(enum gli_DrawMode mode, GLint first, unsigned count);
 
 #endif

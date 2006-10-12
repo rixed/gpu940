@@ -16,7 +16,9 @@
  * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
  */
 #include "gli.h"
+#include <stdlib.h>
 #include <string.h>
+#include <assert.h>
 
 /*
  * Data Definitions
@@ -28,6 +30,24 @@ static unsigned gli_active_texture;
 /*
  * Private Functions
  */
+
+static size_t sizeof_type(enum gli_Types type)
+{
+	switch (type) {
+		case GL_UNSIGNED_BYTE:
+			return sizeof(GLubyte);
+		case GL_FIXED:
+			return sizeof(GLfixed);
+		case GL_BYTE:
+			return sizeof(GLbyte);
+		case GL_SHORT:
+			return sizeof(GLshort);
+		case GL_FLOAT:
+		default:
+			assert(0);
+			return 0;
+	}
+}
 
 static void set_array(struct array *arr, GLint size, GLenum type, GLsizei stride, GLvoid const *pointer, GLint min_size, GLint max_size, enum gli_Types const *allowed_types, unsigned nb_allowed_types)
 {
@@ -50,6 +70,7 @@ static void set_array(struct array *arr, GLint size, GLenum type, GLsizei stride
 		arr->stride = stride;
 		arr->ptr = pointer;
 		arr->size = size;
+		arr->raw_size = size*sizeof_type(type)+stride;
 	}
 }
 
@@ -91,6 +112,42 @@ int gli_arrays_begin(void)
 }
 
 extern  inline void gli_arrays_end(void);
+
+void gli_vertex_get(GLint idx, int32_t c[4])
+{
+	void const *v_ = (char *)vertexes.ptr + idx*vertexes.raw_size;
+	switch (vertexes.type) {
+		case GL_BYTE:
+			{
+				GLbyte const *v = v_;
+				c[0] = v[0]<<16;
+				c[1] = v[1]<<16;
+				c[2] = v[2]<<16;
+				c[3] = vertexes.size > 3 ? v[3]<<16 : 1<<16;
+			}
+			break;
+		case GL_SHORT:
+			{
+				GLshort const *v = v_;
+				c[0] = v[0]<<16;
+				c[1] = v[1]<<16;
+				c[2] = v[2]<<16;
+				c[3] = vertexes.size > 3 ? v[3]<<16 : 1<<16;
+			}
+			break;
+		case GL_FIXED:
+			{
+				GLfixed const *v = v_;
+				c[0] = v[0];
+				c[1] = v[1];
+				c[2] = v[2];
+				c[3] = vertexes.size > 3 ? v[3] : 1<<16;
+			}
+			break;
+		default:
+			assert(0);
+	}
+}
 
 void glColorPointer(GLint size, GLenum type, GLsizei stride, GLvoid const *pointer)
 {
@@ -137,14 +194,17 @@ void glDisableClientState(GLenum array)
 
 void glDrawArrays(GLenum mode, GLint first, GLsizei count)
 {
-	// TODO
-	// for triangles, call gli_triangle with 3 vertexes, normals, colors and texcoords
-	// (NULL if not set), of GLfixed type and size=4.
-	// The same for lines (2 vertexes etc) and points (1 vertex etc).
-	// gli_triangle/point/line performs rotation, culling, fog and lightning.
-	(void)mode;
-	(void)first;
-	(void)count;
+	if (/* mode < GL_POINTS ||*/ mode > GL_TRIANGLES) {
+		return gli_set_error(GL_INVALID_ENUM);
+	}
+	if (count < 0) {
+		return gli_set_error(GL_INVALID_VALUE);
+	}
+	if (mode >= GL_TRIANGLE_STRIP) {
+		gli_triangle_array(mode, first, count);
+	} else {
+		// TODO
+	}
 }
 
 void glDrawElements(GLenum mode, GLsizei count, GLenum type, GLvoid const *indices)

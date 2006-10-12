@@ -26,6 +26,8 @@
 typedef enum { GL_FALSE, GL_TRUE } GLboolean;
 typedef unsigned GLenum;
 typedef uint8_t GLubyte;
+typedef int8_t GLbyte;
+typedef int16_t GLshort;
 typedef int GLint;
 typedef ssize_t GLsizei;
 typedef void GLvoid;

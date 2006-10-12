@@ -12,3 +12,4 @@ raster.lo
 state.lo
 texture.lo
 transfo.lo
+triangle.lo

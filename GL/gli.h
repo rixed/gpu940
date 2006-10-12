@@ -39,5 +39,6 @@
 #include "modes.h"
 #include "framebuf.h"
 #include "texture.h"
+#include "triangle.h"
 
 #endif

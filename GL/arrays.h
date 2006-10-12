@@ -19,16 +19,16 @@
 #define ARRAYS_H_061009
 
 struct array {
-	const GLvoid *ptr;
+	GLvoid const *ptr;
 	GLsizei stride;
 	enum gli_Types type;
 	GLint size;
+	size_t raw_size;
 	unsigned enabled:1;
 };
 
 int gli_arrays_begin(void);
 static inline void gli_arrays_end(void) {}
-
-// get_veretxes(), etc...
+void gli_vertex_get(GLint idx, int32_t c[4]);
 
 #endif

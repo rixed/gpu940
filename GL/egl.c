@@ -41,6 +41,7 @@ GLboolean glOpen(void)
 		gli_modes_begin,
 		gli_framebuf_begin,
 		gli_texture_begin,
+		gli_triangle_begin,
 	};
 	for (unsigned i=0; i<sizeof_array(begins); i++) {
 		if (0 != begins[i]()) {
@@ -60,6 +61,7 @@ void glClose(void)
 	(void)gli_modes_end();
 	(void)gli_framebuf_end();
 	(void)gli_texture_end();
+	(void)gli_triangle_end();
 	gpuClose();
 }
 
