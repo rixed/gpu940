@@ -65,13 +65,11 @@ static void set_array(struct array *arr, GLint size, GLenum type, GLsizei stride
 		arr->ptr = NULL;
 		return;
 	}
-	if (arr->enabled) {
-		arr->type = type;
-		arr->stride = stride;
-		arr->ptr = pointer;
-		arr->size = size;
-		arr->raw_size = size*sizeof_type(type)+stride;
-	}
+	arr->type = type;
+	arr->stride = stride;
+	arr->ptr = pointer;
+	arr->size = size;
+	arr->raw_size = size*sizeof_type(type)+stride;
 }
 
 static void set_enable(GLenum array, int bit)

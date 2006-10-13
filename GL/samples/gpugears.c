@@ -53,7 +53,7 @@ static void addVertex(GLfixed *arr, unsigned *c, GLfixed x, GLfixed y, GLfixed z
 	arr[3**c+0] = x;
 	arr[3**c+1] = y;
 	arr[3**c+2] = z;
-	*c++;
+	(*c)++;
 }
 		
 /*
@@ -73,9 +73,6 @@ static void gear(GLfixed **dest, unsigned *count, GLfixed inner_radius, GLfixed 
 	GLfixed r0, r1, r2;
 	GLfixed angle, da;
 	//GLfixed u, v, len;
-	unsigned nb_vec = 1000;
-	*dest = malloc(nb_vec*sizeof(GLfixed));
-	assert(*dest);
 
 	r0 = inner_radius;
 	r1 = (outer_radius - tooth_depth) >> 1;
@@ -203,7 +200,7 @@ static void draw(void)
 	glTranslatex(-3<<16, -2<<16, 0);
 	glRotatex(angle, 0, 0, 1<<16);
 	glMaterialxv(GL_FRONT, GL_AMBIENT_AND_DIFFUSE, red);
-	//gear(1<<16, 4<<16, 1<<16, 20, 45875);
+	gear(&gear1, &gear1_count, 1<<16, 4<<16, 1<<16, 20, 45875);
 	glVertexPointer(3, GL_FIXED, 0, gear1);
 	glDrawArrays(GL_TRIANGLE_STRIP, 0, gear1_count);
 	glPopMatrix();
@@ -212,7 +209,7 @@ static void draw(void)
 	glTranslatex(203162, -2<<16, 0);
 	glRotatex(Fix_mul(-2<<16, angle) - (9<<16), 0, 0, 1<<16);
 	glMaterialxv(GL_FRONT, GL_AMBIENT_AND_DIFFUSE, green);
-	//gear(1<<15, 2<<16, 2<<16, 10, 45875);
+	gear(&gear2, &gear2_count, 1<<15, 2<<16, 2<<16, 10, 45875);
 	glVertexPointer(3, GL_FIXED, 0, gear2);
 	glDrawArrays(GL_TRIANGLE_STRIP, 0, gear2_count);
 	glPopMatrix();
@@ -221,7 +218,7 @@ static void draw(void)
 	glTranslatex(-203162, 275251, 0);
 	glRotatex(Fix_mul(-2<<16, angle) - (25<<16), 0, 0, 1<<16);
 	glMaterialxv(GL_FRONT, GL_AMBIENT_AND_DIFFUSE, blue);
-	//gear(85197, 2<<16, 1<<15, 10, 45875);
+	gear(&gear3, &gear3_count, 85197, 2<<16, 1<<15, 10, 45875);
 	glVertexPointer(3, GL_FIXED, 0, gear3);
 	glDrawArrays(GL_TRIANGLE_STRIP, 0, gear3_count);
 	glPopMatrix();
@@ -234,16 +231,21 @@ static void init(void)
 {
 	static GLfixed pos[4] = { 5<<16, 5<<16, 10<<16, 0 };
 
-	gear(&gear1, &gear1_count, 1<<16, 4<<16, 1<<16, 20, 45875);
-	gear(&gear2, &gear2_count, 1<<15, 2<<16, 2<<16, 10, 45875);
-	gear(&gear3, &gear3_count, 85197, 2<<16, 1<<15, 10, 45875);
-	
 	glLightxv(GL_LIGHT0, GL_POSITION, pos);
 	glEnable(GL_CULL_FACE);
 	glEnable(GL_LIGHTING);
 	glEnable(GL_LIGHT0);
 	glEnable(GL_DEPTH_TEST);
 	glEnable(GL_NORMALIZE);
+	glEnable(GL_VERTEX_ARRAY);
+
+	unsigned nb_vec = 1000;
+	gear1 = malloc(nb_vec*sizeof(GLfixed));
+	assert(gear1);
+	gear2 = malloc(nb_vec*sizeof(GLfixed));
+	assert(gear2);
+	gear3 = malloc(nb_vec*sizeof(GLfixed));
+	assert(gear3);
 }
 
 
@@ -257,6 +259,14 @@ static void make_window(void)
 		printf("Error: couldn't init GPU\n");
 		exit(1);
 	}
+//	GLfloat h = (GLfloat) height / (GLfloat) width;
+//	glViewport(0, 0, (GLint) width, (GLint) height);
+//	glMatrixMode(GL_PROJECTION);
+//	glLoadIdentity();
+//	glFrustum(-1.0, 1.0, -h, h, 5.0, 60.0);
+	glMatrixMode(GL_MODELVIEW);
+	glLoadIdentity();
+	glTranslatex(0, 0, -40<<16);
 }
 
 static void destroy_window(void)
@@ -319,7 +329,7 @@ static void event_loop(void)
 
 			frames++;
 
-			if (t - t0 >= 5) {
+			if (t - t0 >= 1) {
 				int seconds = t - t0;
 				int fps = frames / seconds;
 				printf("%d frames in %d seconds = %d FPS\n", frames, seconds, fps);
