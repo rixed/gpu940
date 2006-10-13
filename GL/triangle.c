@@ -97,6 +97,8 @@ void gli_triangle_array(enum gli_DrawMode mode, GLint first, unsigned count)
 
 void gli_clear(GLclampx colors[4])
 {
+	// Won't work with user clip planes
+	// Better implement a true fill function
 	static gpuCmdVector vec_bg[] = {
 		{ .geom = { .c3d = { -10<<16, -10<<16, -257 } }, },
 		{ .geom = { .c3d = {  10<<16, -10<<16, -257 } }, },

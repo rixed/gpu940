@@ -85,7 +85,7 @@ GLboolean glSwapBuffers(void)
 			return GL_FALSE;
 		}
 		// wait until this buffer is actually on display
-		gpuWaitDisplay();
+		//gpuWaitDisplay();
 		active_out_buffer = !active_out_buffer;
 	}
 	if (gpuOK != gpuSetOutBuf(out_buffer[active_out_buffer], true)) {
