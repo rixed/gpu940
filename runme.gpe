@@ -6,6 +6,7 @@ sync
 (cd /usr/gp2x; ./gp2xmenu& sleep 6; killall gp2xmenu)&
 sleep 3
 ./load940 gpu940
+#cpu_speed.gpe --upll --timing 1 --cpuclk 266 --trc 6 --tras 4 --twr 1 --tmrd 1 --trfc 1 --trp 2 --trcd 2
 ./codealone
 sleep 3
 cd /usr/gp2x; ./gp2xmenu

@@ -21,6 +21,9 @@
  * Data Definitions
  */
 
+static struct gpuBuf *out_buffer[2];
+static unsigned active_out_buffer;
+
 /*
  * Private Functions
  */
@@ -48,7 +51,13 @@ GLboolean glOpen(void)
 			return GL_FALSE;
 		}
 	}
-	return gpuOK == gpuOpen() ? GL_TRUE:GL_FALSE;
+	if (gpuOK != gpuOpen()) {
+		return GL_FALSE;
+	}
+	out_buffer[0] = gpuAlloc(9, 250, true);
+	out_buffer[1] = gpuAlloc(9, 250, true);
+	active_out_buffer = ~0U;
+	return glSwapBuffers();
 }
 
 void glClose(void)
@@ -62,6 +71,25 @@ void glClose(void)
 	(void)gli_framebuf_end();
 	(void)gli_texture_end();
 	(void)gli_triangle_end();
+	gpuFree(out_buffer[0]);
+	gpuFree(out_buffer[1]);
 	gpuClose();
+}
+
+GLboolean glSwapBuffers(void)
+{
+	if (active_out_buffer == ~0U) {
+		active_out_buffer = 0;
+	} else {
+		if (gpuOK != gpuShowBuf(out_buffer[active_out_buffer], true)) {
+			return GL_FALSE;
+		}
+		active_out_buffer = !active_out_buffer;
+	}
+	if (gpuOK != gpuSetOutBuf(out_buffer[active_out_buffer], true)) {
+		return GL_FALSE;
+	}
+	// TODO: synchronize ?
+	return GL_TRUE;
 }
 

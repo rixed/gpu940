@@ -306,7 +306,7 @@ static void event_loop(void)
 		angle += 2<<16;
 
 		draw();
-	//	glXSwapBuffers(dpy, win);
+		glSwapBuffers();
 
 		/* calc framerate */
 		{

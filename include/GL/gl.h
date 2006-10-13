@@ -39,6 +39,7 @@ typedef unsigned GLuint;
 // Replaces GLX, EGL, ...
 GLboolean glOpen(void);
 void glClose(void);
+GLboolean glSwapBuffers(void);
 
 // Primitives
 
