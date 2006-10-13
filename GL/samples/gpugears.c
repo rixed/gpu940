@@ -67,20 +67,24 @@ static void addVertex(GLfixed *arr, unsigned *c, GLfixed x, GLfixed y, GLfixed z
  *          teeth - number of teeth
  *          tooth_depth - depth of tooth
  */
+
+
+// TODO : utiliser un seul static tableau pour les points, et mettre le DrawArray dans le gear().
+// Ainsi, on peut faire plusieurs DrawArray, utiliser les normales, et tantot des STRIP tantot des TRIANGLE.
 static void gear(GLfixed **dest, unsigned *count, GLfixed inner_radius, GLfixed outer_radius, GLfixed width, GLint teeth, GLfixed tooth_depth)
 {
 	GLint i;
 	GLfixed r0, r1, r2;
 	GLfixed angle, da;
-	//GLfixed u, v, len;
+	GLfixed u, v, len;
 
 	r0 = inner_radius;
-	r1 = (outer_radius - tooth_depth) >> 1;
-	r2 = (outer_radius + tooth_depth) >> 1;
+	r1 = outer_radius - (tooth_depth >> 1);
+	r2 = outer_radius + (tooth_depth >> 1);
 
 	da = (FIXED_PI/teeth) >> 1;
 
-	glShadeModel(GL_FLAT);
+	*count = 0;
 
 //	glNormal3x(0, 0, 1<<16);
 	/* draw front face */
@@ -132,54 +136,41 @@ static void gear(GLfixed **dest, unsigned *count, GLfixed inner_radius, GLfixed 
 	}
 	glEnd();
 #endif
-#if 0
-	/* draw outward faces of teeth */
-	glBegin(GL_QUAD_STRIP);
-	for (i = 0; i < teeth; i++) {
-		angle = i * 2.0 * M_PI / teeth;
 
-		glVertex3f(r1 * Fix_cos(angle), r1 * Fix_sin(angle), width * 0.5);
-		glVertex3f(r1 * Fix_cos(angle), r1 * Fix_sin(angle), -width * 0.5);
-		u = r2 * Fix_cos(angle + da) - r1 * Fix_cos(angle);
-		v = r2 * Fix_sin(angle + da) - r1 * Fix_sin(angle);
-		len = sqrt(u * u + v * v);
-		u /= len;
-		v /= len;
-		glNormal3f(v, -u, 0.0);
-		glVertex3f(r2 * Fix_cos(angle + da), r2 * Fix_sin(angle + da), width * 0.5);
-		glVertex3f(r2 * Fix_cos(angle + da), r2 * Fix_sin(angle + da), -width * 0.5);
-		glNormal3f(Fix_cos(angle), Fix_sin(angle), 0.0);
-		glVertex3f(r2 * Fix_cos(angle + 2 * da), r2 * Fix_sin(angle + 2 * da),
-				width * 0.5);
-		glVertex3f(r2 * Fix_cos(angle + 2 * da), r2 * Fix_sin(angle + 2 * da),
-				-width * 0.5);
-		u = r1 * Fix_cos(angle + 3 * da) - r2 * Fix_cos(angle + 2 * da);
-		v = r1 * Fix_sin(angle + 3 * da) - r2 * Fix_sin(angle + 2 * da);
-		glNormal3f(v, -u, 0.0);
-		glVertex3f(r1 * Fix_cos(angle + 3 * da), r1 * Fix_sin(angle + 3 * da),
-				width * 0.5);
-		glVertex3f(r1 * Fix_cos(angle + 3 * da), r1 * Fix_sin(angle + 3 * da),
-				-width * 0.5);
-		glNormal3f(Fix_cos(angle), Fix_sin(angle), 0.0);
+	/* draw outward faces of teeth */
+	for (i = 0; i < teeth; i++) {
+		angle = i * 2 * FIXED_PI / teeth;
+		addVertex(*dest, count, Fix_mul(r1, Fix_cos(angle)), Fix_mul(r1, Fix_sin(angle)), width>>1);
+		addVertex(*dest, count, Fix_mul(r1, Fix_cos(angle)), Fix_mul(r1, Fix_sin(angle)), -width>>1);
+		u = Fix_mul(r2, Fix_cos(angle + da)) - Fix_mul(r1, Fix_cos(angle));
+		v = Fix_mul(r2, Fix_sin(angle + da)) - Fix_mul(r1, Fix_sin(angle));
+		len = Fix_sqrt(Fix_mul(u, u) + Fix_mul(v, v));
+		u = Fix_div(u, len);
+		v = Fix_div(v, len);
+		//glNormal3f(v, -u, 0.0);
+		addVertex(*dest, count, Fix_mul(r2, Fix_cos(angle + da)), Fix_mul(r2, Fix_sin(angle + da)), width>>1);
+		addVertex(*dest, count, Fix_mul(r2, Fix_cos(angle + da)), Fix_mul(r2, Fix_sin(angle + da)), -width>>1);
+		//glNormal3f(Fix_cos(angle), Fix_sin(angle), 0.0);
+		addVertex(*dest, count, Fix_mul(r2, Fix_cos(angle + 2 * da)), Fix_mul(r2, Fix_sin(angle + 2 * da)), width>>1);
+		addVertex(*dest, count, Fix_mul(r2, Fix_cos(angle + 2 * da)), Fix_mul(r2, Fix_sin(angle + 2 * da)), -width>>1);
+		u = Fix_mul(r1, Fix_cos(angle + 3 * da)) - Fix_mul(r2, Fix_cos(angle + 2 * da));
+		v = Fix_mul(r1, Fix_sin(angle + 3 * da)) - Fix_mul(r2, Fix_sin(angle + 2 * da));
+		//glNormal3f(v, -u, 0.0);
+		addVertex(*dest, count, Fix_mul(r1, Fix_cos(angle + 3 * da)), Fix_mul(r1, Fix_sin(angle + 3 * da)), width>>1);
+		addVertex(*dest, count, Fix_mul(r1, Fix_cos(angle + 3 * da)), Fix_mul(r1, Fix_sin(angle + 3 * da)), -width>>1);
+		//glNormal3f(Fix_cos(angle), Fix_sin(angle), 0.0);
 	}
 
-	glVertex3f(r1 * Fix_cos(0), r1 * Fix_sin(0), width * 0.5);
-	glVertex3f(r1 * Fix_cos(0), r1 * Fix_sin(0), -width * 0.5);
-
-	glEnd();
-
-	glShadeModel(GL_SMOOTH);
+	addVertex(*dest, count, Fix_mul(r1, Fix_cos(0)), Fix_mul(r1, Fix_sin(0)), width>>1);
+	addVertex(*dest, count, Fix_mul(r1, Fix_cos(0)), Fix_mul(r1, Fix_sin(0)), -width>>1);
 
 	/* draw inside radius cylinder */
-	glBegin(GL_QUAD_STRIP);
 	for (i = 0; i <= teeth; i++) {
-		angle = i * 2.0 * M_PI / teeth;
-		glNormal3f(-Fix_cos(angle), -Fix_sin(angle), 0.0);
-		glVertex3f(r0 * Fix_cos(angle), r0 * Fix_sin(angle), -width * 0.5);
-		glVertex3f(r0 * Fix_cos(angle), r0 * Fix_sin(angle), width * 0.5);
+		angle = i * 2 * FIXED_PI / teeth;
+		addVertex(*dest, count, -Fix_cos(angle), -Fix_sin(angle), 0);
+		addVertex(*dest, count, Fix_mul(r0, Fix_cos(angle)), Fix_mul(r0, Fix_sin(angle)), -width>>1);
+		addVertex(*dest, count, Fix_mul(r0, Fix_cos(angle)), Fix_mul(r0, Fix_sin(angle)), width>>1);
 	}
-	glEnd();
-#endif
 }
 
 
@@ -199,7 +190,8 @@ static void draw(void)
 	glPushMatrix();
 	glTranslatex(-3<<16, -2<<16, 0);
 	glRotatex(angle, 0, 0, 1<<16);
-	glMaterialxv(GL_FRONT, GL_AMBIENT_AND_DIFFUSE, red);
+	//glMaterialxv(GL_FRONT, GL_AMBIENT_AND_DIFFUSE, red);
+	glColor4x(52429, 6554, 0, 1<<16);	// implements lighting
 	gear(&gear1, &gear1_count, 1<<16, 4<<16, 1<<16, 20, 45875);
 	glVertexPointer(3, GL_FIXED, 0, gear1);
 	glDrawArrays(GL_TRIANGLE_STRIP, 0, gear1_count);
@@ -208,7 +200,8 @@ static void draw(void)
 	glPushMatrix();
 	glTranslatex(203162, -2<<16, 0);
 	glRotatex(Fix_mul(-2<<16, angle) - (9<<16), 0, 0, 1<<16);
-	glMaterialxv(GL_FRONT, GL_AMBIENT_AND_DIFFUSE, green);
+	//glMaterialxv(GL_FRONT, GL_AMBIENT_AND_DIFFUSE, green);
+	glColor4x(0, 52429, 13107, 1<<16);
 	gear(&gear2, &gear2_count, 1<<15, 2<<16, 2<<16, 10, 45875);
 	glVertexPointer(3, GL_FIXED, 0, gear2);
 	glDrawArrays(GL_TRIANGLE_STRIP, 0, gear2_count);
@@ -217,7 +210,8 @@ static void draw(void)
 	glPushMatrix();
 	glTranslatex(-203162, 275251, 0);
 	glRotatex(Fix_mul(-2<<16, angle) - (25<<16), 0, 0, 1<<16);
-	glMaterialxv(GL_FRONT, GL_AMBIENT_AND_DIFFUSE, blue);
+	//glMaterialxv(GL_FRONT, GL_AMBIENT_AND_DIFFUSE, blue);
+	glColor4x(13107, 13107, 1<<16, 1<<16);
 	gear(&gear3, &gear3_count, 85197, 2<<16, 1<<15, 10, 45875);
 	glVertexPointer(3, GL_FIXED, 0, gear3);
 	glDrawArrays(GL_TRIANGLE_STRIP, 0, gear3_count);
@@ -238,6 +232,7 @@ static void init(void)
 	glEnable(GL_DEPTH_TEST);
 	glEnable(GL_NORMALIZE);
 	glEnable(GL_VERTEX_ARRAY);
+	glShadeModel(GL_FLAT);
 
 	unsigned nb_vec = 1000;
 	gear1 = malloc(nb_vec*sizeof(GLfixed));
@@ -266,7 +261,7 @@ static void make_window(void)
 //	glFrustum(-1.0, 1.0, -h, h, 5.0, 60.0);
 	glMatrixMode(GL_MODELVIEW);
 	glLoadIdentity();
-	glTranslatex(0, 0, -40<<16);
+	glTranslatex(0, 0, -10<<16); //-40<<16);
 }
 
 static void destroy_window(void)
@@ -313,7 +308,7 @@ static void event_loop(void)
 #endif
 
 		/* next frame */
-		angle += 2<<16;
+		angle += 1<<8;//2<<16;
 
 		draw();
 		glSwapBuffers();

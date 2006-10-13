@@ -57,9 +57,8 @@ static void send_triangle()
 int gli_triangle_begin(void)
 {
 	cmdFacet.opcode = gpuFACET;
-	cmdFacet.size = 3;
 	cmdFacet.perspective = 0;
-	// TODO: Init a OutBuffer
+	cmdFacet.size = 3;
 	return 0;
 }
 
@@ -69,7 +68,14 @@ void gli_triangle_array(enum gli_DrawMode mode, GLint first, unsigned count)
 {
 	if (count < 3) return;
 	// for now, all in flat shading, copying color at each array
-	cmdFacet.color = gli_color_get();
+	GLfixed const *c = gli_color_get();
+	unsigned r = c[0]>>8;
+	unsigned g = c[1]>>8;
+	unsigned b = c[2]>>8;
+	CLAMP(r, 0, 0xFF);
+	CLAMP(g, 0, 0xFF);
+	CLAMP(b, 0, 0xFF);	
+	cmdFacet.color = gpuColor(r, g, b);
 	cmdFacet.rendering_type = rendering_c;
 	GLint const last = first + count;
 	facet_is_direct = true;
@@ -87,4 +93,31 @@ void gli_triangle_array(enum gli_DrawMode mode, GLint first, unsigned count)
 		send_triangle();
 		if (++ repl_idx > 2) repl_idx = mode == GL_TRIANGLE_FAN ? 1:0;
 	}
+}
+
+void gli_clear(GLclampx colors[4])
+{
+	static gpuCmdVector vec_bg[] = {
+		{ .geom = { .c3d = { -10<<16, -10<<16, -257 } }, },
+		{ .geom = { .c3d = {  10<<16, -10<<16, -257 } }, },
+		{ .geom = { .c3d = {  10<<16,  10<<16, -257 } }, },
+		{ .geom = { .c3d = { -10<<16,  10<<16, -257 } }, },
+	};
+	static gpuCmdFacet facet_bg = {
+		.opcode = gpuFACET,
+		.size = sizeof_array(vec_bg),
+		.color = 0,
+		.rendering_type = rendering_c,
+		.perspective = 0,
+	};
+	static struct iovec cmdvec[1+4] = {
+		{ .iov_base = &facet_bg, .iov_len = sizeof(facet_bg) },	// first facet to clear the background
+		{ .iov_base = vec_bg+0, .iov_len = sizeof(*vec_bg) },
+		{ .iov_base = vec_bg+1, .iov_len = sizeof(*vec_bg) },
+		{ .iov_base = vec_bg+2, .iov_len = sizeof(*vec_bg) },
+		{ .iov_base = vec_bg+3, .iov_len = sizeof(*vec_bg) }
+	};
+	facet_bg.color = gpuColor((colors[0]>>8)&0xFF, (colors[1]>>8)&0xFF, (colors[2]>>8)&0xFF);
+	gpuErr err = gpuWritev(cmdvec, sizeof_array(cmdvec), true);
+	assert(gpuOK == err);
 }

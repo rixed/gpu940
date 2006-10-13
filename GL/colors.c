@@ -75,9 +75,9 @@ int gli_colors_begin(void)
 
 extern inline void gli_colors_end(void);
 
-uint32_t gli_color_get(void)
+GLfixed const *gli_color_get(void)
 {
-	return 0x123456;	// TODO
+	return color;
 }
 
 void gli_light_enable(GLenum light)

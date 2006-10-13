@@ -69,7 +69,7 @@ void Fix_proj(int32_t c2d[2], int32_t const c3d[3], int dproj);
 
 int64_t Fix_mul64x64(int64_t v, int64_t w);
 
-#define FIXED_PI 205887
+#define FIXED_PI 32768	// 2*PI is 1<<16 for these functions
 void Fix_trig_init(void);
 // These returns 16.16 as usual
 int32_t Fix_cos(int32_t ang);

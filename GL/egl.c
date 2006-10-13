@@ -84,12 +84,13 @@ GLboolean glSwapBuffers(void)
 		if (gpuOK != gpuShowBuf(out_buffer[active_out_buffer], true)) {
 			return GL_FALSE;
 		}
+		// wait until this buffer is actually on display
+		gpuWaitDisplay();
 		active_out_buffer = !active_out_buffer;
 	}
 	if (gpuOK != gpuSetOutBuf(out_buffer[active_out_buffer], true)) {
 		return GL_FALSE;
 	}
-	// TODO: synchronize ?
 	return GL_TRUE;
 }
 

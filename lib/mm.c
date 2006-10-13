@@ -189,3 +189,8 @@ struct buffer_loc const *gpuBuf_get_loc(struct gpuBuf const *buf) {
 	return &buf->loc;
 }
 
+void gpuWaitDisplay(void) {
+	while (my_frame_count > shared->frame_count) {
+		(void)sched_yield();
+	}
+}

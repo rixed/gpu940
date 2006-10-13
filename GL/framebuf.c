@@ -84,7 +84,7 @@ void glAlphaFuncx(GLenum func, GLclampx ref)
 	if (/*func < GL_NEVER ||*/ func > GL_ALWAYS) {
 		return gli_set_error(GL_INVALID_ENUM);
 	}
-	CLAMP(ref, 0, 0x10000);
+	CLAMP(ref, 0, 0xFFFF);
 	alpha_func = func;
 	alpha_ref = ref;
 }
@@ -95,7 +95,7 @@ void glStencilFunc(GLenum func, GLint ref, GLuint mask)
 		return gli_set_error(GL_INVALID_ENUM);
 	}
 #	if GLI_STENCIL_BITS > 0
-	CLAMP(ref, 0, (1<<(GLI_STENCIL_BITS-1)));
+	CLAMP(ref, 0, (1<<(GLI_STENCIL_BITS-1))-1);
 #	else
 	ref = 0;
 #	endif
@@ -140,15 +140,18 @@ void glClear(GLbitfield mask)
 	if (mask & ~(GL_COLOR_BUFFER_BIT|GL_DEPTH_BUFFER_BIT|GL_STENCIL_BUFFER_BIT)) {
 		return gli_set_error(GL_INVALID_VALUE);
 	}
-	// TODO
+	if (mask & GL_COLOR_BUFFER_BIT) {
+		gli_clear(clear_colors);
+	}
+	// TODO clear ZBuffer
 }
 
 void glClearColorx(GLclampx red, GLclampx green, GLclampx blue, GLclampx alpha)
 {
-	CLAMP(red, 0, 0x10000);
-	CLAMP(green, 0, 0x10000);
-	CLAMP(blue, 0, 0x10000);
-	CLAMP(alpha, 0, 0x10000);
+	CLAMP(red, 0, 0xFFFF);
+	CLAMP(green, 0, 0xFFFF);
+	CLAMP(blue, 0, 0xFFFF);
+	CLAMP(alpha, 0, 0xFFFF);
 	clear_colors[0] = red;
 	clear_colors[1] = green;
 	clear_colors[2] = blue;
@@ -157,7 +160,7 @@ void glClearColorx(GLclampx red, GLclampx green, GLclampx blue, GLclampx alpha)
 
 void glClearDepthx(GLclampx depth)
 {
-	CLAMP(depth, 0, 0x10000);
+	CLAMP(depth, 0, 0xFFFF);
 	clear_depth = depth;
 }
 

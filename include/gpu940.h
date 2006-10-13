@@ -205,5 +205,6 @@ gpuErr gpuSetTxtBuf(struct gpuBuf *buf, bool can_wait);
 gpuErr gpuSetZBuf(struct gpuBuf *buf, bool can_wait);
 gpuErr gpuShowBuf(struct gpuBuf *buf, bool can_wait);
 struct buffer_loc const *gpuBuf_get_loc(struct gpuBuf const *buf);
+void gpuWaitDisplay(void);
 
 #endif
