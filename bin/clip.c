@@ -48,9 +48,12 @@ static int clip_facet_by_plane(unsigned p) {
 	unsigned v = ctx.poly.first_vector;
 	unsigned last_in = ~0U;
 	unsigned new_v[2], nb_new_v = 0;
+	// We spend most of our time in the following loop, computing h.
+	// In fact we barely need h but it's sign.
 	do {
 		ctx.poly.vectors[v].h = 0;
 		for (unsigned c=3; c--; ) {
+			if (0 == ctx.view.clipPlanes[p].normal[c]) continue;	// frequent case
 			int32_t const ov = ctx.poly.vectors[v].cmdVector.geom.c3d[c] - ctx.view.clipPlanes[p].origin[c];
 			ctx.poly.vectors[v].h += ((int64_t)ov*ctx.view.clipPlanes[p].normal[c])>>16;
 		}

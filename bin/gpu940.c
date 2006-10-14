@@ -330,7 +330,7 @@ static void do_showBuf(void) {
 	displist[displist_end] = allCmds.showBuf.loc;
 	displist_end = next_displist_end;
 #ifndef GP2X
-//	vertical_interrupt();
+	vertical_interrupt();
 #endif
 }
 static void do_point(void) {}
@@ -589,7 +589,7 @@ quit:;
 #else
 static void alrm_handler(int dummy) {
 	(void)dummy;
-	vertical_interrupt();
+	//vertical_interrupt();
 }
 int main(void) {
 	if (-1 == perftime_begin(0, NULL, 0)) return EXIT_FAILURE;
@@ -627,10 +627,10 @@ int main(void) {
 			.tv_usec = 20000,
 		},
 	};
-	if (0 != setitimer(ITIMER_REAL, &itimer, NULL)) {
+/*	if (0 != setitimer(ITIMER_REAL, &itimer, NULL)) {
 		perror("setitimer");
 		return EXIT_FAILURE;
-	}
+	}*/
 	console_begin();
 	console_setup();
 	run();

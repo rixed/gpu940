@@ -42,28 +42,20 @@ typedef void (*draw_line_t)(void);
 #define max(a,b) ((a)>(b) ? (a):(b))
 static void draw_line(void) {
 	int32_t c_start, c_stop;
-	if (ctx.trap.side[0].c < ctx.trap.side[1].c) {
-		c_start = min(ctx.trap.side[0].c, ctx.trap.side[0].c_next)>>16;
-		c_stop = max(ctx.trap.side[1].c, ctx.trap.side[1].c_next)>>16;
-	} else {
-		c_start = max(ctx.trap.side[0].c, ctx.trap.side[0].c_next)>>16;
-		c_stop = min(ctx.trap.side[1].c, ctx.trap.side[1].c_next)>>16;
-	}
+	c_start = ctx.trap.side[ctx.trap.left_side].c>>16;
+	c_stop = ctx.trap.side[!ctx.trap.left_side].c>>16;	// TODO: +1 if fractionnal
 	ctx.line.dw = 4;
 	ctx.line.ddecliv = ctx.poly.decliveness;
-	unsigned left_side = 0, right_side = 1;
-	if ( c_stop < c_start ) {
-		SWAP(int32_t, c_stop, c_start);
-		left_side = 1;
-		right_side = 0;
+	if ( c_stop < c_start ) {	// may happen on some pathological cases ?
+		return;
 	}
 	ctx.line.count = c_stop - c_start;
 	int32_t inv_dc = 0;
 	if (ctx.poly.nb_params > 0) {
 		if (ctx.line.count) inv_dc = Fix_inv(ctx.line.count<<16);
 		for (unsigned p=ctx.poly.nb_params; p--; ) {
-			ctx.line.param[p] = ctx.trap.side[left_side].param[p];	// starting value
-			ctx.line.dparam[p] = ((int64_t)(ctx.trap.side[right_side].param[p]-ctx.line.param[p])*inv_dc)>>16;
+			ctx.line.param[p] = ctx.trap.side[ctx.trap.left_side].param[p];	// starting value
+			ctx.line.dparam[p] = ((int64_t)(ctx.trap.side[!ctx.trap.left_side].param[p]-ctx.line.param[p])*inv_dc)>>16;
 		}
 	}
 	ctx.line.decliv = ctx.poly.decliveness*c_start;	// 16.16
@@ -124,73 +116,139 @@ static void draw_line(void) {
 	if (start_poly) start_poly --;
 }
 
+static void next_params_frac(unsigned side, int32_t dnc) {
+	ctx.trap.side[side].c += Fix_mul(dnc, ctx.trap.side[side].dc);
+	if (ctx.poly.cmdFacet.perspective) {
+		int32_t dalpha = ctx.poly.z_alpha - ctx.trap.side[side].z_alpha_start;
+		for (unsigned p=ctx.poly.nb_params; p--; ) {
+			ctx.trap.side[side].param[p] = Fix_mul(ctx.trap.side[side].param_alpha[p], dalpha) + ctx.poly.vectors[ ctx.trap.side[side].start_v ].cmdVector.geom.param[p];
+		}
+	} else {
+		for (unsigned p=ctx.poly.nb_params; p--; ) {
+			ctx.trap.side[side].param[p] += Fix_mul(dnc, ctx.trap.side[side].param_alpha[p]);
+		}
+	}	
+}
+
+static void draw_trapeze_frac(void) {
+	int32_t dnc = ctx.poly.nc_declived_next - ctx.poly.nc_declived;
+	dnc = Fix_abs(dnc);
+	// compute next z_alpha
+	if (ctx.poly.cmdFacet.perspective && ctx.poly.nb_params > 0) {
+		ctx.poly.z_den += (int64_t)dnc*ctx.poly.z_dden;
+		ctx.poly.z_num += (int64_t)dnc*ctx.poly.z_dnum;
+		if (ctx.poly.z_den) ctx.poly.z_alpha = ctx.poly.z_num/(ctx.poly.z_den>>16);	// FIXME: use Fix_div
+	}
+	// now compute some next c and params
+	for (unsigned side=2; side--; ) {
+		if (ctx.trap.side[side].is_growing) {
+			next_params_frac(side, dnc);
+		}
+	}
+	// draw 'scanline'
+	draw_line();	// will do another DIV
+	// compute others next c and params
+	for (unsigned side=2; side--; ) {
+		if (! ctx.trap.side[side].is_growing) {
+			next_params_frac(side, dnc);
+		}
+	}
+	ctx.poly.nc_declived = ctx.poly.nc_declived_next;
+}
+
+static void next_params_int(unsigned side) {
+	ctx.trap.side[side].c += ctx.trap.side[side].dc;
+	if (ctx.poly.cmdFacet.perspective) {
+		int32_t dalpha = ctx.poly.z_alpha - ctx.trap.side[side].z_alpha_start;
+		for (unsigned p=ctx.poly.nb_params; p--; ) {
+			ctx.trap.side[side].param[p] = Fix_mul(ctx.trap.side[side].param_alpha[p], dalpha) + ctx.poly.vectors[ ctx.trap.side[side].start_v ].cmdVector.geom.param[p];
+		}
+	} else {
+		for (unsigned p=ctx.poly.nb_params; p--; ) {
+			ctx.trap.side[side].param[p] += ctx.trap.side[side].param_alpha[p];
+		}
+	}
+}
+
+static void draw_trapeze_int(void) {
+	// compute next z_alpha
+	if (ctx.poly.cmdFacet.perspective && ctx.poly.nb_params > 0) {
+		ctx.poly.z_den += (int64_t)ctx.poly.z_dden<<16;	// wrong if !complete_scan_line
+		ctx.poly.z_num += (int64_t)ctx.poly.z_dnum<<16;
+		if (ctx.poly.z_den) ctx.poly.z_alpha = ctx.poly.z_num/(ctx.poly.z_den>>16);
+	}
+	// now compute some next c and params
+	for (unsigned side=2; side--; ) {
+		if (ctx.trap.side[side].is_growing) {
+			next_params_int(side);
+		}
+	}
+	// draw 'scanline'
+	draw_line();	// will do another DIV
+	// now compute others c and params
+	for (unsigned side=2; side--; ) {
+		if (! ctx.trap.side[side].is_growing) {
+			next_params_int(side);
+		}
+	}
+	ctx.poly.nc_declived = ctx.poly.nc_declived_next;
+}
+
 static void draw_trapeze(void) {
 	// we have ctx.trap.side[], nc_declived, all params.
 	// we must render until first ending side (and return with nc_declived = this ending nc coord)
-	bool quit = false;
-	do {
-		// compute nc_declived_next. normally, this is next scan-line border
-		bool complete_scan_line = true;
-		if ((ctx.poly.nc_declived & 0xffff) == 0) {
-			ctx.poly.nc_declived_next = ctx.poly.nc_declived + (ctx.poly.nc_dir << 16);
-		} else {
-			ctx.poly.nc_declived_next = ctx.poly.nc_declived & 0xffff0000;
-			if (ctx.poly.nc_dir > 0) {
-				ctx.poly.nc_declived_next += 1<<16;
-			}
-			complete_scan_line = false;
+	ctx.trap.left_side = 0;
+	if (
+		(ctx.trap.side[1].c < ctx.trap.side[0].c) ||
+		(ctx.trap.side[1].c == ctx.trap.side[0].c && ctx.trap.side[1].dc < ctx.trap.side[0].dc)
+	) {
+		ctx.trap.left_side = 1;
+	}
+	ctx.trap.side[ctx.trap.left_side].is_growing = ctx.trap.side[ctx.trap.left_side].dc < 0;
+	ctx.trap.side[!ctx.trap.left_side].is_growing = ctx.trap.side[!ctx.trap.left_side].dc > 0;
+	// First, we draw from nc_declived to next scanline boundary or end of trapeze
+	if (ctx.poly.nc_declived & 0xffff) {
+		bool quit = false;
+		ctx.poly.nc_declived_next = ctx.poly.nc_declived & 0xffff0000;
+		if (ctx.poly.nc_dir > 0) {
+			ctx.poly.nc_declived_next += 1<<16;
 		}
-		// but we can end sooner
+		// maybe we reached end of trapeze already ?
 		for (unsigned side=2; side--; ) {
 			if (
 				(ctx.poly.nc_dir > 0 && ctx.poly.vectors[ ctx.trap.side[side].end_v ].nc_declived <= ctx.poly.nc_declived_next) ||
 				(ctx.poly.nc_dir < 0 && ctx.poly.vectors[ ctx.trap.side[side].end_v ].nc_declived >= ctx.poly.nc_declived_next)
 			) {
 				ctx.poly.nc_declived_next = ctx.poly.vectors[ ctx.trap.side[side].end_v ].nc_declived;
-				complete_scan_line = false;
 				quit = true;
 			}
 		}
-		int32_t dnc = ctx.poly.nc_declived_next - ctx.poly.nc_declived;
-		dnc = Fix_abs(dnc);
-		// compute z_alpha_next
-		if (ctx.poly.cmdFacet.perspective && ctx.poly.nb_params > 0) {
-			if (complete_scan_line) {
-				ctx.poly.z_den += (int64_t)ctx.poly.z_dden<<16;	// wrong if !complete_scan_line
-				ctx.poly.z_num += (int64_t)ctx.poly.z_dnum<<16;
-			} else {
-				ctx.poly.z_den += (int64_t)dnc*ctx.poly.z_dden;
-				ctx.poly.z_num += (int64_t)dnc*ctx.poly.z_dnum;
-			}
-			if (ctx.poly.z_den) ctx.poly.z_alpha_next = ctx.poly.z_num/(ctx.poly.z_den>>16);
+		draw_trapeze_frac();
+		if (quit) return;
+	}
+	// Now draw integral scanlines
+	int32_t d_nc_declived, last_nc_declived_i;
+	int32_t last_nc_declived = ctx.poly.vectors[ ctx.trap.side[0].end_v ].nc_declived;
+	if (ctx.poly.nc_dir > 0) {
+		if (ctx.poly.vectors[ ctx.trap.side[1].end_v ].nc_declived <= last_nc_declived) {
+			last_nc_declived = ctx.poly.vectors[ ctx.trap.side[1].end_v ].nc_declived;
 		}
-		// now compute c_nexts
-		for (unsigned side=2; side--; ) {
-			if (complete_scan_line) {
-				ctx.trap.side[side].c_next = ctx.trap.side[side].c + ctx.trap.side[side].dc;
-			} else {
-				ctx.trap.side[side].c_next = ctx.trap.side[side].c + (((int64_t)dnc*ctx.trap.side[side].dc)>>16);
-			}
+		last_nc_declived_i = last_nc_declived & 0xffff0000;
+		d_nc_declived = 0x10000;
+	} else {
+		if (ctx.poly.vectors[ ctx.trap.side[1].end_v ].nc_declived >= last_nc_declived) {
+			last_nc_declived = ctx.poly.vectors[ ctx.trap.side[1].end_v ].nc_declived;
 		}
-		// draw 'scanline'
-		draw_line();	// will do another DIV
-		// next scanline (1 DIV)
-		ctx.poly.z_alpha = ctx.poly.z_alpha_next;
-		for (unsigned side=2; side--; ) {
-			if (ctx.poly.cmdFacet.perspective) {
-				int32_t dalpha = ctx.poly.z_alpha - ctx.trap.side[side].z_alpha_start;
-				for (unsigned p=ctx.poly.nb_params; p--; ) {
-					ctx.trap.side[side].param[p] = (((int64_t)ctx.trap.side[side].param_alpha[p]*dalpha)>>16) + ctx.poly.vectors[ ctx.trap.side[side].start_v ].cmdVector.geom.param[p];
-				}
-			} else {
-				for (unsigned p=ctx.poly.nb_params; p--; ) {
-					ctx.trap.side[side].param[p] += ctx.trap.side[side].param_alpha[p];	// wrong if !complete_scan_line
-				}
-			}
-			ctx.trap.side[side].c = ctx.trap.side[side].c_next;
-		}
-		ctx.poly.nc_declived = ctx.poly.nc_declived_next;
-	} while (! quit);
+		last_nc_declived_i = (last_nc_declived & 0xffff0000) + 0x10000;
+		d_nc_declived = -0x10000;
+	}
+	while (ctx.poly.nc_declived != last_nc_declived_i) {
+		ctx.poly.nc_declived_next = ctx.poly.nc_declived + d_nc_declived;
+		draw_trapeze_int();
+	}
+	// And now finish the last subtrapeze
+	ctx.poly.nc_declived_next = last_nc_declived;
+	draw_trapeze_frac();
 }
 
 /*

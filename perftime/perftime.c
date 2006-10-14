@@ -101,6 +101,7 @@ int perftime_begin(unsigned freq_, unsigned (*gettime_)(void), unsigned wrap_aft
 }
 
 void perftime_enter(unsigned target, char const *name) {
+	return;
 	unsigned now = gettime();
 	if (~0U != in_target) update_in_target(now);
 	if (~0U != target) {
