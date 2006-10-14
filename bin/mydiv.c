@@ -15,7 +15,7 @@
  * along with gpu940; if not, write to the Free Software
  * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
  */
-#ifdef GP2X
+//#ifdef GP2X
 #include <stdint.h>
 #include "gpu940i.h"
 #include "../perftime/perftime.h"
@@ -24,8 +24,14 @@
  * Private Functions
  */
 
+// TODO : unloop and jump into the unrolled code to avoid testing n==0
 static int nbbit(uint64_t v, int n) {
-	while (n && 0 == (v&((uint64_t)1<<(n-1)))) n--;
+	uint64_t single = 1;
+	single <<= (n-1);
+	while (n && 0 == (v&single)) {
+		n--;
+		single >>= 1;
+	}
 	return n;
 }
 
@@ -91,4 +97,4 @@ uint64_t __udivdi3(uint64_t n, uint64_t d) {
 	return q;
 }
 
-#endif
+//#endif

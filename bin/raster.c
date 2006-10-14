@@ -51,13 +51,13 @@ static void shadow(uint32_t *w, int32_t intens) {
 
 #ifndef GP2X
 void draw_line_c(void) {
+	uint8_t *restrict w = ctx.line.w;
+	int count = ctx.line.count;
 	do {
-		uint32_t *w = (uint32_t *)(ctx.line.w);
 //		if (start_poly) *w = ctx.poly.scan_dir ? 0x3e0 : 0xf800; else
-		*w = ctx.poly.cmdFacet.color;
-		ctx.line.w += ctx.line.dw;
-		ctx.line.count --;
-	} while (ctx.line.count >= 0);
+		*(uint32_t *restrict)w = ctx.poly.cmdFacet.color;
+		w += ctx.line.dw;
+	} while (--count >= 0);
 }
 #endif
 

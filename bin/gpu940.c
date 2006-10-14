@@ -140,9 +140,8 @@ static void update_console(void) {
 	console_stat(5, PERF_DISPLAY);
 	console_stat(6, PERF_CLIP);
 	console_stat(7, PERF_POLY);
-	console_stat(8, PERF_POLY_DRAW);
-	console_stat(9, PERF_DIV);
-//	console_stat(10, PERF_WAITCMD);
+	console_stat(8, PERF_DIV);
+//	console_stat(9, PERF_WAITCMD);
 }
 
 
@@ -627,10 +626,10 @@ int main(void) {
 			.tv_usec = 20000,
 		},
 	};
-/*	if (0 != setitimer(ITIMER_REAL, &itimer, NULL)) {
+	if (0 != setitimer(ITIMER_REAL, &itimer, NULL)) {
 		perror("setitimer");
 		return EXIT_FAILURE;
-	}*/
+	}
 	console_begin();
 	console_setup();
 	run();

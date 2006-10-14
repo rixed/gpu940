@@ -261,7 +261,7 @@ static void make_window(void)
 //	glFrustum(-1.0, 1.0, -h, h, 5.0, 60.0);
 	glMatrixMode(GL_MODELVIEW);
 	glLoadIdentity();
-	glTranslatex(0, 0, -20<<16); //-40<<16);
+	glTranslatex(0, 0, -14<<16); //-40<<16);
 }
 
 static void destroy_window(void)
@@ -272,43 +272,13 @@ static void destroy_window(void)
 static void event_loop(void)
 {
 	while (1) {
-#if 0
-		while (XPending(dpy) > 0) {
-			XEvent event;
-			XNextEvent(dpy, &event);
-			switch (event.type) {
-				case KeyPress:
-					{
-						char buffer[10];
-						int r, code;
-						code = XLookupKeysym(&event.xkey, 0);
-						if (code == XK_Left) {
-							view_roty += 5<<16;
-						}
-						else if (code == XK_Right) {
-							view_roty -= 5<<16;
-						}
-						else if (code == XK_Up) {
-							view_rotx += 5<<16;
-						}
-						else if (code == XK_Down) {
-							view_rotx -= 5<<16;
-						}
-						else {
-							r = XLookupString(&event.xkey, buffer, sizeof(buffer),
-									NULL, NULL);
-							if (buffer[0] == 27) {
-								/* escape */
-								return;
-							}
-						}
-					}
-			}
-		}
-#endif
+
+		view_roty += 23;
+		view_rotx -= 37;
+		view_rotz += 51;
 
 		/* next frame */
-		angle += 1<<8;//2<<16;
+		angle += 1<<8;
 
 		draw();
 		glSwapBuffers();
@@ -324,7 +294,7 @@ static void event_loop(void)
 
 			frames++;
 
-			if (t - t0 >= 1) {
+			if (t - t0 >= 5) {
 				int seconds = t - t0;
 				int fps = frames / seconds;
 				printf("%d frames in %d seconds = %d FPS\n", frames, seconds, fps);

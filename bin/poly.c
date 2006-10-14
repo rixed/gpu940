@@ -69,8 +69,6 @@ static void draw_line(void) {
 		{ draw_line_c, draw_line_ci, draw_line_uv, draw_line_uvi_lin, draw_line_uvk, draw_line_shadow, draw_line_uvk_shadow },	// no perspective
 		{ draw_line_c, draw_line_ci, draw_line_uv, draw_line_uvi, draw_line_uvk, draw_line_shadow, draw_line_uvk_shadow }	// perspective
 	};
-	unsigned previous_target = perftime_target();
-	perftime_enter(PERF_POLY_DRAW, "raster");
 #ifdef GP2X
 	{	// patch code
 		bool patched = false;
@@ -112,7 +110,6 @@ static void draw_line(void) {
 	}
 #endif
 	draw_lines[ctx.poly.cmdFacet.perspective][ctx.poly.cmdFacet.rendering_type]();
-	perftime_enter(previous_target, NULL);
 	if (start_poly) start_poly --;
 }
 
