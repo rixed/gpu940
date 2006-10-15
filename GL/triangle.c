@@ -59,13 +59,13 @@ static GLfixed const *get_vertex_color(GLfixed const v[4])
 	GLfixed const *ecm = gli_material_emissive();
 	GLfixed const *acm = gli_material_ambient();
 	GLfixed const *acs = gli_scene_ambient();
-	cpri[3] = 1<<16;	// TODO
+	GLfixed const *dcm = gli_material_diffuse();
+	cpri[3] = dcm[3];
 	for (unsigned i=0; i<3; i++) {
 		cpri[i] = ecm[i] + Fix_mul(acm[i], acs[i]);
 	}
 //	GLfixed const *v = gli_vertex();
 //	GLfixed const *normal = gli_normal();
-//	GLfixed const *dcm = gli_material_diffuse();
 //	GLfixed const *scm = gli_material_specular();
 	for (unsigned l=0; l<GLI_MAX_LIGHTS; l++) {	// Use a current_min_light, current_max_light
 		if (! gli_light_enabled(l)) continue;

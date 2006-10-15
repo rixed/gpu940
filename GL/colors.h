@@ -41,6 +41,7 @@ GLfixed gli_light_spot(unsigned l);
 GLfixed const *gli_light_ambient(unsigned l);
 GLfixed const *gli_material_emissive(void);
 GLfixed const *gli_material_ambient(void);
+GLfixed const *gli_material_diffuse(void);
 GLfixed const *gli_scene_ambient(void);
 bool gli_smooth(void);
 

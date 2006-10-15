@@ -321,6 +321,11 @@ GLfixed const *gli_material_ambient(void)
 	return material.ambient;
 }
 
+GLfixed const *gli_material_diffuse(void)
+{
+	return material.diffuse;
+}
+
 GLfixed const *gli_scene_ambient(void)
 {
 	return ambient;

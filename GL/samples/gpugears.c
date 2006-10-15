@@ -204,24 +204,21 @@ static void draw(void)
 	glPushMatrix();
 	glTranslatex(-3<<16, -2<<16, 0);
 	glRotatex(angle, 0, 0, 1<<16);
-	//glMaterialxv(GL_FRONT, GL_AMBIENT_AND_DIFFUSE, red);
-	glColor4x(52429, 6554, 0, 1<<16);	// implements lighting
+	glMaterialxv(GL_FRONT_AND_BACK, GL_AMBIENT_AND_DIFFUSE, red);
 	gear(1<<16, 4<<16, 1<<16, 20, 45875);
 	glPopMatrix();
 
 	glPushMatrix();
 	glTranslatex(203162, -2<<16, 0);
 	glRotatex(Fix_mul(-2<<16, angle) - (9<<16), 0, 0, 1<<16);
-	//glMaterialxv(GL_FRONT, GL_AMBIENT_AND_DIFFUSE, green);
-	glColor4x(0, 52429, 13107, 1<<16);
+	glMaterialxv(GL_FRONT_AND_BACK, GL_AMBIENT_AND_DIFFUSE, green);
 	gear(1<<15, 2<<16, 2<<16, 10, 45875);
 	glPopMatrix();
 
 	glPushMatrix();
 	glTranslatex(-203162, 275251, 0);
 	glRotatex(Fix_mul(-2<<16, angle) - (25<<16), 0, 0, 1<<16);
-	//glMaterialxv(GL_FRONT, GL_AMBIENT_AND_DIFFUSE, blue);
-	glColor4x(13107, 13107, 1<<16, 1<<16);
+	glMaterialxv(GL_FRONT_AND_BACK, GL_AMBIENT_AND_DIFFUSE, blue);
 	gear(85197, 2<<16, 1<<15, 10, 45875);
 	glPopMatrix();
 
@@ -240,7 +237,7 @@ static void init(void)
 	glEnable(GL_DEPTH_TEST);
 	glEnable(GL_NORMALIZE);
 	glEnable(GL_VERTEX_ARRAY);
-	glShadeModel(GL_FLAT);
+	glShadeModel(GL_SMOOTH /*GL_FLAT*/);
 }
 
 
