@@ -135,6 +135,26 @@ void draw_line_uvk(void) {
 	} while (ctx.line.count >= 0);
 }
 
+void draw_line_cs(void) {
+	do {
+		uint32_t color =
+#ifdef GP2X
+			((ctx.line.param[2]&0xFF00)<<16)|((ctx.line.param[0]&0xFF00)<<8)|(ctx.line.param[1]&0xFF00)/*|((ctx.line.param[0]&0xFF00)>>8)*/;
+#else
+			((ctx.line.param[0]&0xFF00)<<8)|(ctx.line.param[1]&0xFF00)|((ctx.line.param[2]&&0xFF00)>>8);
+#endif
+//		if (start_poly) color = ctx.poly.scan_dir ? 0x3e0 : 0xf800;
+		uint32_t *w = (uint32_t *)(ctx.line.w + ((ctx.line.decliv>>16)<<ctx.poly.nc_log));
+		*w = color;
+		ctx.line.w += ctx.line.dw;
+		ctx.line.decliv += ctx.line.ddecliv;
+		ctx.line.param[0] += ctx.line.dparam[0];
+		ctx.line.param[1] += ctx.line.dparam[1];
+		ctx.line.param[2] += ctx.line.dparam[2];
+		ctx.line.count --;
+	} while (ctx.line.count >= 0);
+}
+
 void draw_line_uvk_shadow(void) {	// used to shadow a keyed uv poly (read texture for keycolor)
 	do {
 		uint32_t color = texture_color(&ctx.location.txt, ctx.line.param[0], ctx.line.param[1]);

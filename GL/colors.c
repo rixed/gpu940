@@ -17,6 +17,7 @@
  */
 #include "gli.h"
 #include <string.h>
+#include <assert.h>
 
 /*
  * Data Definitions
@@ -75,19 +76,74 @@ int gli_colors_begin(void)
 
 extern inline void gli_colors_end(void);
 
-GLfixed const *gli_color_get(void)
+GLfixed const *gli_current_color(void)
 {
 	return color;
 }
 
-void gli_light_enable(GLenum light)
+void gli_light_enable(unsigned l)
 {
-	lights[light-GL_LIGHT0].enabled = GL_TRUE;
+	lights[l].enabled = GL_TRUE;
 }
 
-void gli_light_disable(GLenum light)
+void gli_light_disable(unsigned l)
 {
-	lights[light-GL_LIGHT0].enabled = GL_FALSE;
+	lights[l].enabled = GL_FALSE;
+}
+
+bool gli_light_enabled(unsigned l)
+{
+	return lights[l].enabled;
+}
+
+void gli_light_dir(unsigned l, GLfixed const v[4], GLfixed dir[4], GLfixed *dist)
+{
+	assert(gli_light_enabled(l));
+	*dist = 0;
+	if (v[3] == 0 && lights[l].position[3] != 0) {
+		for (unsigned i=0; i<3; i++) {
+			dir[i] = -v[i];
+			*dist += Fix_mul(dir[i], dir[i]);
+		}
+	} else if (lights[l].position[3] == 0 && v[3] != 0) {
+		for (unsigned i=0; i<3; i++) {
+			dir[i] = lights[l].position[i];
+			*dist += Fix_mul(dir[i], dir[i]);
+		}
+	} else {
+		for (unsigned i=0; i<3; i++) {
+			dir[i] = lights[l].position[i] - v[i];
+			*dist += Fix_mul(dir[i], dir[i]);
+		}
+	}
+	*dist = Fix_sqrt(*dist);
+	if (*dist == 0) return;
+	GLfixed inv_dist = Fix_inv(*dist);
+	for (unsigned i=0; i<3; i++) {
+		dir[i] = Fix_mul(dir[i], inv_dist);
+	}
+}
+
+GLfixed gli_light_attenuation(unsigned l, GLfixed dist)
+{
+	assert(gli_light_enabled(l));
+	if (lights[l].position[3] == 0) {
+		return 1<<16;
+	}
+	GLfixed att = lights[l].constant_attenuation;
+	if (lights[l].linear_attenuation != 0) {
+		att += Fix_mul(dist, lights[l].linear_attenuation);
+	}
+	if (lights[l].quadratic_attenuation != 0) {
+		att += Fix_mul( Fix_mul(dist, dist), lights[l].quadratic_attenuation);
+	}
+	return Fix_inv(att);
+}
+
+GLfixed gli_light_spot(unsigned l)
+{
+	assert(gli_light_enabled(l));
+	return 1<<16;	// TODO
 }
 
 void glColor4x(GLfixed red, GLfixed green, GLfixed blue, GLfixed alpha)
@@ -247,4 +303,30 @@ void glFrontFace(GLenum mode)
 		return gli_set_error(GL_INVALID_ENUM);
 	}
 	front_face = mode;
+}
+
+GLfixed const *gli_light_ambient(unsigned l)
+{
+	assert(gli_light_enabled(l));
+	return lights[l].ambient;
+}
+
+GLfixed const *gli_material_emissive(void)
+{
+	return material.emission;
+}
+
+GLfixed const *gli_material_ambient(void)
+{
+	return material.ambient;
+}
+
+GLfixed const *gli_scene_ambient(void)
+{
+	return ambient;
+}
+
+bool gli_smooth(void)
+{
+	return shade_model == GL_SMOOTH;
 }

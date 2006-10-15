@@ -148,6 +148,7 @@ enum gpuRenderingType {
 	rendering_uv,	// use vectors param u, v
 	rendering_uvi,	// use vectors param u, v, i
 	rendering_uvk,	// use vectors param u, v, and color for keying texture
+	rendering_cs,	// use vectors param r, g, b
 	rendering_shadow,	// use intens for shadowing the region
 	rendering_uvk_shadow,	// use vectors param u, v, and color for keying texture, and intens to then shadow the region
 	NB_RENDERING_TYPES
@@ -171,6 +172,9 @@ typedef union {
 		int32_t x, y, z, i;
 	} ci_params;
 	struct {
+		int32_t x, y, z, r, g, b;
+	} c_params;
+	struct {
 		int32_t c3d[3], param[GPU_NB_PARAMS];
 	} geom;
 } gpuCmdVector;
@@ -185,6 +189,33 @@ gpuErr gpuWritev(const struct iovec *cmdvec, size_t count, bool can_wait);
 
 uint32_t gpuReadErr(void);
 gpuErr gpuLoadImg(struct buffer_loc const *loc, uint8_t (*rgb)[3], unsigned lod);
+static inline int32_t Fix_gpuColor1(int32_t r, int32_t g, int32_t b) {
+#ifdef GP2X
+	return Fix_mul(16843, r) + Fix_mul(33030, g) + Fix_mul(6423, b) + (16<<16);
+#else
+	(void)g;
+	(void)b;
+	return r;
+#endif
+}
+static inline int32_t Fix_gpuColor2(int32_t r, int32_t g, int32_t b) {
+#ifdef GP2X
+	return -Fix_mul(9699, r) - Fix_mul(19071, g) + Fix_mul(28770, b) + (128<<16);
+#else
+	(void)r;
+	(void)b;
+	return g;
+#endif
+}
+static inline int32_t Fix_gpuColor3(int32_t r, int32_t g, int32_t b) {
+#ifdef GP2X
+	return Fix_mul(28770, r) - Fix_mul(24117, g) - Fix_mul(4653, b) + (128<<16);
+#else
+	(void)r;
+	(void)g;
+	return b;
+#endif
+}
 static inline uint32_t gpuColor(unsigned r, unsigned g, unsigned b) {
 #ifdef GP2X
 	// Riped from Rlyeh minilib

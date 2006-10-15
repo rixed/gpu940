@@ -55,7 +55,6 @@ void glEnable(GLenum cap)
 		return gli_set_error(GL_INVALID_ENUM);
 	}
 	capabilities |= CAP_BIT(cap);
-	return;
 }
 
 void glDisable(GLenum cap)
@@ -67,7 +66,6 @@ void glDisable(GLenum cap)
 		return gli_set_error(GL_INVALID_ENUM);
 	}
 	capabilities &= ~CAP_BIT(cap);
-	return;
 }
 
 void glFinish(void)
@@ -86,4 +84,12 @@ void glHint(GLenum target, GLenum mode)
 		return gli_set_error(GL_INVALID_ENUM);
 	}
 	hints[target] = mode;
+}
+
+bool gli_enabled(GLenum cap)
+{
+	if (cap >= GL_LIGHT0 && cap < GL_LIGHT0 + GLI_MAX_LIGHTS) {
+		return gli_light_enabled(cap);
+	}
+	return capabilities & CAP_BIT(cap);	
 }

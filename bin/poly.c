@@ -66,8 +66,8 @@ static void draw_line(void) {
 		ctx.line.dw <<= ctx.location.out.width_log;
 	}
 	static draw_line_t const draw_lines[2][NB_RENDERING_TYPES] = {
-		{ draw_line_c, draw_line_ci, draw_line_uv, draw_line_uvi_lin, draw_line_uvk, draw_line_shadow, draw_line_uvk_shadow },	// no perspective
-		{ draw_line_c, draw_line_ci, draw_line_uv, draw_line_uvi, draw_line_uvk, draw_line_shadow, draw_line_uvk_shadow }	// perspective
+		{ draw_line_c, draw_line_ci, draw_line_uv, draw_line_uvi_lin, draw_line_uvk, draw_line_cs, draw_line_shadow, draw_line_uvk_shadow },	// no perspective
+		{ draw_line_c, draw_line_ci, draw_line_uv, draw_line_uvi, draw_line_uvk, draw_line_cs, draw_line_shadow, draw_line_uvk_shadow }	// perspective
 	};
 #ifdef GP2X
 	{	// patch code

@@ -31,8 +31,17 @@ struct gli_material {
 
 int gli_colors_begin(void);
 static inline void gli_colors_end(void) { }
-void gli_light_enable(GLenum light);
-void gli_light_disable(GLenum light);
-GLfixed const *gli_color_get(void);
+GLfixed const *gli_current_color(void);
+void gli_light_enable(unsigned l);
+void gli_light_disable(unsigned l);
+bool gli_light_enabled(unsigned l);
+void gli_light_dir(unsigned l, GLfixed const v[4], GLfixed dir[4], GLfixed *dist);
+GLfixed gli_light_attenuation(unsigned l, GLfixed dist);
+GLfixed gli_light_spot(unsigned l);
+GLfixed const *gli_light_ambient(unsigned l);
+GLfixed const *gli_material_emissive(void);
+GLfixed const *gli_material_ambient(void);
+GLfixed const *gli_scene_ambient(void);
+bool gli_smooth(void);
 
 #endif

@@ -29,6 +29,6 @@ static inline void gli_transfo_end(void) {}
 
 int gli_matrix_stack_ctor(struct matrix_stack *mt, unsigned size);
 void gli_matrix_stack_dtor(struct matrix_stack *mt);
-void gli_multmatrix(enum gli_MatrixMode mode, int32_t dest[3], int32_t const src[4]);
+void gli_multmatrix(enum gli_MatrixMode mode, int32_t dest[4], int32_t const src[4]);
 
 #endif

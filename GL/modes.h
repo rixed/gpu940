@@ -20,5 +20,6 @@
 
 int gli_modes_begin(void);
 static inline void gli_modes_end(void) {}
+bool gli_enabled(GLenum cap);
 
 #endif
