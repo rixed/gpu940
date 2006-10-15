@@ -49,7 +49,7 @@ extern inline void gli_modes_end(void);
 void glEnable(GLenum cap)
 {
 	if (cap >= GL_LIGHT0 && cap < GL_LIGHT0 + GLI_MAX_LIGHTS) {
-		return gli_light_enable(cap);
+		return gli_light_enable(cap-GL_LIGHT0);
 	}
 	if (cap < GL_ALPHA_TEST || cap > GL_TEXTURE_2D) {
 		return gli_set_error(GL_INVALID_ENUM);
@@ -60,7 +60,7 @@ void glEnable(GLenum cap)
 void glDisable(GLenum cap)
 {
 	if (cap >= GL_LIGHT0 && cap < GL_LIGHT0 + GLI_MAX_LIGHTS) {
-		return gli_light_disable(cap);
+		return gli_light_disable(cap-GL_LIGHT0);
 	}
 	if (cap < GL_ALPHA_TEST || cap > GL_TEXTURE_2D) {
 		return gli_set_error(GL_INVALID_ENUM);
@@ -89,7 +89,7 @@ void glHint(GLenum target, GLenum mode)
 bool gli_enabled(GLenum cap)
 {
 	if (cap >= GL_LIGHT0 && cap < GL_LIGHT0 + GLI_MAX_LIGHTS) {
-		return gli_light_enabled(cap);
+		return gli_light_enabled(cap-GL_LIGHT0);
 	}
 	return capabilities & CAP_BIT(cap);	
 }

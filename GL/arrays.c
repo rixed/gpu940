@@ -91,6 +91,42 @@ static void set_enable(GLenum array, int bit)
 	gli_set_error(GL_INVALID_ENUM);
 }
 
+static void array_get(struct array const *arr, GLint idx, int32_t c[4])
+{
+	void const *v_ = (char *)arr->ptr + idx*arr->raw_size;
+	switch (arr->type) {
+		case GL_BYTE:
+			{
+				GLbyte const *v = v_;
+				c[0] = v[0]<<16;
+				c[1] = v[1]<<16;
+				c[2] = v[2]<<16;
+				c[3] = arr->size > 3 ? v[3]<<16 : 1<<16;
+			}
+			break;
+		case GL_SHORT:
+			{
+				GLshort const *v = v_;
+				c[0] = v[0]<<16;
+				c[1] = v[1]<<16;
+				c[2] = v[2]<<16;
+				c[3] = arr->size > 3 ? v[3]<<16 : 1<<16;
+			}
+			break;
+		case GL_FIXED:
+			{
+				GLfixed const *v = v_;
+				c[0] = v[0];
+				c[1] = v[1];
+				c[2] = v[2];
+				c[3] = arr->size > 3 ? v[3] : 1<<16;
+			}
+			break;
+		default:
+			assert(0);
+	}
+}
+
 /*
  * Public Functions
  */
@@ -113,37 +149,18 @@ extern  inline void gli_arrays_end(void);
 
 void gli_vertex_get(GLint idx, int32_t c[4])
 {
-	void const *v_ = (char *)vertexes.ptr + idx*vertexes.raw_size;
-	switch (vertexes.type) {
-		case GL_BYTE:
-			{
-				GLbyte const *v = v_;
-				c[0] = v[0]<<16;
-				c[1] = v[1]<<16;
-				c[2] = v[2]<<16;
-				c[3] = vertexes.size > 3 ? v[3]<<16 : 1<<16;
-			}
-			break;
-		case GL_SHORT:
-			{
-				GLshort const *v = v_;
-				c[0] = v[0]<<16;
-				c[1] = v[1]<<16;
-				c[2] = v[2]<<16;
-				c[3] = vertexes.size > 3 ? v[3]<<16 : 1<<16;
-			}
-			break;
-		case GL_FIXED:
-			{
-				GLfixed const *v = v_;
-				c[0] = v[0];
-				c[1] = v[1];
-				c[2] = v[2];
-				c[3] = vertexes.size > 3 ? v[3] : 1<<16;
-			}
-			break;
-		default:
-			assert(0);
+	return array_get(&vertexes, idx, c);
+}
+
+void gli_normal_get(GLint idx, int32_t c[4])
+{
+	if (normals.enabled) {
+		array_get(&normals, idx, c);
+	} else {
+		GLfixed const *n = gli_current_normal();
+		for (unsigned i=0; i<4; i++) {
+			c[i] = n[i];
+		}
 	}
 }
 

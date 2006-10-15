@@ -81,6 +81,11 @@ GLfixed const *gli_current_color(void)
 	return color;
 }
 
+GLfixed const *gli_current_normal(void)
+{
+	return normal;
+}
+
 void gli_light_enable(unsigned l)
 {
 	lights[l].enabled = GL_TRUE;
@@ -309,6 +314,12 @@ GLfixed const *gli_light_ambient(unsigned l)
 {
 	assert(gli_light_enabled(l));
 	return lights[l].ambient;
+}
+
+GLfixed const *gli_light_diffuse(unsigned l)
+{
+	assert(gli_light_enabled(l));
+	return lights[l].diffuse;
 }
 
 GLfixed const *gli_material_emissive(void)

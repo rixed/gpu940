@@ -50,7 +50,7 @@ static void send_triangle()
 	assert(gpuOK == err);
 }
 
-static GLfixed const *get_vertex_color(GLfixed const v[4])
+static GLfixed const *get_vertex_color(GLfixed const v[4], unsigned vec_idx)
 {
 	if (! gli_enabled(GL_LIGHTING)) {
 		return gli_current_color();
@@ -64,8 +64,9 @@ static GLfixed const *get_vertex_color(GLfixed const v[4])
 	for (unsigned i=0; i<3; i++) {
 		cpri[i] = ecm[i] + Fix_mul(acm[i], acs[i]);
 	}
-//	GLfixed const *v = gli_vertex();
-//	GLfixed const *normal = gli_normal();
+	GLfixed normal[4], normal_tmp[4];
+	gli_normal_get(vec_idx, normal_tmp);
+	gli_multmatrix(GL_MODELVIEW, normal, normal_tmp);
 //	GLfixed const *scm = gli_material_specular();
 	for (unsigned l=0; l<GLI_MAX_LIGHTS; l++) {	// Use a current_min_light, current_max_light
 		if (! gli_light_enabled(l)) continue;
@@ -76,13 +77,21 @@ static GLfixed const *get_vertex_color(GLfixed const v[4])
 		GLfixed att_spot = Fix_mul(att, spot);
 		if ( att_spot < 16 ) continue;	// skip lights if negligible or null contribution
 		GLfixed const *acli = gli_light_ambient(l);
+		GLfixed const *dcli = gli_light_diffuse(l);
+		GLfixed n_vl_dir = Fix_scalar(normal, vl_dir);
 		for (unsigned i=0; i<3; i++) {
 			GLfixed sum = Fix_mul(acm[i], acli[i]);
-			// TODO
-			//GLfixed scli = gli_light_specular(l);
-			//GLfixed const *dcli = gli_light_diffuse(l);
 			cpri[i] += Fix_mul(att_spot, sum);
 		}
+		if (n_vl_dir > 0) {
+			GLfixed att_spot_n_vl_dir = Fix_mul(att_spot, n_vl_dir);
+			for (unsigned i=0; i<3; i++) {
+				GLfixed sum = Fix_mul(dcm[i], dcli[i]);
+				cpri[i] += Fix_mul(att_spot_n_vl_dir, sum);
+			}
+		}
+		// TODO
+		//GLfixed scli = gli_light_specular(l);
 	}
 	return &cpri[0];
 }
@@ -104,7 +113,7 @@ static void write_vertex(GLfixed v[4], unsigned vec_idx)
 	cmdVec[vec_idx].geom.c3d[1] = v[1];
 	cmdVec[vec_idx].geom.c3d[2] = v[2];
 	if (gli_smooth()) {
-		GLfixed const *c = get_vertex_color(v);
+		GLfixed const *c = get_vertex_color(v, vec_idx);
 		cmdVec[vec_idx].c_params.r = Fix_gpuColor1(c[0], c[1], c[2]);
 		cmdVec[vec_idx].c_params.g = Fix_gpuColor2(c[0], c[1], c[2]);
 		cmdVec[vec_idx].c_params.b = Fix_gpuColor3(c[0], c[1], c[2]);

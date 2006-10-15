@@ -30,5 +30,6 @@ struct array {
 int gli_arrays_begin(void);
 static inline void gli_arrays_end(void) {}
 void gli_vertex_get(GLint idx, int32_t c[4]);
+void gli_normal_get(GLint idx, int32_t c[4]);
 
 #endif
