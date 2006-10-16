@@ -151,6 +151,7 @@ static void gear(GLfixed inner_radius, GLfixed outer_radius, GLfixed width, GLin
 	glVertexPointer(3, GL_FIXED, 0, vertexes);
 	glDrawArrays(GL_TRIANGLES, 0, nb_vertexes);
 	nb_vertexes = 0;
+	glEnableClientState(GL_NORMAL_ARRAY);
 	/* draw outward faces of teeth */
 	for (i = 0; i < teeth; i++) {
 		angle = i * 2 * FIXED_PI / teeth;
@@ -178,7 +179,9 @@ static void gear(GLfixed inner_radius, GLfixed outer_radius, GLfixed width, GLin
 	addVertex(Fix_mul(r1, Fix_cos(0)), Fix_mul(r1, Fix_sin(0)), width>>1);
 	addVertex(Fix_mul(r1, Fix_cos(0)), Fix_mul(r1, Fix_sin(0)), -width>>1);
 	glVertexPointer(3, GL_FIXED, 0, vertexes);
+	glNormalPointer(GL_FIXED, 0, normals);
 	glDrawArrays(GL_TRIANGLE_STRIP, 0, nb_vertexes);
+	glDisableClientState(GL_NORMAL_ARRAY);
 	nb_vertexes = 0;
 	
    glShadeModel(GL_SMOOTH);
