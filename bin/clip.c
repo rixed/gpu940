@@ -167,16 +167,18 @@ ret:
 
 // returns true if something is left to draw
 int cull_poly(void) {
-	int32_t a = 0;
 	if (ctx.poly.cmdFacet.cull_mode == 3) return 0;
 	if (ctx.poly.cmdFacet.cull_mode == 0) return 1;
 	unsigned v = ctx.poly.first_vector;
+	unsigned nb_v = 0;
+	int32_t a = 0;
 	do {
-		unsigned v_next = ctx.poly.vectors[v].next;
-		a += Fix_mul(ctx.poly.vectors[v].c2d[0], ctx.poly.vectors[v_next].c2d[1]);
-		a -= Fix_mul(ctx.poly.vectors[v_next].c2d[0], ctx.poly.vectors[v].c2d[1]);
+		unsigned v_next = nb_v < 2 ? ctx.poly.vectors[v].next : ctx.poly.first_vector;
+		a += Fix_mul(ctx.poly.vectors[v].c2d[0]>>1, ctx.poly.vectors[v_next].c2d[1]>>1);	// FIXME: 2 may not be enought for greater screen size
+		a -= Fix_mul(ctx.poly.vectors[v_next].c2d[0]>>1, ctx.poly.vectors[v].c2d[1]>>1);
 		v = v_next;
-	} while (v != ctx.poly.first_vector);	
+		nb_v ++;
+	} while (nb_v < 3);	
 	if (a == 0) return 1;
 	return (a > 0 && ctx.poly.cmdFacet.cull_mode == 2) || (a < 0 && ctx.poly.cmdFacet.cull_mode == 1);
 }

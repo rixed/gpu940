@@ -160,8 +160,8 @@ typedef struct {
 	int32_t intens;	// used for shadowing
 	uint32_t perspective:1;
 	uint32_t rendering_type:3;
-#	define GPU_DRAW_FRONT 1
-#	define GPU_DRAW_BACK 2
+#	define GPU_CW 1
+#	define GPU_CCW 2
 	uint32_t cull_mode:2;	// bit 0 for direct (counter clock-wise), bit 1 for indirect (clock-wise)
 } gpuCmdFacet;
 

@@ -341,6 +341,10 @@ static void do_facet(void) {
 		set_error_flag(gpuEINT);
 		return;
 	}
+	if (ctx.poly.cmdFacet.size < 3) {
+		set_error_flag(gpuEPARAM);
+		return;	// TODO: skip cmdvecs
+	}
 	// fetch vectors informations
 	for (unsigned v=0; v<ctx.poly.cmdFacet.size; v++) {
 		read_from_cmdBuf(&ctx.poly.vectors[v].cmdVector, sizeof(gpuCmdVector));
