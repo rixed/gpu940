@@ -277,7 +277,7 @@ void draw_poly(void) {
 				c_vec = v;
 			}
 			v = ctx.poly.vectors[v].next;
-		} while (v != ctx.poly.first_vector);	
+		} while (v != ctx.poly.first_vector);
 		int32_t m[2];	// 16.16
 		unsigned a_vec;
 		do {

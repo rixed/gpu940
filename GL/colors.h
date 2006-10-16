@@ -47,5 +47,6 @@ GLfixed const *gli_material_ambient(void);
 GLfixed const *gli_material_diffuse(void);
 GLfixed const *gli_scene_ambient(void);
 bool gli_smooth(void);
+bool gli_front_faces_are_cw(void);
 
 #endif

@@ -49,3 +49,7 @@ void glCullFace(GLenum mode)
 	cull_face = mode;
 }
 
+bool gli_must_render_face(enum gli_CullFace face)
+{
+	return cull_face != GL_FRONT_AND_BACK && cull_face != face;
+}

@@ -345,7 +345,7 @@ static void do_facet(void) {
 	for (unsigned v=0; v<ctx.poly.cmdFacet.size; v++) {
 		read_from_cmdBuf(&ctx.poly.vectors[v].cmdVector, sizeof(gpuCmdVector));
 	}
-	if (clip_poly()) {
+	if (clip_poly() && cull_poly()) {
 		draw_poly();
 	}
 }

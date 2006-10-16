@@ -78,6 +78,7 @@ int main(void) {
 		.color = gpuColor(20, 30, 180),
 		.rendering_type = rendering_uv,
 		.perspective = 1,
+		.cull_mode = 0,
 	};
 	gpuCmdVector vec_bg[] = {
 		{ .geom = { .c3d = { -10<<16, -10<<16, -257 } }, },

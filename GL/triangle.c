@@ -31,7 +31,6 @@ static struct iovec const iov_triangle[] = {
 	{ .iov_base = cmdVec+1, .iov_len = sizeof(*cmdVec) },
 	{ .iov_base = cmdVec+2, .iov_len = sizeof(*cmdVec) },
 };
-static bool facet_is_direct;
 
 /*
  * Private Functions
@@ -70,14 +69,14 @@ static GLfixed const *get_vertex_color(unsigned vec_idx)
 		GLfixed att = gli_light_attenuation(l, vl_dist);
 		GLfixed spot = gli_light_spot(l);
 		GLfixed att_spot = Fix_mul(att, spot);
-		if ( att_spot < 16 ) continue;	// skip lights if negligible or null contribution
+		if (att_spot < 16) continue;	// skip lights if negligible or null contribution
 		GLfixed const *acli = gli_light_ambient(l);
 		GLfixed const *dcli = gli_light_diffuse(l);
-		GLfixed n_vl_dir = Fix_scalar(normal, vl_dir);
 		for (unsigned i=0; i<3; i++) {
 			GLfixed sum = Fix_mul(acm[i], acli[i]);
 			cpri[i] += Fix_mul(att_spot, sum);
 		}
+		GLfixed n_vl_dir = Fix_scalar(normal, vl_dir);
 		if (n_vl_dir > 0) {
 			GLfixed att_spot_n_vl_dir = Fix_mul(att_spot, n_vl_dir);
 			for (unsigned i=0; i<3; i++) {
@@ -102,8 +101,15 @@ static uint32_t color_GL2gpu(GLfixed const *c)
 	return gpuColor(r, g, b);
 }
 
-static void send_triangle(GLint ci)
+static void send_triangle(GLint ci, bool facet_is_inverted)
 {
+	// Set cull_mode
+	cmdFacet.cull_mode = 0;
+#	define VIEWPORT_IS_INVERTED true
+	bool front_is_cw = gli_front_faces_are_cw() ^ facet_is_inverted ^ VIEWPORT_IS_INVERTED;
+	if (! gli_must_render_face(GL_FRONT)) cmdFacet.cull_mode |= 1<<(!front_is_cw);
+	if (! gli_must_render_face(GL_BACK)) cmdFacet.cull_mode |= 2>>(!front_is_cw);
+	if (cmdFacet.cull_mode == 3) return;
 	// Set facet rendering type and color if needed
 	if (gli_smooth()) {
 		cmdFacet.rendering_type = rendering_cs;
@@ -112,6 +118,7 @@ static void send_triangle(GLint ci)
 		cmdFacet.color = color_GL2gpu(c);
 		cmdFacet.rendering_type = rendering_c;
 	}
+	// Send to GPU
 	gpuErr err = gpuWritev(iov_triangle, sizeof_array(iov_triangle), true);
 	assert(gpuOK == err);
 }
@@ -150,7 +157,7 @@ void gli_triangle_array(enum gli_DrawMode mode, GLint first, unsigned count)
 {
 	if (count < 3) return;
 	GLint const last = first + count;
-	facet_is_direct = true;
+	bool facet_is_inverted = true;
 	GLfixed v[4];
 	do {
 		prepare_vertex(v, first++);
@@ -159,15 +166,15 @@ void gli_triangle_array(enum gli_DrawMode mode, GLint first, unsigned count)
 		write_vertex(v, 1);
 		prepare_vertex(v, first++);
 		write_vertex(v, 2);
-		send_triangle(first - (mode == GL_TRIANGLES ? 3:1));
+		send_triangle(first - (mode == GL_TRIANGLES ? 3:1), facet_is_inverted);
 	} while (mode == GL_TRIANGLES && first < last);
 	unsigned repl_idx = 0;
 	if (mode == GL_TRIANGLE_FAN) repl_idx = 1;
 	while (first < last) {
-		facet_is_direct = !facet_is_direct;
+		facet_is_inverted = !facet_is_inverted;
 		prepare_vertex(v, first++);
 		write_vertex(v, repl_idx);
-		send_triangle(first-1);
+		send_triangle(first-1, facet_is_inverted);
 		if (++ repl_idx > 2) repl_idx = mode == GL_TRIANGLE_FAN ? 1:0;
 	}
 }

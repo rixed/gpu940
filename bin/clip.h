@@ -20,5 +20,6 @@
 #include "../config.h"
 
 int clip_poly(void);
+int cull_poly(void);
 
 #endif

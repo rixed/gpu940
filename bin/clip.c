@@ -165,3 +165,19 @@ ret:
 	return disp;
 }
 
+// returns true if something is left to draw
+int cull_poly(void) {
+	int32_t a = 0;
+	if (ctx.poly.cmdFacet.cull_mode == 3) return 0;
+	if (ctx.poly.cmdFacet.cull_mode == 0) return 1;
+	unsigned v = ctx.poly.first_vector;
+	do {
+		unsigned v_next = ctx.poly.vectors[v].next;
+		a += Fix_mul(ctx.poly.vectors[v].c2d[0], ctx.poly.vectors[v_next].c2d[1]);
+		a -= Fix_mul(ctx.poly.vectors[v_next].c2d[0], ctx.poly.vectors[v].c2d[1]);
+		v = v_next;
+	} while (v != ctx.poly.first_vector);	
+	if (a == 0) return 1;
+	return (a > 0 && ctx.poly.cmdFacet.cull_mode == 2) || (a < 0 && ctx.poly.cmdFacet.cull_mode == 1);
+}
+

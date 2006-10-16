@@ -20,5 +20,6 @@
 
 int gli_raster_begin(void);
 static inline void gli_raster_end(void) { }
+bool gli_must_render_face(enum gli_CullFace face);
 
 #endif

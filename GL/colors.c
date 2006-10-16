@@ -310,6 +310,11 @@ void glFrontFace(GLenum mode)
 	front_face = mode;
 }
 
+bool gli_front_faces_are_cw(void)
+{
+	return front_face == GL_CW;
+}
+
 GLfixed const *gli_light_ambient(unsigned l)
 {
 	assert(gli_light_enabled(l));
