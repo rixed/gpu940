@@ -157,7 +157,7 @@ static void closer_coord(int32_t *pos, int32_t target, int nb_steps, int32_t *ac
 
 static void normalize(int32_t *x, int32_t *y, int32_t *z) {
 	int32_t norm = ( ((int64_t)*x**x) + ((int64_t)*y**y) + ((int64_t)*z**z)) >> 16;
-	norm = Fix_sqrt(norm)<<8;
+	norm = Fix_sqrt(norm);
 	*x = ((int64_t)*x<<16)/norm;
 	*y = ((int64_t)*y<<16)/norm;
 	*z = ((int64_t)*z<<16)/norm;
@@ -635,7 +635,7 @@ static void draw_drop(void) {
 			if (d2 < thresold) {
 				ink_drop[y][x] = 255;
 			} else {
-				unsigned ang = 2*Fix_sqrt(d2 - thresold);
+				unsigned ang = 2*my_sqrt(d2 - thresold);
 				if (ang < DROP_DIAMETER) {
 					int32_t c = 0x80+(Fix_cos((ang*32768)/DROP_DIAMETER)>>9);
 					ink_drop[y][x] = c<0 ? 0 : c>255 ? 255 : c;

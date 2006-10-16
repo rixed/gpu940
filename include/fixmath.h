@@ -75,7 +75,10 @@ void Fix_trig_init(void);
 int32_t Fix_cos(int32_t ang);
 int32_t Fix_sin(int32_t ang);
 
-int32_t Fix_sqrt(int32_t n);
+int32_t my_sqrt(int32_t n);
+static inline int32_t Fix_sqrt(int32_t n) {
+	return my_sqrt(n)<<8;
+}
 
 #define is_power_of_2(v) (0 == ((v)&((v)-1)))
 

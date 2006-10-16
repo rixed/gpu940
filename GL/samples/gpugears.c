@@ -154,7 +154,7 @@ static void gear(GLfixed inner_radius, GLfixed outer_radius, GLfixed width, GLin
 		addVertex(Fix_mul(r1, Fix_cos(angle)), Fix_mul(r1, Fix_sin(angle)), -width>>1);
 		u = Fix_mul(r2, Fix_cos(angle + da)) - Fix_mul(r1, Fix_cos(angle));
 		v = Fix_mul(r2, Fix_sin(angle + da)) - Fix_mul(r1, Fix_sin(angle));
-		len = Fix_sqrt(Fix_mul(u, u) + Fix_mul(v, v));
+		len = my_sqrt(Fix_mul(u, u) + Fix_mul(v, v));
 		u = Fix_div(u, len);
 		v = Fix_div(v, len);
 		//glNormal3f(v, -u, 0.0);
@@ -236,8 +236,8 @@ static void init(void)
 	glEnable(GL_LIGHT0);
 	glEnable(GL_DEPTH_TEST);
 	glEnable(GL_NORMALIZE);
-	glEnable(GL_VERTEX_ARRAY);
-	glShadeModel(GL_SMOOTH /*GL_FLAT*/);
+	glEnableClientState(GL_VERTEX_ARRAY);
+	glShadeModel(GL_FLAT);
 }
 
 

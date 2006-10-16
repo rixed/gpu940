@@ -44,14 +44,10 @@ static void prepare_vertex(GLfixed dest[4], GLint arr_idx)
 	gli_multmatrix(GL_MODELVIEW, dest, c);
 }
 
-static void send_triangle()
+static GLfixed const *get_vertex_color(unsigned vec_idx)
 {
-	gpuErr err = gpuWritev(iov_triangle, sizeof_array(iov_triangle), true);
-	assert(gpuOK == err);
-}
-
-static GLfixed const *get_vertex_color(GLfixed const v[4], unsigned vec_idx)
-{
+	int32_t v[4];
+	gli_vertex_get(vec_idx, v);	// FIXME: This is the second time we get this vertex coordinates
 	if (! gli_enabled(GL_LIGHTING)) {
 		return gli_current_color();
 	}
@@ -64,9 +60,8 @@ static GLfixed const *get_vertex_color(GLfixed const v[4], unsigned vec_idx)
 	for (unsigned i=0; i<3; i++) {
 		cpri[i] = ecm[i] + Fix_mul(acm[i], acs[i]);
 	}
-	GLfixed normal[4], normal_tmp[4];
-	gli_normal_get(vec_idx, normal_tmp);
-	gli_multmatrix(GL_MODELVIEW, normal, normal_tmp);
+	GLfixed normal[4];
+	gli_normal_get(vec_idx, normal);
 //	GLfixed const *scm = gli_material_specular();
 	for (unsigned l=0; l<GLI_MAX_LIGHTS; l++) {	// Use a current_min_light, current_max_light
 		if (! gli_light_enabled(l)) continue;
@@ -107,13 +102,27 @@ static uint32_t color_GL2gpu(GLfixed const *c)
 	return gpuColor(r, g, b);
 }
 
+static void send_triangle(GLint ci)
+{
+	// Set facet rendering type and color if needed
+	if (gli_smooth()) {
+		cmdFacet.rendering_type = rendering_cs;
+	} else {
+		GLfixed const *c = get_vertex_color(ci);
+		cmdFacet.color = color_GL2gpu(c);
+		cmdFacet.rendering_type = rendering_c;
+	}
+	gpuErr err = gpuWritev(iov_triangle, sizeof_array(iov_triangle), true);
+	assert(gpuOK == err);
+}
+
 static void write_vertex(GLfixed v[4], unsigned vec_idx)
 {
 	cmdVec[vec_idx].geom.c3d[0] = v[0];
 	cmdVec[vec_idx].geom.c3d[1] = v[1];
 	cmdVec[vec_idx].geom.c3d[2] = v[2];
 	if (gli_smooth()) {
-		GLfixed const *c = get_vertex_color(v, vec_idx);
+		GLfixed const *c = get_vertex_color(vec_idx);
 		cmdVec[vec_idx].c_params.r = Fix_gpuColor1(c[0], c[1], c[2]);
 		cmdVec[vec_idx].c_params.g = Fix_gpuColor2(c[0], c[1], c[2]);
 		cmdVec[vec_idx].c_params.b = Fix_gpuColor3(c[0], c[1], c[2]);
@@ -150,7 +159,7 @@ void gli_triangle_array(enum gli_DrawMode mode, GLint first, unsigned count)
 		write_vertex(v, 1);
 		prepare_vertex(v, first++);
 		write_vertex(v, 2);
-		send_triangle();
+		send_triangle(first - (mode == GL_TRIANGLES ? 3:1));
 	} while (mode == GL_TRIANGLES && first < last);
 	unsigned repl_idx = 0;
 	if (mode == GL_TRIANGLE_FAN) repl_idx = 1;
@@ -158,15 +167,8 @@ void gli_triangle_array(enum gli_DrawMode mode, GLint first, unsigned count)
 		facet_is_direct = !facet_is_direct;
 		prepare_vertex(v, first++);
 		write_vertex(v, repl_idx);
-		send_triangle();
+		send_triangle(first-1);
 		if (++ repl_idx > 2) repl_idx = mode == GL_TRIANGLE_FAN ? 1:0;
-	}
-	if (gli_smooth()) {
-		cmdFacet.rendering_type = rendering_cs;
-	} else {
-		GLfixed const *c = gli_current_color();	// FIXME: uses the color of the first vertex
-		cmdFacet.color = color_GL2gpu(c);
-		cmdFacet.rendering_type = rendering_c;
 	}
 }
 

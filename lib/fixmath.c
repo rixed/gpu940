@@ -35,8 +35,9 @@ FixMat const matrix_id = {
  * Public Functions
  */
 
-static inline bool Fix_same_sign(int32_t v0, int32_t v1);
-static inline int32_t Fix_abs(int32_t v);
+extern inline bool Fix_same_sign(int32_t v0, int32_t v1);
+extern inline int32_t Fix_abs(int32_t v);
+extern inline int32_t Fix_sqrt(int32_t n);
 
 void FixMat_x_Vec(int32_t dest[3], FixMat const *mat, FixVec const *src, bool translate) {
 	for (unsigned i=0; i<3; i++) {
@@ -77,7 +78,7 @@ void Fix_normalize(int32_t v[3]) {
 			v[c] >>= 1;
 		}
 	} while ( 1 );
-	norm = Fix_sqrt(norm)<<8;
+	norm = Fix_sqrt(norm);
 	if (norm) {
 		for (unsigned c=3; c--; ) {
 			v[c] = ((int64_t)v[c]<<16)/norm;
@@ -121,7 +122,7 @@ int64_t Fix_mul64x64(int64_t v, int64_t w) {
 		root |= 2 << (N); \
 	}
 
-int32_t Fix_sqrt(int32_t n) {
+int32_t my_sqrt(int32_t n) {
 	int32_t root = 0, try;
 	iter1(15); iter1(14); iter1(13); iter1(12);
 	iter1(11); iter1(10); iter1( 9); iter1( 8);

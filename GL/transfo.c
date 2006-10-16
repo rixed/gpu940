@@ -189,6 +189,18 @@ void gli_multmatrix(enum gli_MatrixMode mode, int32_t dest[4], int32_t const src
 	}
 }
 
+void gli_multmatrixU(enum gli_MatrixMode mode, int32_t dest[3], int32_t const src[3])
+{
+	struct matrix_stack *const ms = get_ms(mode);
+	GLfixed (*const topmat)[16] = ms->mat + ms->top;
+	for (unsigned i=0; i<3; i++) {
+		dest[i] = 0;
+		for (unsigned j=0; j<3; j++) {
+			dest[i] += Fix_mul((*topmat)[i + 4*j], src[j]);
+		}
+	}
+}
+
 void glMatrixMode(GLenum mode)
 {
 	if (mode != GL_MODELVIEW && mode != GL_PROJECTION && mode != GL_TEXTURE) {
