@@ -772,6 +772,7 @@ static void transf_draw_pic(struct gpuBuf *pic_txt, FixVec *pic_vec, enum draw_w
 	}
 	if (draw_what == PIC) {	// Simply rotate and draw
 		pic_facet.rendering_type = rendering_uvk;
+		pic_facet.perspective = 1;
 		for (unsigned v=4; v--; ) {
 		//	FixMat_x_Vec(vecs[v].geom.c3d, &camera.transf, pic_vec+v, true);
 			for (unsigned c=0; c<3; c++)
@@ -781,6 +782,7 @@ static void transf_draw_pic(struct gpuBuf *pic_txt, FixVec *pic_vec, enum draw_w
 		assert(gpuOK == err);
 	} else {	// SHADOWS
 		pic_facet.rendering_type = rendering_uvk_shadow;
+		pic_facet.perspective = 0;
 		int32_t L[3] = {
 			camera.pos[0] + camera.transf.rot[0][2] + camera.transf.rot[0][1],
 			camera.pos[1] + camera.transf.rot[1][2] + camera.transf.rot[1][1],
