@@ -43,10 +43,8 @@ static void prepare_vertex(GLfixed dest[4], GLint arr_idx)
 	gli_multmatrix(GL_MODELVIEW, dest, c);
 }
 
-static GLfixed const *get_vertex_color(unsigned vec_idx)
+static GLfixed const *get_vertex_color(int32_t v[4], unsigned vec_idx)
 {
-	int32_t v[4];
-	gli_vertex_get(vec_idx, v);	// FIXME: This is the second time we get this vertex coordinates
 	if (! gli_enabled(GL_LIGHTING)) {
 		return gli_current_color();
 	}
@@ -59,8 +57,9 @@ static GLfixed const *get_vertex_color(unsigned vec_idx)
 	for (unsigned i=0; i<3; i++) {
 		cpri[i] = ecm[i] + Fix_mul(acm[i], acs[i]);
 	}
-	GLfixed normal[4];
-	gli_normal_get(vec_idx, normal);
+	GLfixed normal_tmp[4], normal[4];
+	gli_normal_get(vec_idx, normal_tmp);
+	gli_multmatrixU(GL_MODELVIEW, normal, normal_tmp);
 //	GLfixed const *scm = gli_material_specular();
 	for (unsigned l=0; l<GLI_MAX_LIGHTS; l++) {	// Use a current_min_light, current_max_light
 		if (! gli_light_enabled(l)) continue;
@@ -101,7 +100,7 @@ static uint32_t color_GL2gpu(GLfixed const *c)
 	return gpuColor(r, g, b);
 }
 
-static void send_triangle(GLint ci, bool facet_is_inverted)
+static void send_triangle(int32_t vi[4], GLint ci, bool facet_is_inverted)
 {
 	// Set cull_mode
 	cmdFacet.cull_mode = 0;
@@ -114,7 +113,7 @@ static void send_triangle(GLint ci, bool facet_is_inverted)
 	if (gli_smooth()) {
 		cmdFacet.rendering_type = rendering_cs;
 	} else {
-		GLfixed const *c = get_vertex_color(ci);
+		GLfixed const *c = get_vertex_color(vi, ci);
 		cmdFacet.color = color_GL2gpu(c);
 		cmdFacet.rendering_type = rendering_c;
 	}
@@ -129,7 +128,7 @@ static void write_vertex(GLfixed v[4], unsigned vec_idx)
 	cmdVec[vec_idx].geom.c3d[1] = v[1];
 	cmdVec[vec_idx].geom.c3d[2] = v[2];
 	if (gli_smooth()) {
-		GLfixed const *c = get_vertex_color(vec_idx);
+		GLfixed const *c = get_vertex_color(v, vec_idx);
 		cmdVec[vec_idx].c_params.r = Fix_gpuColor1(c[0], c[1], c[2]);
 		cmdVec[vec_idx].c_params.g = Fix_gpuColor2(c[0], c[1], c[2]);
 		cmdVec[vec_idx].c_params.b = Fix_gpuColor3(c[0], c[1], c[2]);
@@ -158,15 +157,15 @@ void gli_triangle_array(enum gli_DrawMode mode, GLint first, unsigned count)
 	if (count < 3) return;
 	GLint const last = first + count;
 	bool facet_is_inverted = false;
-	GLfixed v[4];
+	GLfixed v[4], first_v[4];
 	do {
-		prepare_vertex(v, first++);
-		write_vertex(v, 0);
+		prepare_vertex(first_v, first++);
+		write_vertex(first_v, 0);
 		prepare_vertex(v, first++);
 		write_vertex(v, 1);
 		prepare_vertex(v, first++);
 		write_vertex(v, 2);
-		send_triangle(first - (mode == GL_TRIANGLES ? 3:1), facet_is_inverted);
+		send_triangle(mode == GL_TRIANGLES ? first_v:v, first - (mode == GL_TRIANGLES ? 3:1), facet_is_inverted);
 	} while (mode == GL_TRIANGLES && first < last);
 	unsigned repl_idx = 0;
 	if (mode == GL_TRIANGLE_FAN) repl_idx = 1;
@@ -174,7 +173,7 @@ void gli_triangle_array(enum gli_DrawMode mode, GLint first, unsigned count)
 		facet_is_inverted = !facet_is_inverted;
 		prepare_vertex(v, first++);
 		write_vertex(v, repl_idx);
-		send_triangle(first-1, facet_is_inverted);
+		send_triangle(v, first-1, facet_is_inverted);
 		if (++ repl_idx > 2) repl_idx = mode == GL_TRIANGLE_FAN ? 1:0;
 	}
 }

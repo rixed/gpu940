@@ -18,7 +18,6 @@
 #ifndef GL_COLORS_H_061010
 #define GL_COLORS_H_061010
 
-// Beware : we store lights position and directions in _world_ coordinate.
 struct gli_light {
 	GLboolean enabled;
 	GLfixed spot_exponent, spot_cutoff, constant_attenuation, linear_attenuation, quadratic_attenuation;

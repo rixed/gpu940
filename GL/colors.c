@@ -208,7 +208,6 @@ void glLightxv(GLenum light, GLenum pname, GLfixed const *params)
 		return gli_set_error(GL_INVALID_ENUM);
 	}
 	GLfixed *dest;
-	unsigned nb_p = 4;
 	switch ((enum gli_ColorParam)pname) {
 		case GL_AMBIENT:
 			dest = lights[l].ambient;
@@ -220,16 +219,13 @@ void glLightxv(GLenum light, GLenum pname, GLfixed const *params)
 			dest = lights[l].specular;
 			break;
 		case GL_POSITION:
-			dest = lights[l].position;
-			break;
+			return gli_multmatrix(GL_MODELVIEW, lights[l].position, params);
 		case GL_SPOT_DIRECTION:
-			nb_p = 3;
-			dest = lights[l].spot_direction;
-			break;
+			return gli_multmatrixU(GL_MODELVIEW, lights[l].spot_direction, params);
 		default:
 			return gli_set_error(GL_INVALID_ENUM);
 	}
-	memcpy(dest, params, nb_p*sizeof(*params));
+	memcpy(dest, params, 4*sizeof(*params));
 }
 
 void glMaterialx(GLenum face, GLenum pname, GLfixed param)

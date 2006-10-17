@@ -1,6 +1,5 @@
-* Ajouter des rasteriseurs linéaires.
-* Ajouter la possibilité d'avoir un zbuffer (valeurs sur 16 bits dans un buffer distinct, avec un type de rendu distinct, _z).
-* Ajouter à libgpu des fonctionnalités de tri et de backface culling.
+* Ajouter la possibilité d'avoir un zbuffer (valeurs sur 16 bits dans un 
+buffer distinct, avec un type de rendu distinct, _z).
+* Ajouter à libgpu des fonctionnalités de tri.
 * Optimiser.
-
-
+* Optimiser encore.
