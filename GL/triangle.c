@@ -105,7 +105,7 @@ static void send_triangle(GLint ci, bool facet_is_inverted)
 {
 	// Set cull_mode
 	cmdFacet.cull_mode = 0;
-#	define VIEWPORT_IS_INVERTED true
+#	define VIEWPORT_IS_INVERTED false
 	bool front_is_cw = gli_front_faces_are_cw() ^ facet_is_inverted ^ VIEWPORT_IS_INVERTED;
 	if (! gli_must_render_face(GL_FRONT)) cmdFacet.cull_mode |= 1<<(!front_is_cw);
 	if (! gli_must_render_face(GL_BACK)) cmdFacet.cull_mode |= 2>>(!front_is_cw);
@@ -157,7 +157,7 @@ void gli_triangle_array(enum gli_DrawMode mode, GLint first, unsigned count)
 {
 	if (count < 3) return;
 	GLint const last = first + count;
-	bool facet_is_inverted = true;
+	bool facet_is_inverted = false;
 	GLfixed v[4];
 	do {
 		prepare_vertex(v, first++);

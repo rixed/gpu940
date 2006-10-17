@@ -118,10 +118,9 @@ static void gear(GLfixed inner_radius, GLfixed outer_radius, GLfixed width, GLin
 	}
 	glVertexPointer(3, GL_FIXED, 0, vertexes);
 	glDrawArrays(GL_TRIANGLES, 0, nb_vertexes);
+
 	nb_vertexes = 0;
-
 	glNormal3x(0, 0, -1<<16);
-
 	/* draw back face */
 	for (i = 0; i <= teeth; i++) {
 		angle = i * 2 * FIXED_PI / teeth;
@@ -188,7 +187,7 @@ static void gear(GLfixed inner_radius, GLfixed outer_radius, GLfixed width, GLin
 	/* draw inside radius cylinder */
 	for (i = 0; i <= teeth; i++) {
 		angle = i * 2 * FIXED_PI / teeth;
-		addVertex(-Fix_cos(angle), -Fix_sin(angle), 0);
+		addNormal(-Fix_cos(angle), -Fix_sin(angle), 0);
 		addVertex(Fix_mul(r0, Fix_cos(angle)), Fix_mul(r0, Fix_sin(angle)), -width>>1);
 		addVertex(Fix_mul(r0, Fix_cos(angle)), Fix_mul(r0, Fix_sin(angle)), width>>1);
 	}
