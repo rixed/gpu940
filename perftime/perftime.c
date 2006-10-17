@@ -22,15 +22,11 @@
 static struct {
 	char const *name;
 	unsigned nb_enter;
-	unsigned last_time_in;
-	unsigned long long tot_time;
+	unsigned nb_in;
 } stats[PERFTIME_TARGET_MAX];
 
-static unsigned (*gettime)(void);
-static unsigned freq;
-static unsigned wrap_after;
 static unsigned in_target;
-static unsigned long long total_time;	// if a timer can make an unsigned wrap, then total_time must be greater.
+static unsigned nb_in_tot;
 
 #ifndef GP2X
 static char str[1024];
@@ -40,113 +36,83 @@ static char str[1024];
  * Private Functions
  */
 
-static unsigned my_gettime(void) {
-#ifdef GP2X
-	return gp2x_regs32[0x0c08>>2];	// this subcounter is fast (1024Hz) and never written by linux (nor writable)
-#else
-	struct timeval tv;
-	if (-1 == gettimeofday(&tv, NULL)) {
-		assert(0);
-	}
-	return (unsigned)tv.tv_usec;
-#endif
-}
-
-static void update_in_target(unsigned now) {
-	// update previous target
-	long long unsigned elapsed_time;
-	if (likely(now >= stats[in_target].last_time_in)) {	// no wrap
-		elapsed_time = now - stats[in_target].last_time_in;
-	} else {
-		elapsed_time = 0;//now + (wrap_after - stats[in_target].last_time_in + 1);
-	}
-	stats[in_target].tot_time += elapsed_time;
-	total_time += elapsed_time;
-}
-
 /*
  * Public Functions
  */
 
-void perftime_reset(void) {
-	total_time = 0;
-	in_target = ~0U;
+void perftime_reset(void)
+{
+	in_target = 0;
+	nb_in_tot = 0;
 	for (unsigned t=0; t<sizeof_array(stats); t++) {
 		stats[t].nb_enter = 0;
-		stats[t].tot_time = 0;
+		stats[t].nb_in = 0;
 	}
 }
 
-int perftime_begin(unsigned freq_, unsigned (*gettime_)(void), unsigned wrap_after_) {
+int perftime_begin(void)
+{
 	perftime_reset();
-	for (unsigned t=0; t<sizeof_array(stats); t++) {	// reset keeps the names, just flush stats
+	stats[0].name = "Undef";
+	for (unsigned t=1; t<sizeof_array(stats); t++) {	// reset keeps the names, just flush stats
 		stats[t].name = NULL;
 	}
-	if (gettime_) {
-		gettime = gettime_;
-		freq = freq_;
-		wrap_after = wrap_after_;
-	} else {
-		gettime = my_gettime;
-#ifdef GP2X
-		freq = 1024; //7372800>>16;
-		wrap_after = 1023; //0xffff;
-#else
-		freq = 1000000;
-		wrap_after = 999999;
-#endif
-	}
-	if (0 == freq || 0 == wrap_after) return -1;
 	return 0;
 }
 
-void perftime_enter(unsigned target, char const *name) {
-#	ifndef GP2X
-	return;
-#	endif
-	unsigned now = gettime();
-	if (~0U != in_target) update_in_target(now);
-	if (~0U != target) {
-		if (name) stats[target].name = name;
-		stats[target].nb_enter ++;
-		stats[target].last_time_in = now;
+void perftime_async_upd(void)
+{
+	stats[in_target].nb_in ++;
+	if (++ nb_in_tot == UINT_MAX) {
+		// rescale all entries
+		for (unsigned t=0; t<sizeof_array(stats); t++) {
+			stats[t].nb_in >>= 1;
+		}
+		nb_in_tot >>= 1;
 	}
+}
+
+void perftime_enter(unsigned target, char const *name, bool is_enter)
+{
+	if (name) stats[target].name = name;
+	if (is_enter) stats[target].nb_enter ++;
 	in_target = target;
+	if (in_target == 0) {
+		printf("enter undef\n");
+	}
 }
 
 unsigned perftime_target(void) {
 	return in_target;
 }
 
-void perftime_stat(unsigned target, struct perftime_stat *s) {
+void perftime_stat(unsigned target, struct perftime_stat *s)
+{
 	assert(target<sizeof_array(stats));
-	assert(~0U != target);
 	s->name = stats[target].name;
 	s->nb_enter = stats[target].nb_enter;
-	s->cumul_secs = (1024ULL * stats[target].tot_time) / freq;
-	assert(total_time >= stats[target].tot_time);
-	if (total_time) s->average = (100U * stats[target].tot_time) / total_time;
-	else s->average = 0;
+	s->load_avg = (1024ULL * stats[target].nb_in) / nb_in_tot;
 }
 
-void perftime_stat_print(int fd, unsigned target) {
+void perftime_stat_print(int fd, unsigned target)
+{
 #ifdef GP2X
 	(void)fd, (void)target;
 #else
 	struct perftime_stat s;
 	perftime_stat(target, &s);
-	snprintf(str, sizeof(str), "PerfStat for %u(%s): %u enters, %.2f cumul secs, %03.2f%%\n",
+	snprintf(str, sizeof(str), "PerfStat for %u(%s): %u enters, %.2f load avg\n",
 		target,
-		s.name ? s.name:"unset",
+		s.name ? s.name:"NULL",
 		s.nb_enter,
-		s.cumul_secs/1024.,
-		100.*s.average/1024.
+		s.load_avg/1024.
 	);
 	write(fd, str, strlen(str));
 #endif
 }
 
-void perftime_stat_print_all(int fd) {
+void perftime_stat_print_all(int fd)
+{
 #ifdef GP2X
 	(void)fd;
 #else
@@ -155,11 +121,11 @@ void perftime_stat_print_all(int fd) {
 			perftime_stat_print(fd, t);
 		}
 	}
-	snprintf(str, sizeof(str), "Total: %.2f cumul secs\n", (double)total_time / freq );
 	write(fd, str, strlen(str)); 
 #endif
 }
 
-void perftime_end(void) {
+void perftime_end(void)
+{
 }
 

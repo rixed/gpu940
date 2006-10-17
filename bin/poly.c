@@ -41,13 +41,15 @@ typedef void (*draw_line_t)(void);
 #define min(a,b) ((a)<=(b) ? (a):(b))
 #define max(a,b) ((a)>(b) ? (a):(b))
 static void draw_line(void) {
+	unsigned previous_target = perftime_target();
+	perftime_enter(PERF_POLY_DRAW, "line", true);
 	int32_t c_start, c_stop;
 	c_start = ctx.trap.side[ctx.trap.left_side].c>>16;
 	c_stop = ctx.trap.side[!ctx.trap.left_side].c>>16;	// TODO: +1 if fractionnal
 	ctx.line.dw = 4;
 	ctx.line.ddecliv = ctx.poly.decliveness;
 	if ( c_stop < c_start ) {	// may happen on some pathological cases ?
-		return;
+		goto quit_dl;
 	}
 	ctx.line.count = c_stop - c_start;
 	int32_t inv_dc = 0;
@@ -111,6 +113,8 @@ static void draw_line(void) {
 #endif
 	draw_lines[ctx.poly.cmdFacet.perspective][ctx.poly.cmdFacet.rendering_type]();
 	if (start_poly) start_poly --;
+quit_dl:
+	perftime_enter(previous_target, NULL, false);
 }
 
 static void next_params_frac(unsigned side, int32_t dnc) {
@@ -255,7 +259,7 @@ static void draw_trapeze(void) {
 // nb DIVs = 2 + 3*nb_sizes+2*nb_scan_lines
 void draw_poly(void) {
 	unsigned previous_target = perftime_target();
-	perftime_enter(PERF_POLY, "poly");
+	perftime_enter(PERF_POLY, "poly", true);
 	start_poly = 6;
 	// compute decliveness related parameters
 	ctx.poly.decliveness = 0;
@@ -398,5 +402,5 @@ void draw_poly(void) {
 		draw_trapeze();
 	} while (1);
 end_poly:;
-	perftime_enter(previous_target, NULL);
+	perftime_enter(previous_target, NULL, false);
 }

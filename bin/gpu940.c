@@ -62,7 +62,7 @@ static unsigned displist_begin = 0, displist_end = 0;	// same convention than fo
 static void display(struct buffer_loc const *loc) {
 	// display current workingBuffer
 	int in_target = perftime_target();
-	perftime_enter(PERF_DISPLAY, "display");
+	perftime_enter(PERF_DISPLAY, "display", true);
 #ifdef GP2X
 	static unsigned previous_width = 0;
 	unsigned width = 1<<(1+loc->width_log);
@@ -94,7 +94,7 @@ static void display(struct buffer_loc const *loc) {
 	SDL_BlitSurface(sdl_console, NULL, sdl_screen, NULL);
 	SDL_UpdateRect(sdl_screen, 0, 0, SCREEN_WIDTH, SCREEN_HEIGHT);
 #endif
-	perftime_enter(in_target, NULL);
+	perftime_enter(in_target, NULL, 0);
 }
 
 static void console_setup(void) {
@@ -114,20 +114,18 @@ static void console_setup(void) {
 	console_write(24, 0, "MHz:");
 	console_write(0, 1, "FrmCount:");
 	console_write(0, 2, "FrmMiss :");
-	console_write(0, 3, "Perfmeter        \xb3 nb enter \xb3 secs \xb3  %");
-	console_write(0, 4, "\xc4\xc4\xc4\xc4\xc4\xc4\xc4\xc4\xc4\xc4\xc4\xc4\xc4\xc4\xc4\xc4\xc4\xc5\xc4\xc4\xc4\xc4\xc4\xc4\xc4\xc4\xc4\xc4\xc5\xc4\xc4\xc4\xc4\xc4\xc4\xc5\xc4\xc4\xc4\xc4\xc4");
+	console_write(0, 3, "Perfmeter        \xb3  nb enter  \xb3 lavg");
+	console_write(0, 4, "\xc4\xc4\xc4\xc4\xc4\xc4\xc4\xc4\xc4\xc4\xc4\xc4\xc4\xc4\xc4\xc4\xc4\xc5\xc4\xc4\xc4\xc4\xc4\xc4\xc4\xc4\xc4\xc4\xc4\xc4\xc5\xc4\xc4\xc4\xc4\xc4\xc4\xc4\xc4\xc4");
 }
 static void console_stat(int y, int target) {
 	struct perftime_stat st;
 	perftime_stat(target, &st);
-	unsigned c = st.average >= 40 ? 1:3;
+	unsigned c = st.load_avg >= 400 ? 1:3;
 	if (st.name) { console_setcolor(c); console_write(0, y, st.name); }
 	console_setcolor(2); console_write(17, y, "\xb3");
-	console_setcolor(c); console_write_uint(18, y, 9, st.nb_enter);
-	console_setcolor(2); console_write(28, y, "\xb3");
-	console_setcolor(c); console_write_uint(29, y, 5, st.cumul_secs>>10);
-	console_setcolor(2); console_write(35, y, "\xb3");
-	console_setcolor(c); console_write_uint(36, y, 3, st.average);
+	console_setcolor(c); console_write_uint(20, y, 11, st.nb_enter);
+	console_setcolor(2); console_write(30, y, "\xb3");
+	console_setcolor(c); console_write_uint(31, y, 5, (100*st.load_avg)>>10);
 }
 static void update_console(void) {
 	static unsigned skip = 0;
@@ -140,8 +138,11 @@ static void update_console(void) {
 	console_stat(5, PERF_DISPLAY);
 	console_stat(6, PERF_CLIP);
 	console_stat(7, PERF_POLY);
-	console_stat(8, PERF_DIV);
-//	console_stat(9, PERF_WAITCMD);
+	console_stat(8, PERF_POLY_DRAW);
+	console_stat(9, PERF_DIV);
+	console_stat(10, PERF_WAITCMD);
+	console_stat(11, PERF_CMD);
+	console_stat(12, PERF_OTHER);
 }
 
 
@@ -154,10 +155,11 @@ static void vertical_interrupt(void) {
 		shared->frame_count ++;
 	}
 	static int skip_upd_console = 0;
-	if ( ++skip_upd_console > 40 ) {
+	if ( ++skip_upd_console > 20 ) {
 		update_console();
 		skip_upd_console = 0;
 	}
+	perftime_async_upd();
 }
 
 static void reset_clipPlanes(void) {
@@ -329,7 +331,7 @@ static void do_showBuf(void) {
 	displist[displist_end] = allCmds.showBuf.loc;
 	displist_end = next_displist_end;
 #ifndef GP2X
-	vertical_interrupt();
+//	vertical_interrupt();
 #endif
 }
 static void do_point(void) {}
@@ -356,11 +358,14 @@ static void do_facet(void) {
 static void do_reset(void) {
 	read_from_cmdBuf(&allCmds.reset, sizeof(allCmds.reset));
 	perftime_reset();
+	perftime_enter(PERF_WAITCMD, NULL, true);
 	ctx_reset();
 	shared_soft_reset();
 }
 
 static void fetch_command(void) {
+	unsigned previous_target = perftime_target();
+	perftime_enter(PERF_CMD, "cmd", true);
 	uint32_t first_word;
 	copy32(&first_word, shared->cmds+shared->cmds_begin, 1);
 	switch (first_word) {
@@ -397,6 +402,7 @@ static void fetch_command(void) {
 		default:
 			set_error_flag(gpuEPARSE);
 	}
+	perftime_enter(previous_target, NULL, false);
 }
 
 static void GCCunused play_nodiv_anim(void) {
@@ -460,10 +466,10 @@ void set_speed(unsigned s) {
 static void run(void) {
 	//play_nodiv_anim();
 	//play_div_anim();
-//	perftime_enter(PERF_WAITCMD, "idle");
 #ifdef GP2X
 	unsigned wait = 0;
 #endif
+	perftime_enter(PERF_WAITCMD, "idle", true);
 	while (1) {
 #ifndef GP2X
 		if (SDL_QuitRequested()) return;
@@ -536,7 +542,7 @@ void irq_handler(void) {
 }
 
 void mymain(void) {
-	if (-1 == perftime_begin(0, NULL, 0)) goto quit;
+	if (-1 == perftime_begin()) goto quit;
 	// MLC_OVLAY_CNTR
 	uint16_t v = gp2x_regs16[0x2880>>1];
 	v &= 0x0400;	// keep reserved bit
@@ -592,10 +598,10 @@ quit:;
 #else
 static void alrm_handler(int dummy) {
 	(void)dummy;
-	//vertical_interrupt();
+	vertical_interrupt();
 }
 int main(void) {
-	if (-1 == perftime_begin(0, NULL, 0)) return EXIT_FAILURE;
+	if (-1 == perftime_begin()) return EXIT_FAILURE;
 	int fd = open(CMDFILE, O_RDWR|O_CREAT|O_TRUNC, 0644);
 	if (-1 == fd ||
 		-1 == lseek(fd, sizeof(*shared)-1, SEEK_SET) ||
@@ -623,7 +629,7 @@ int main(void) {
 	struct itimerval itimer = {
 		.it_interval = {
 			.tv_sec = 0,
-			.tv_usec = 20000,
+			.tv_usec = 20000,	// for 50 FPS
 		},
 		.it_value = {
 			.tv_sec = 0,

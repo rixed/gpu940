@@ -39,12 +39,13 @@ extern volatile uint32_t *gp2x_regs;	// 32-bit version of the MMSP2 registers, f
 #endif
 
 enum {
-	PERF_DISPLAY,
+	PERF_DISPLAY = 1,
 	PERF_POLY,
 	PERF_POLY_DRAW,
 	PERF_DIV,
 	PERF_CLIP,
 	PERF_WAITCMD,
+	PERF_CMD,
 };
 
 typedef struct {

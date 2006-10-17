@@ -128,7 +128,7 @@ static void proj_vec(unsigned v) {
 int clip_poly(void) {
 	int disp = 0;
 	unsigned previous_target = perftime_target();
-	perftime_enter(PERF_CLIP, "clip & proj");
+	perftime_enter(PERF_CLIP, "clip & proj", true);
 	// init facet
 	static unsigned const nb_params_for_rendering[NB_RENDERING_TYPES] = {
 		0, 1, 2, 3, 2, 3, 0, 2
@@ -161,7 +161,7 @@ int clip_poly(void) {
 	} while (v != ctx.poly.first_vector);
 	disp = 1;
 ret:
-	perftime_enter(previous_target, NULL);
+	perftime_enter(previous_target, NULL, false);
 	return disp;
 }
 
