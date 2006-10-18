@@ -91,7 +91,7 @@ int main(void) {
 		.size = sizeof_array(vec_bg),
 		.color = gpuColor(0, 0, 0),
 		.rendering_type = rendering_c,
-		.perspective = 1,
+		.perspective = 0,
 	};
 	struct iovec cmdvec[1+4+1+sizeof_array(vectors)] = {
 		{ .iov_base = &facet_bg, .iov_len = sizeof(facet_bg) },	// first facet to clear the background
