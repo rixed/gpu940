@@ -158,9 +158,10 @@ void gli_normal_get(GLint idx, int32_t c[4])
 		array_get(&normals, idx, c);
 	} else {
 		GLfixed const *n = gli_current_normal();
-		for (unsigned i=0; i<4; i++) {
+		for (unsigned i=0; i<3; i++) {
 			c[i] = n[i];
 		}
+		c[3] = 1<<16;
 	}
 }
 
@@ -173,7 +174,7 @@ void glColorPointer(GLint size, GLenum type, GLsizei stride, GLvoid const *point
 void glNormalPointer(GLenum type, GLsizei stride, GLvoid const *pointer)
 {
 	static enum gli_Types const allowed_types[] = { GL_FIXED, GL_BYTE, GL_SHORT };
-	set_array(&normals, 4, type, stride, pointer, 4, 4, allowed_types, sizeof_array(allowed_types));
+	set_array(&normals, 3, type, stride, pointer, 3, 3, allowed_types, sizeof_array(allowed_types));
 }
 
 void glVertexPointer(GLint size, GLenum type, GLsizei stride, GLvoid const *pointer)

@@ -149,9 +149,10 @@ static void gear(GLfixed inner_radius, GLfixed outer_radius, GLfixed width, GLin
 	}
 	glVertexPointer(3, GL_FIXED, 0, vertexes);
 	glDrawArrays(GL_TRIANGLES, 0, nb_vertexes);
+	
+	/* draw outward faces of teeth */
 	nb_vertexes = 0;
 	glEnableClientState(GL_NORMAL_ARRAY);
-	/* draw outward faces of teeth */
 	for (i = 0; i < teeth; i++) {
 		angle = i * 2 * FIXED_PI / teeth;
 		u = Fix_mul(r2, Fix_cos(angle + da)) - Fix_mul(r1, Fix_cos(angle));
@@ -181,10 +182,11 @@ static void gear(GLfixed inner_radius, GLfixed outer_radius, GLfixed width, GLin
 	glNormalPointer(GL_FIXED, 0, normals);
 	glDrawArrays(GL_TRIANGLE_STRIP, 0, nb_vertexes);
 	glDisableClientState(GL_NORMAL_ARRAY);
-	
-   glShadeModel(GL_SMOOTH);
+
 	/* draw inside radius cylinder */
+   glShadeModel(GL_SMOOTH);
 	nb_vertexes = 0;
+	glEnableClientState(GL_NORMAL_ARRAY);
 	for (i = 0; i <= teeth; i++) {
 		angle = i * 2 * FIXED_PI / teeth;
 		addNormal(-Fix_cos(angle), -Fix_sin(angle), 0);
@@ -192,7 +194,9 @@ static void gear(GLfixed inner_radius, GLfixed outer_radius, GLfixed width, GLin
 		addVertex(Fix_mul(r0, Fix_cos(angle)), Fix_mul(r0, Fix_sin(angle)), width>>1);
 	}
 	glVertexPointer(3, GL_FIXED, 0, vertexes);
+	glNormalPointer(GL_FIXED, 0, normals);
 	glDrawArrays(GL_TRIANGLE_STRIP, 0, nb_vertexes);
+	glDisableClientState(GL_NORMAL_ARRAY);
 }
 
 
@@ -245,6 +249,7 @@ static void init(void)
 	glEnable(GL_DEPTH_TEST);
 	glEnable(GL_NORMALIZE);
 	glEnableClientState(GL_VERTEX_ARRAY);
+	
 }
 
 
@@ -263,6 +268,7 @@ static void make_window(void)
 //	glMatrixMode(GL_PROJECTION);
 //	glLoadIdentity();
 //	glFrustum(-1.0, 1.0, -h, h, 5.0, 60.0);
+
 	glMatrixMode(GL_MODELVIEW);
 	glLoadIdentity();
 	glTranslatex(0, 0, -14<<16); //-40<<16);
@@ -277,9 +283,9 @@ static void event_loop(void)
 {
 	while (1) {
 
-		view_roty += 23;
+		view_roty += 51;
 		view_rotx -= 37;
-		view_rotz += 51;
+		view_rotz += 53;
 
 		/* next frame */
 		angle += 1<<8;

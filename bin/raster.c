@@ -141,7 +141,7 @@ void draw_line_cs(void) {
 #ifdef GP2X
 			((ctx.line.param[2]&0xFF00)<<16)|((ctx.line.param[0]&0xFF00)<<8)|(ctx.line.param[1]&0xFF00)/*|((ctx.line.param[0]&0xFF00)>>8)*/;
 #else
-			((ctx.line.param[0]&0xFF00)<<8)|(ctx.line.param[1]&0xFF00)|((ctx.line.param[2]&&0xFF00)>>8);
+			((ctx.line.param[0]&0xFF00)<<8)|(ctx.line.param[1]&0xFF00)|((ctx.line.param[2]&0xFF00)>>8);
 #endif
 //		if (start_poly) color = ctx.poly.scan_dir ? 0x3e0 : 0xf800;
 		uint32_t *w = (uint32_t *)(ctx.line.w + ((ctx.line.decliv>>16)<<ctx.poly.nc_log));

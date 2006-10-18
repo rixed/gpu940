@@ -122,14 +122,14 @@ static void send_triangle(int32_t vi[4], GLint ci, bool facet_is_inverted)
 	assert(gpuOK == err);
 }
 
-static void write_vertex(GLfixed v[4], unsigned vec_idx)
+static void write_vertex(GLfixed v[4], unsigned vec_idx, GLint arr_idx)
 {
 	cmdVec[vec_idx].same_as = 0;	// by default
 	cmdVec[vec_idx].u.geom.c3d[0] = v[0];
 	cmdVec[vec_idx].u.geom.c3d[1] = v[1];
 	cmdVec[vec_idx].u.geom.c3d[2] = v[2];
 	if (gli_smooth()) {
-		GLfixed const *c = get_vertex_color(v, vec_idx);
+		GLfixed const *c = get_vertex_color(v, arr_idx);
 		cmdVec[vec_idx].u.c_params.r = Fix_gpuColor1(c[0], c[1], c[2]);
 		cmdVec[vec_idx].u.c_params.g = Fix_gpuColor2(c[0], c[1], c[2]);
 		cmdVec[vec_idx].u.c_params.b = Fix_gpuColor3(c[0], c[1], c[2]);
@@ -160,12 +160,12 @@ void gli_triangle_array(enum gli_DrawMode mode, GLint first, unsigned count)
 	bool facet_is_inverted = false;
 	GLfixed v[4], first_v[4];
 	do {
-		prepare_vertex(first_v, first++);
-		write_vertex(first_v, 0);
-		prepare_vertex(v, first++);
-		write_vertex(v, 1);
-		prepare_vertex(v, first++);
-		write_vertex(v, 2);
+		prepare_vertex(first_v, first);
+		write_vertex(first_v, 0, first++);
+		prepare_vertex(v, first);
+		write_vertex(v, 1, first++);
+		prepare_vertex(v, first);
+		write_vertex(v, 2, first++);
 		send_triangle(mode == GL_TRIANGLES ? first_v:v, first - (mode == GL_TRIANGLES ? 3:1), facet_is_inverted);
 	} while (mode == GL_TRIANGLES && first < last);
 	unsigned repl_idx = 0;
@@ -174,8 +174,8 @@ void gli_triangle_array(enum gli_DrawMode mode, GLint first, unsigned count)
 		facet_is_inverted = !facet_is_inverted;
 		for (unsigned i=0; i<3; i++) {
 			if (i == repl_idx) {
-				prepare_vertex(v, first++);
-				write_vertex(v, repl_idx);
+				prepare_vertex(v, first);
+				write_vertex(v, repl_idx, first++);
 			} else {
 				cmdVec[i].same_as = 3;
 			}
