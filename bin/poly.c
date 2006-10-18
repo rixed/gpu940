@@ -131,7 +131,7 @@ static void next_params_frac(unsigned side, int32_t dnc) {
 	if (ctx.poly.cmdFacet.perspective) {
 		int32_t dalpha = ctx.poly.z_alpha - ctx.trap.side[side].z_alpha_start;
 		for (unsigned p=ctx.poly.nb_params; p--; ) {
-			ctx.trap.side[side].param[p] = Fix_mul(ctx.trap.side[side].param_alpha[p], dalpha) + ctx.poly.vectors[ ctx.trap.side[side].start_v ].cmdVector.geom.param[p];
+			ctx.trap.side[side].param[p] = Fix_mul(ctx.trap.side[side].param_alpha[p], dalpha) + ctx.poly.vectors[ ctx.trap.side[side].start_v ].cmdVector.u.geom.param[p];
 		}
 	} else {
 		for (unsigned p=ctx.poly.nb_params; p--; ) {
@@ -171,7 +171,7 @@ static void next_params_int(unsigned side) {
 	if (ctx.poly.cmdFacet.perspective) {
 		int32_t dalpha = ctx.poly.z_alpha - ctx.trap.side[side].z_alpha_start;
 		for (unsigned p=ctx.poly.nb_params; p--; ) {
-			ctx.trap.side[side].param[p] = Fix_mul(ctx.trap.side[side].param_alpha[p], dalpha) + ctx.poly.vectors[ ctx.trap.side[side].start_v ].cmdVector.geom.param[p];
+			ctx.trap.side[side].param[p] = Fix_mul(ctx.trap.side[side].param_alpha[p], dalpha) + ctx.poly.vectors[ ctx.trap.side[side].start_v ].cmdVector.u.geom.param[p];
 		}
 	} else {
 		for (unsigned p=ctx.poly.nb_params; p--; ) {
@@ -310,10 +310,10 @@ void draw_poly(void) {
 		// we want b = zmin, c = zmax (closer)
 		unsigned v = ctx.poly.first_vector;
 		do {
-			if (ctx.poly.vectors[v].cmdVector.geom.c3d[2] < ctx.poly.vectors[b_vec].cmdVector.geom.c3d[2]) {
+			if (ctx.poly.vectors[v].cmdVector.u.geom.c3d[2] < ctx.poly.vectors[b_vec].cmdVector.u.geom.c3d[2]) {
 				b_vec = v;
 			}
-			if (ctx.poly.vectors[v].cmdVector.geom.c3d[2] >= ctx.poly.vectors[c_vec].cmdVector.geom.c3d[2]) {
+			if (ctx.poly.vectors[v].cmdVector.u.geom.c3d[2] >= ctx.poly.vectors[c_vec].cmdVector.u.geom.c3d[2]) {
 				c_vec = v;
 			}
 			v = ctx.poly.vectors[v].next;
@@ -327,13 +327,13 @@ void draw_poly(void) {
 			}
 			v = ctx.poly.vectors[v].next;
 		} while (1);
-		if (ctx.poly.vectors[b_vec].cmdVector.geom.c3d[2] == ctx.poly.vectors[c_vec].cmdVector.geom.c3d[2]) {	// BC is Z-const
+		if (ctx.poly.vectors[b_vec].cmdVector.u.geom.c3d[2] == ctx.poly.vectors[c_vec].cmdVector.u.geom.c3d[2]) {	// BC is Z-const
 			m[0] = ctx.poly.vectors[c_vec].c2d[0]-ctx.poly.vectors[b_vec].c2d[0];
 			m[1] = ctx.poly.vectors[c_vec].c2d[1]-ctx.poly.vectors[b_vec].c2d[1];
 		} else {
-			int64_t alpha = ((int64_t)(ctx.poly.vectors[a_vec].cmdVector.geom.c3d[2]-ctx.poly.vectors[b_vec].cmdVector.geom.c3d[2])<<31)/(ctx.poly.vectors[c_vec].cmdVector.geom.c3d[2]-ctx.poly.vectors[b_vec].cmdVector.geom.c3d[2]);
+			int64_t alpha = ((int64_t)(ctx.poly.vectors[a_vec].cmdVector.u.geom.c3d[2]-ctx.poly.vectors[b_vec].cmdVector.u.geom.c3d[2])<<31)/(ctx.poly.vectors[c_vec].cmdVector.u.geom.c3d[2]-ctx.poly.vectors[b_vec].cmdVector.u.geom.c3d[2]);
 			for (unsigned c=2; c--; ) {
-				m[c] = ctx.poly.vectors[b_vec].cmdVector.geom.c3d[c]-ctx.poly.vectors[a_vec].cmdVector.geom.c3d[c]+(alpha*(ctx.poly.vectors[c_vec].cmdVector.geom.c3d[c]-ctx.poly.vectors[b_vec].cmdVector.geom.c3d[c])>>31);
+				m[c] = ctx.poly.vectors[b_vec].cmdVector.u.geom.c3d[c]-ctx.poly.vectors[a_vec].cmdVector.u.geom.c3d[c]+(alpha*(ctx.poly.vectors[c_vec].cmdVector.u.geom.c3d[c]-ctx.poly.vectors[b_vec].cmdVector.u.geom.c3d[c])>>31);
 			}
 		}
 		if (Fix_abs(m[0]) < Fix_abs(m[1])) {
@@ -355,7 +355,7 @@ void draw_poly(void) {
 	{
 		ctx.poly.z_num = 0;
 		ctx.poly.nc_dir = 1;
-		int32_t dz = ctx.poly.vectors[b_vec].cmdVector.geom.c3d[2] - ctx.poly.vectors[c_vec].cmdVector.geom.c3d[2];
+		int32_t dz = ctx.poly.vectors[b_vec].cmdVector.u.geom.c3d[2] - ctx.poly.vectors[c_vec].cmdVector.u.geom.c3d[2];
 		if (0 == dz) {	// if dz is 0, b_vec and c_vec are random or not set yet, and so would be dnc
 			unsigned v = ctx.poly.first_vector;
 			do {
@@ -367,7 +367,7 @@ void draw_poly(void) {
 				}
 				v = ctx.poly.vectors[v].next;
 			} while (v != ctx.poly.first_vector);		
-			if (ctx.poly.vectors[b_vec].cmdVector.geom.c3d[2] > ctx.poly.vectors[c_vec].cmdVector.geom.c3d[2]) {
+			if (ctx.poly.vectors[b_vec].cmdVector.u.geom.c3d[2] > ctx.poly.vectors[c_vec].cmdVector.u.geom.c3d[2]) {
 				SWAP(unsigned, b_vec, c_vec);
 			}
 		}
@@ -380,8 +380,8 @@ void draw_poly(void) {
 			ctx.poly.nc_dir = -1;
 		}
 		if (ctx.poly.cmdFacet.perspective) {
-			ctx.poly.z_den = ((int64_t)ctx.poly.vectors[b_vec].cmdVector.geom.c3d[2]*dnc_);
-			ctx.poly.z_dnum = ctx.poly.nc_dir == 1 ? ctx.poly.vectors[c_vec].cmdVector.geom.c3d[2]:-ctx.poly.vectors[c_vec].cmdVector.geom.c3d[2];
+			ctx.poly.z_den = ((int64_t)ctx.poly.vectors[b_vec].cmdVector.u.geom.c3d[2]*dnc_);
+			ctx.poly.z_dnum = ctx.poly.nc_dir == 1 ? ctx.poly.vectors[c_vec].cmdVector.u.geom.c3d[2]:-ctx.poly.vectors[c_vec].cmdVector.u.geom.c3d[2];
 			ctx.poly.z_dden = ctx.poly.nc_dir == 1 ? -dz:dz;
 			ctx.poly.z_alpha = 0;
 		}
@@ -425,8 +425,8 @@ void draw_poly(void) {
 						inv_dalpha = Fix_inv(dnc);
 					}
 					for (unsigned p=ctx.poly.nb_params; p--; ) {
-						int32_t const P0 = ctx.poly.vectors[ ctx.trap.side[side].start_v ].cmdVector.geom.param[p];
-						int32_t const PN = ctx.poly.vectors[ ctx.trap.side[side].end_v ].cmdVector.geom.param[p];
+						int32_t const P0 = ctx.poly.vectors[ ctx.trap.side[side].start_v ].cmdVector.u.geom.param[p];
+						int32_t const PN = ctx.poly.vectors[ ctx.trap.side[side].end_v ].cmdVector.u.geom.param[p];
 						ctx.trap.side[side].param[p] = P0;
 						ctx.trap.side[side].param_alpha[p] = Fix_mul(PN-P0, inv_dalpha);
 					}

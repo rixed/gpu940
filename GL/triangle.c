@@ -124,17 +124,18 @@ static void send_triangle(int32_t vi[4], GLint ci, bool facet_is_inverted)
 
 static void write_vertex(GLfixed v[4], unsigned vec_idx)
 {
-	cmdVec[vec_idx].geom.c3d[0] = v[0];
-	cmdVec[vec_idx].geom.c3d[1] = v[1];
-	cmdVec[vec_idx].geom.c3d[2] = v[2];
+	cmdVec[vec_idx].same_as = 0;	// by default
+	cmdVec[vec_idx].u.geom.c3d[0] = v[0];
+	cmdVec[vec_idx].u.geom.c3d[1] = v[1];
+	cmdVec[vec_idx].u.geom.c3d[2] = v[2];
 	if (gli_smooth()) {
 		GLfixed const *c = get_vertex_color(v, vec_idx);
-		cmdVec[vec_idx].c_params.r = Fix_gpuColor1(c[0], c[1], c[2]);
-		cmdVec[vec_idx].c_params.g = Fix_gpuColor2(c[0], c[1], c[2]);
-		cmdVec[vec_idx].c_params.b = Fix_gpuColor3(c[0], c[1], c[2]);
-		CLAMP(cmdVec[vec_idx].c_params.r, 0, 0xFFFF);
-		CLAMP(cmdVec[vec_idx].c_params.g, 0, 0xFFFF);
-		CLAMP(cmdVec[vec_idx].c_params.b, 0, 0xFFFF);
+		cmdVec[vec_idx].u.c_params.r = Fix_gpuColor1(c[0], c[1], c[2]);
+		cmdVec[vec_idx].u.c_params.g = Fix_gpuColor2(c[0], c[1], c[2]);
+		cmdVec[vec_idx].u.c_params.b = Fix_gpuColor3(c[0], c[1], c[2]);
+		CLAMP(cmdVec[vec_idx].u.c_params.r, 0, 0xFFFF);
+		CLAMP(cmdVec[vec_idx].u.c_params.g, 0, 0xFFFF);
+		CLAMP(cmdVec[vec_idx].u.c_params.b, 0, 0xFFFF);
 	}
 }
 
@@ -171,8 +172,14 @@ void gli_triangle_array(enum gli_DrawMode mode, GLint first, unsigned count)
 	if (mode == GL_TRIANGLE_FAN) repl_idx = 1;
 	while (first < last) {
 		facet_is_inverted = !facet_is_inverted;
-		prepare_vertex(v, first++);
-		write_vertex(v, repl_idx);
+		for (unsigned i=0; i<3; i++) {
+			if (i == repl_idx) {
+				prepare_vertex(v, first++);
+				write_vertex(v, repl_idx);
+			} else {
+				cmdVec[i].same_as = 3;
+			}
+		}
 		send_triangle(v, first-1, facet_is_inverted);
 		if (++ repl_idx > 2) repl_idx = mode == GL_TRIANGLE_FAN ? 1:0;
 	}
@@ -183,10 +190,10 @@ void gli_clear(GLclampx colors[4])
 	// Won't work with user clip planes
 	// Better implement a true fill function
 	static gpuCmdVector vec_bg[] = {
-		{ .geom = { .c3d = { -10<<16, -10<<16, -257 } }, },
-		{ .geom = { .c3d = {  10<<16, -10<<16, -257 } }, },
-		{ .geom = { .c3d = {  10<<16,  10<<16, -257 } }, },
-		{ .geom = { .c3d = { -10<<16,  10<<16, -257 } }, },
+		{ .same_as = 0, .u = { .geom = { .c3d = { -10<<16, -10<<16, -257 } }, }, },
+		{ .same_as = 0, .u = { .geom = { .c3d = {  10<<16, -10<<16, -257 } }, }, },
+		{ .same_as = 0, .u = { .geom = { .c3d = {  10<<16,  10<<16, -257 } }, }, },
+		{ .same_as = 0, .u = { .geom = { .c3d = { -10<<16,  10<<16, -257 } }, }, },
 	};
 	static gpuCmdFacet facet_bg = {
 		.opcode = gpuFACET,

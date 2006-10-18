@@ -15,25 +15,40 @@
  * along with gpu940; if not, write to the Free Software
  * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
  */
+#include <limits.h>
 #include "gpu940i.h"
 
 // TODO : a c2d cache ?
+
+/*
+ * Data Definitions
+ */
+
+#define CACHE_SIZE 8
+static struct {
+	int32_t x,y;
+} c2d_cache[CACHE_SIZE];
+static unsigned cache_end = 0;
+static unsigned cache_depth = 0;
+static unsigned cache_hit = 0;
+static unsigned cache_miss = 0;
 
 /*
  * Private Functions
  */
 
 // prev and next must have h <0 and >0 (or vice versa)
-static unsigned new_vec(unsigned prev, unsigned next, unsigned p) {
+static unsigned new_vec(unsigned prev, unsigned next, unsigned p)
+{
 	int32_t ha = Fix_abs(ctx.poly.vectors[prev].h);
 	int32_t hb = Fix_abs(ctx.poly.vectors[next].h);
 	int32_t ratio = 1<<16, hahb = ha+hb;
 	if (hahb) ratio = ((int64_t)ha<<16)/(ha+hb);
 	assert(ctx.poly.nb_vectors < sizeof_array(ctx.poly.vectors));
 	for (unsigned u=ctx.poly.nb_params+3; u--; ) {
-		ctx.poly.vectors[ctx.poly.nb_vectors].cmdVector.all_params[u] =
-			ctx.poly.vectors[prev].cmdVector.all_params[u] +
-			(((int64_t)ratio*(ctx.poly.vectors[next].cmdVector.all_params[u]-ctx.poly.vectors[prev].cmdVector.all_params[u]))>>16);
+		ctx.poly.vectors[ctx.poly.nb_vectors].cmdVector.u.all_params[u] =
+			ctx.poly.vectors[prev].cmdVector.u.all_params[u] +
+			(((int64_t)ratio*(ctx.poly.vectors[next].cmdVector.u.all_params[u]-ctx.poly.vectors[prev].cmdVector.u.all_params[u]))>>16);
 	}
 	ctx.poly.vectors[ctx.poly.nb_vectors].prev = prev;
 	ctx.poly.vectors[ctx.poly.nb_vectors].next = next;
@@ -43,7 +58,8 @@ static unsigned new_vec(unsigned prev, unsigned next, unsigned p) {
 }
 
 // return true if something is left
-static int clip_facet_by_plane(unsigned p) {
+static int clip_facet_by_plane(unsigned p)
+{
 	gpuPlane const *const plane = ctx.view.clipPlanes+p;
 	// for each vector, compute H
 	unsigned last_in = ~0U;
@@ -55,7 +71,7 @@ static int clip_facet_by_plane(unsigned p) {
 		ctx.poly.vectors[v].h = 0;
 		for (unsigned c=3; c--; ) {
 			if (0 == plane->normal[c]) continue;	// frequent case
-			int32_t const ov = ctx.poly.vectors[v].cmdVector.geom.c3d[c] - plane->origin[c];
+			int32_t const ov = ctx.poly.vectors[v].cmdVector.u.geom.c3d[c] - plane->origin[c];
 			ctx.poly.vectors[v].h += Fix_mul(ov, plane->normal[c]);
 		}
 		if (0 == ctx.poly.vectors[v].h) ctx.poly.vectors[v].h = 1;
@@ -86,36 +102,60 @@ static int clip_facet_by_plane(unsigned p) {
 	return 1;
 }
 
-static void proj_vec(unsigned v) {
-	int32_t const x = ctx.poly.vectors[v].cmdVector.geom.c3d[0];
-	int32_t const y = ctx.poly.vectors[v].cmdVector.geom.c3d[1];
-	int32_t const z = ctx.poly.vectors[v].cmdVector.geom.c3d[2];
-	int32_t const dproj = ctx.view.dproj;
-	int32_t c2d;
-	switch (ctx.poly.vectors[v].clipFlag & 0xa) {
-		case 0x2:	// right
-			c2d = ctx.view.clipMax[0]<<16;
-			break;
-		case 0x8:	// left
-			c2d = ctx.view.clipMin[0]<<16;
-			break;
-		default:
-			c2d = ((int64_t)x<<(16+dproj))/-z;
-			break;
+static void next_cache(void)
+{
+	if (++ cache_end >= CACHE_SIZE) cache_end = 0;
+	if (cache_depth < CACHE_SIZE-1) cache_depth++;
+}
+
+static void proj_vec(unsigned v)
+{
+	// Do we have this vertex in cache ?
+	unsigned const same_as = ctx.poly.vectors[v].cmdVector.same_as;
+	if (v < ctx.poly.cmdFacet.size && same_as > 0 && same_as <= cache_depth) {
+		cache_hit ++;
+		int cache_idx = cache_end - same_as;
+		if (cache_idx < 0) cache_idx += CACHE_SIZE;
+		ctx.poly.vectors[v].c2d[0] = c2d_cache[cache_idx].x;
+		ctx.poly.vectors[v].c2d[1] = c2d_cache[cache_idx].y;
+	} else {
+		cache_miss ++;
+		int32_t const x = ctx.poly.vectors[v].cmdVector.u.geom.c3d[0];
+		int32_t const y = ctx.poly.vectors[v].cmdVector.u.geom.c3d[1];
+		int32_t const z = ctx.poly.vectors[v].cmdVector.u.geom.c3d[2];
+		int32_t const dproj = ctx.view.dproj;
+		int32_t c2d;
+		switch (ctx.poly.vectors[v].clipFlag & 0xa) {
+			case 0x2:	// right
+				c2d = ctx.view.clipMax[0]<<16;
+				break;
+			case 0x8:	// left
+				c2d = ctx.view.clipMin[0]<<16;
+				break;
+			default:
+				c2d = ((int64_t)x<<(16+dproj))/-z;
+				break;
+		}
+		ctx.poly.vectors[v].c2d[0] = c2d + (ctx.view.winWidth<<15);
+		switch (ctx.poly.vectors[v].clipFlag & 0x14) {
+			case 0x4:	// up
+				c2d = ctx.view.clipMax[1]<<16;
+				break;
+			case 0x10:	// bottom
+				c2d = ctx.view.clipMin[1]<<16;
+				break;
+			default:
+				c2d = ((int64_t)y<<(16+dproj))/-z;
+				break;
+		}
+		ctx.poly.vectors[v].c2d[1] = c2d + (ctx.view.winHeight<<15);
 	}
-	ctx.poly.vectors[v].c2d[0] = c2d + (ctx.view.winWidth<<15);
-	switch (ctx.poly.vectors[v].clipFlag & 0x14) {
-		case 0x4:	// up
-			c2d = ctx.view.clipMax[1]<<16;
-			break;
-		case 0x10:	// bottom
-			c2d = ctx.view.clipMin[1]<<16;
-			break;
-		default:
-			c2d = ((int64_t)y<<(16+dproj))/-z;
-			break;
+	if (v < ctx.poly.cmdFacet.size) {
+		// store it in cache
+		c2d_cache[cache_end].x = ctx.poly.vectors[v].c2d[0];
+		c2d_cache[cache_end].y = ctx.poly.vectors[v].c2d[1];
+		next_cache();
 	}
-	ctx.poly.vectors[v].c2d[1] = c2d + (ctx.view.winHeight<<15);
 }
 
 /*
@@ -125,7 +165,8 @@ static void proj_vec(unsigned v) {
 // When we arrive here, only cmdVectors and cmdFacets are set.
 // We must first init other members of facet and vectors, then clip, updating facet size as we add/remove vectors.
 // return true if something is left to be displayed.
-int clip_poly(void) {
+int clip_poly(void)
+{
 	int disp = 0;
 	unsigned previous_target = perftime_target();
 	perftime_enter(PERF_CLIP, "clip & proj", true);
@@ -152,13 +193,27 @@ int clip_poly(void) {
 	for (v=0; v<ctx.view.nb_clipPlanes; v++) {
 		if (! clip_facet_by_plane(v)) goto ret;
 	}
-	ctx.poly.cmdFacet.size = 0;
+	// compute new size and tag used vectors so that we can then loop over vectors array
 	v = ctx.poly.first_vector;
+	unsigned new_size = 0;
+	static int32_t magick = 0;
 	do {
-		proj_vec(v);
-		ctx.poly.cmdFacet.size ++;
+		new_size ++;
+		ctx.poly.vectors[v].used = magick;
 		v = ctx.poly.vectors[v].next;
 	} while (v != ctx.poly.first_vector);
+	// We must enter vectors in incoming order into the cache (same_as significance)
+	v = 0;
+	for (unsigned nb_v = 0; nb_v < new_size; v++) {
+		if (ctx.poly.vectors[v].used == magick) {
+			proj_vec(v);
+			nb_v ++;
+		} else if (v < ctx.poly.cmdFacet.size) {
+			next_cache();	// skip this entry (leave it blank: we won't use it)
+		}
+	}
+	ctx.poly.cmdFacet.size = new_size;
+	magick ++;
 	disp = 1;
 ret:
 	perftime_enter(previous_target, NULL, false);
@@ -166,7 +221,8 @@ ret:
 }
 
 // returns true if something is left to draw
-int cull_poly(void) {
+int cull_poly(void)
+{
 	if (ctx.poly.cmdFacet.cull_mode == 3) return 0;
 	if (ctx.poly.cmdFacet.cull_mode == 0) return 1;
 	unsigned v = ctx.poly.first_vector;
@@ -183,3 +239,19 @@ int cull_poly(void) {
 	return (a > 0 && ctx.poly.cmdFacet.cull_mode == 2) || (a < 0 && ctx.poly.cmdFacet.cull_mode == 1);
 }
 
+unsigned proj_cache_ratio(void)
+{
+	if (cache_hit > (UINT_MAX>>10) || cache_miss > (UINT_MAX>>10)) {
+		cache_hit >>= 1;
+		cache_miss >>= 1;
+	}
+	return (100*cache_hit)/(cache_hit+cache_miss);
+}
+
+void proj_cache_reset(void)
+{
+	cache_end = 0;
+	cache_depth = 0;
+	cache_hit = 0;
+	cache_miss = 0;
+}

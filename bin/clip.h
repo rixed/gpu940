@@ -21,5 +21,7 @@
 
 int clip_poly(void);
 int cull_poly(void);
+unsigned proj_cache_ratio(void);
+void proj_cache_reset(void);
 
 #endif

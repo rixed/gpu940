@@ -26,6 +26,7 @@
  */
 
 // TODO : unloop and jump into the unrolled code to avoid testing n==0
+// This is called approx 10/15 times per division.
 static int nbbit(uint64_t v, int n) {
 	uint64_t single = (uint64_t)1 << (n-1);
 	while (n && 0 == (v&single)) {

@@ -289,12 +289,13 @@ static void draw_facet(unsigned f, bool ext, int32_t i_dec) {
 	static gpuCmdVector cmdVec[4];
 	for (unsigned v=4; v--; ) {
 		for (unsigned c=3; c--; ) {
-			cmdVec[v].geom.c3d[c] = c3d[ cube_facet[f][v] ][c];
-			normal[c] += cmdVec[v].geom.c3d[c] - camera.transf.trans[c];
+			cmdVec[v].same_as = 0,
+			cmdVec[v].u.geom.c3d[c] = c3d[ cube_facet[f][v] ][c];
+			normal[c] += cmdVec[v].u.geom.c3d[c] - camera.transf.trans[c];
 		}
-		cmdVec[v].uvi_params.u = uvs[f][v][0];
-		cmdVec[v].uvi_params.v = uvs[f][v][1];
-		cmdVec[v].uvi_params.i = (i_dec+c3d[ cube_facet[f][v] ][2])<<6;
+		cmdVec[v].u.uvi_params.u = uvs[f][v][0];
+		cmdVec[v].u.uvi_params.v = uvs[f][v][1];
+		cmdVec[v].u.uvi_params.i = (i_dec+c3d[ cube_facet[f][v] ][2])<<6;
 	}
 	Fix_normalize(normal);
 	int64_t scal = Fix_scalar(normal, c3d[ cube_facet[f][0] ]);
@@ -324,10 +325,10 @@ static void draw_cube(bool ext, int32_t i_dec) {
 
 static void clear_screen(void) {
 	static gpuCmdVector vec_bg[] = {
-		{ .geom = { .c3d = { -10<<16, -10<<16, -257 } }, },
-		{ .geom = { .c3d = {  10<<16, -10<<16, -257 } }, },
-		{ .geom = { .c3d = {  10<<16,  10<<16, -257 } }, },
-		{ .geom = { .c3d = { -10<<16,  10<<16, -257 } }, },
+		{ .same_as = 0, .u = { .geom = { .c3d = { -10<<16, -10<<16, -257 } }, }, },
+		{ .same_as = 0, .u = { .geom = { .c3d = {  10<<16, -10<<16, -257 } }, }, },
+		{ .same_as = 0, .u = { .geom = { .c3d = {  10<<16,  10<<16, -257 } }, }, },
+		{ .same_as = 0, .u = { .geom = { .c3d = { -10<<16,  10<<16, -257 } }, }, },
 	};
 	static gpuCmdFacet facet_bg = {
 		.opcode = gpuFACET,
@@ -758,10 +759,10 @@ static void transf_draw_pic(struct gpuBuf *pic_txt, FixVec *pic_vec, enum draw_w
 	};
 	pic_facet.color = gpuColor(0, 0, 255);
 	static gpuCmdVector vecs[4] = {
-		{ .uvi_params = { .u =   0<<16, .v =   0<<16 } },
-		{ .uvi_params = { .u = 255<<16, .v =   0<<16 } },
-		{ .uvi_params = { .u = 255<<16, .v = 255<<16 } },
-		{ .uvi_params = { .u =   0<<16, .v = 255<<16 } }
+		{ .same_as = 0, .u = { .uvi_params = { .u =   0<<16, .v =   0<<16 } }, },
+		{ .same_as = 0, .u = { .uvi_params = { .u = 255<<16, .v =   0<<16 } }, },
+		{ .same_as = 0, .u = { .uvi_params = { .u = 255<<16, .v = 255<<16 } }, },
+		{ .same_as = 0, .u = { .uvi_params = { .u =   0<<16, .v = 255<<16 } }, }
 	};
 	static struct iovec cmdvec[4+1] = {
 		{ .iov_base = &pic_facet, .iov_len = sizeof(pic_facet) },
@@ -779,7 +780,7 @@ static void transf_draw_pic(struct gpuBuf *pic_txt, FixVec *pic_vec, enum draw_w
 		for (unsigned v=4; v--; ) {
 		//	FixMat_x_Vec(vecs[v].geom.c3d, &camera.transf, pic_vec+v, true);
 			for (unsigned c=0; c<3; c++)
-				vecs[v].geom.c3d[c] = pic_vec[v].c[c];
+				vecs[v].u.geom.c3d[c] = pic_vec[v].c[c];
 		}
 		gpuErr err = gpuWritev(cmdvec, sizeof_array(cmdvec), true);
 		assert(gpuOK == err);
@@ -826,7 +827,7 @@ static void transf_draw_pic(struct gpuBuf *pic_txt, FixVec *pic_vec, enum draw_w
 					M.c[c] = a;
 				}
 				M.xy = ((int64_t)M.c[0]*M.c[1])>>16;
-				FixMat_x_Vec(vecs[v].geom.c3d, &camera.transf, &M, true);
+				FixMat_x_Vec(vecs[v].u.geom.c3d, &camera.transf, &M, true);
 			}
 			gpuErr err;
 			err = gpuWrite(&setCpCmd, sizeof(setCpCmd), true);

@@ -2,7 +2,7 @@
 # Process this file with autoconf to produce a configure script.
 
 AC_PREREQ(2.59)
-AC_INIT(gpu940, 1.0, rixed@happyleptic.org)
+AC_INIT(gpu940, 1.1, rixed@happyleptic.org)
 AC_CONFIG_SRCDIR([bin/gpu940.c])
 AM_INIT_AUTOMAKE
 AC_ARG_ENABLE(gp2x,compile specifically for gp2x,[CFLAGS="$CFLAGS -DGP2X"],[

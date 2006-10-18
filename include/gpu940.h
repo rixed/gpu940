@@ -165,21 +165,24 @@ typedef struct {
 	uint32_t cull_mode:2;	// bit 0 for direct (counter clock-wise), bit 1 for indirect (clock-wise)
 } gpuCmdFacet;
 
-typedef union {
-	// No opcode: it must follow a point/line/facet
-	int32_t all_params[3+GPU_NB_PARAMS];
-	struct {
-		int32_t x, y, z, u, v, i;
-	} uvi_params;
-	struct {
-		int32_t x, y, z, i;
-	} ci_params;
-	struct {
-		int32_t x, y, z, r, g, b;
-	} c_params;
-	struct {
-		int32_t c3d[3], param[GPU_NB_PARAMS];
-	} geom;
+typedef struct {
+	uint32_t same_as;	// x,y and z are the same that this last vector. 0 means this same as this one, which of course allways stands true.
+	union {
+		// No opcode: it must follow a point/line/facet
+		int32_t all_params[3+GPU_NB_PARAMS];
+		struct {
+			int32_t x, y, z, u, v, i;
+		} uvi_params;
+		struct {
+			int32_t x, y, z, i;
+		} ci_params;
+		struct {
+			int32_t x, y, z, r, g, b;
+		} c_params;
+		struct {
+			int32_t c3d[3], param[GPU_NB_PARAMS];
+		} geom;
+	} u;
 } gpuCmdVector;
 
 /* Client Functions */

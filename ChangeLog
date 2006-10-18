@@ -1,5 +1,6 @@
 2006-10-18 rixed@free.fr
 	* Suppression of some non-required DIVs in no-perspective mode.
+	* Addition of a projection cache.
 
 2006-10-07 rixed@free.fr
 	* Addition of a no-perspective move that's much faster on GP2X.

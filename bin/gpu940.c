@@ -111,9 +111,10 @@ static void console_setup(void) {
 	while(1) ; */
 	console_setcolor(2);
 	console_write(0, 0, "GPU940 v" VERSION " ErrFlg:");
-	console_write(24, 0, "MHz:");
+	console_write(25, 0, "MHz:");
 	console_write(0, 1, "FrmCount:");
-	console_write(0, 2, "FrmMiss :");
+	console_write(20, 1, "FrmMiss :");
+	console_write(0, 2, "ProjCach:");
 	console_write(0, 3, "Perfmeter        \xb3  nb enter  \xb3 lavg");
 	console_write(0, 4, "\xc4\xc4\xc4\xc4\xc4\xc4\xc4\xc4\xc4\xc4\xc4\xc4\xc4\xc4\xc4\xc4\xc4\xc5\xc4\xc4\xc4\xc4\xc4\xc4\xc4\xc4\xc4\xc4\xc4\xc4\xc5\xc4\xc4\xc4\xc4\xc4\xc4\xc4\xc4\xc4");
 }
@@ -131,7 +132,8 @@ static void update_console(void) {
 	console_setcolor(3);
 	console_write_uint(20, 0, 3, shared->error_flags);
 	console_write_uint(9, 1, 5, shared->frame_count);
-	console_write_uint(9, 2, 5, shared->frame_miss);
+	console_write_uint(29, 1, 5, shared->frame_miss);
+	console_write_uint(9, 2, 5, proj_cache_ratio());
 	console_stat(5, PERF_DISPLAY);
 	console_stat(6, PERF_CLIP);
 	console_stat(7, PERF_POLY);
@@ -334,6 +336,7 @@ static void do_showBuf(void) {
 static void do_point(void) {}
 static void do_line(void) {}
 static void do_facet(void) {
+	// Warning: don't skip any vector here (without positionning err_flag) or future same_as hints will be wrong.
 	read_from_cmdBuf(&ctx.poly.cmdFacet, sizeof(ctx.poly.cmdFacet));
 	// sanity checks
 	if (ctx.poly.cmdFacet.size > sizeof_array(ctx.poly.vectors)) {
@@ -356,6 +359,7 @@ static void do_reset(void) {
 	read_from_cmdBuf(&allCmds.reset, sizeof(allCmds.reset));
 	perftime_reset();
 	perftime_enter(PERF_WAITCMD, NULL, true);
+	proj_cache_reset();
 	ctx_reset();
 	shared_soft_reset();
 }

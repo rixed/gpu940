@@ -56,6 +56,7 @@ typedef struct {
 	uint32_t next;
 	uint32_t prev;
 	uint32_t clipFlag;	// bit 0..3 indicate that the point is on this plane (do not project corresponding coordinate)
+	int32_t used;
 } gpuVector;
 
 extern struct ctx {

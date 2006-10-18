@@ -67,10 +67,10 @@ int main(void) {
 		{ .c = { -LEN, -LEN, LEN/4 }, .xy = LEN2 },
 	};
 	gpuCmdVector vectors[sizeof_array(vec3d)] = {
-		{ .uvi_params = { .u=0, .v=0, .i=16<<16 }, },
-		{ .uvi_params = { .u=255<<16, .v=0, .i=0<<16 }, },
-		{ .uvi_params = { .u=255<<16, .v=255<<16, .i=16<<16 }, },
-		{ .uvi_params = { .u=0, .v=255<<16, .i=32<<16 }, },
+		{ .same_as = 0, .u = { .uvi_params = { .u=0, .v=0, .i=16<<16 }, }, },
+		{ .same_as = 0, .u = { .uvi_params = { .u=255<<16, .v=0, .i=0<<16 }, }, },
+		{ .same_as = 0, .u = { .uvi_params = { .u=255<<16, .v=255<<16, .i=16<<16 }, }, },
+		{ .same_as = 0, .u = { .uvi_params = { .u=0, .v=255<<16, .i=32<<16 }, }, },
 	};
 	gpuCmdFacet facet = {
 		.opcode = gpuFACET,
@@ -81,10 +81,10 @@ int main(void) {
 		.cull_mode = GPU_CCW,
 	};
 	gpuCmdVector vec_bg[] = {
-		{ .geom = { .c3d = { -10<<16, -10<<16, -257 } }, },
-		{ .geom = { .c3d = {  10<<16, -10<<16, -257 } }, },
-		{ .geom = { .c3d = {  10<<16,  10<<16, -257 } }, },
-		{ .geom = { .c3d = { -10<<16,  10<<16, -257 } }, },
+		{ .same_as = 0, .u = { .geom = { .c3d = { -10<<16, -10<<16, -257 } }, }, },
+		{ .same_as = 0, .u = { .geom = { .c3d = {  10<<16, -10<<16, -257 } }, }, },
+		{ .same_as = 0, .u = { .geom = { .c3d = {  10<<16,  10<<16, -257 } }, }, },
+		{ .same_as = 0, .u = { .geom = { .c3d = { -10<<16,  10<<16, -257 } }, }, },
 	};
 	gpuCmdFacet facet_bg = {
 		.opcode = gpuFACET,
@@ -125,7 +125,7 @@ int main(void) {
 		};
 		// rotate
 		for (unsigned v=0; v<sizeof_array(vec3d); v++) {
-			FixMat_x_Vec(vectors[v].geom.c3d, &mat, vec3d+v, true);
+			FixMat_x_Vec(vectors[v].u.geom.c3d, &mat, vec3d+v, true);
 		}
 		struct gpuBuf *outBuf;
 		gpuErr err;
