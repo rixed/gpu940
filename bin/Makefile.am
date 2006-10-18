@@ -1,4 +1,4 @@
-AM_CFLAGS = -I $(top_srcdir)/include -fstrict-aliasing -D_GNU_SOURCE -std=c99 -Wall -W -pedantic -pipe
+AM_CFLAGS = -I $(top_srcdir)/include -fstrict-aliasing -D_GNU_SOURCE -std=c99 -Wall -W -pedantic -pipe -DGPU
 
 bin_PROGRAMS = gpu940 load940
 gpu940_SOURCES = \

@@ -54,8 +54,14 @@ static inline int64_t Fix_abs64(int64_t v) {
 	return (v^m)-m;
 }
 static inline int32_t Fix_inv(int32_t v) {
-	if (v>0) return ((uint32_t)~0U)/(uint32_t)v;
-	else return -((uint32_t)~0U)/(uint32_t)-v;
+#	if !defined(SOFT_DIVS) || !defined(GPU) || SOFT_DIVS == 0
+	if (v>0) return ~0UL/(uint32_t)v;
+	else return -(~0UL/(uint32_t)-v);
+#	else
+	unsigned __udivsi3(unsigned n, unsigned d);
+	if (v>0) return __udivsi3(~0UL, (uint32_t)v);
+	else return -__udivsi3(~0UL, (uint32_t)-v);
+#	endif
 }
 
 static inline int32_t Fix_mul(int32_t a, int32_t b) {

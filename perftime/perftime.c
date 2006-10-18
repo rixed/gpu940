@@ -77,9 +77,6 @@ void perftime_enter(unsigned target, char const *name, bool is_enter)
 	if (name) stats[target].name = name;
 	if (is_enter) stats[target].nb_enter ++;
 	in_target = target;
-	if (in_target == 0) {
-		printf("enter undef\n");
-	}
 }
 
 unsigned perftime_target(void) {

@@ -123,14 +123,11 @@ static void console_stat(int y, int target) {
 	unsigned c = st.load_avg >= 400 ? 1:3;
 	if (st.name) { console_setcolor(c); console_write(0, y, st.name); }
 	console_setcolor(2); console_write(17, y, "\xb3");
-	console_setcolor(c); console_write_uint(20, y, 11, st.nb_enter);
+	console_setcolor(c); console_write_uint(18, y, 11, st.nb_enter);
 	console_setcolor(2); console_write(30, y, "\xb3");
 	console_setcolor(c); console_write_uint(31, y, 5, (100*st.load_avg)>>10);
 }
 static void update_console(void) {
-	static unsigned skip = 0;
-	skip = (skip+1)&0x7;
-	if (skip) return;
 	console_setcolor(3);
 	console_write_uint(20, 0, 3, shared->error_flags);
 	console_write_uint(9, 1, 5, shared->frame_count);
@@ -153,11 +150,11 @@ static void vertical_interrupt(void) {
 		display(displist+displist_begin);
 		if (++ displist_begin >= sizeof_array(displist)) displist_begin = 0;
 		shared->frame_count ++;
-	}
-	static int skip_upd_console = 0;
-	if ( ++skip_upd_console > 20 ) {
-		update_console();
-		skip_upd_console = 0;
+		static int skip_upd_console = 0;
+		if ( ++skip_upd_console > 10 ) {
+			update_console();
+			skip_upd_console = 0;
+		}
 	}
 	perftime_async_upd();
 }

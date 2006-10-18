@@ -16,6 +16,7 @@
  * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
  */
 #if defined(GP2X) || SOFT_DIVS == 1
+#include <stdlib.h>
 #include <stdint.h>
 #include "gpu940i.h"
 #include "../perftime/perftime.h"
@@ -26,8 +27,7 @@
 
 // TODO : unloop and jump into the unrolled code to avoid testing n==0
 static int nbbit(uint64_t v, int n) {
-	uint64_t single = 1;
-	single <<= (n-1);
+	uint64_t single = (uint64_t)1 << (n-1);
 	while (n && 0 == (v&single)) {
 		n--;
 		single >>= 1;
@@ -36,6 +36,7 @@ static int nbbit(uint64_t v, int n) {
 }
 
 static uint64_t unsigned_divide(uint64_t R, uint64_t D) {
+	if (D == 0) abort();
 	uint64_t Q = 0, normD;
 	int d = nbbit(D, (D>>32) ? 64:32);	// many times we come here with R and/or D beeing 32 bits only
 	int r = (R>>32) ? 64:32, e;
@@ -90,6 +91,22 @@ int64_t __divdi3(int64_t n, int64_t d) {
 }
 
 uint64_t __udivdi3(uint64_t n, uint64_t d) {
+	unsigned previous_target = perftime_target();
+	perftime_enter(PERF_DIV, "div", true);
+	uint64_t q = unsigned_divide(n, d);
+	perftime_enter(previous_target, NULL, false);
+	return q;
+}
+
+int64_t __divti3(int64_t n, int64_t d) {
+	unsigned previous_target = perftime_target();
+	perftime_enter(PERF_DIV, "div", true);
+	int64_t q = signed_divide(n, d);
+	perftime_enter(previous_target, NULL, false);
+	return q;
+}
+
+uint64_t __udivti3(uint64_t n, uint64_t d) {
 	unsigned previous_target = perftime_target();
 	perftime_enter(PERF_DIV, "div", true);
 	uint64_t q = unsigned_divide(n, d);

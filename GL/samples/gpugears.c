@@ -102,9 +102,9 @@ static void gear(GLfixed inner_radius, GLfixed outer_radius, GLfixed width, GLin
 	}
 	glVertexPointer(3, GL_FIXED, 0, vertexes);
 	glDrawArrays(GL_TRIANGLE_STRIP, 0, nb_vertexes);
-	nb_vertexes = 0;
 
 	/* draw front sides of teeth */
+	nb_vertexes = 0;
 	for (i = 0; i < teeth; i++) {
 		angle = i * 2 * FIXED_PI / teeth;
 
@@ -119,9 +119,9 @@ static void gear(GLfixed inner_radius, GLfixed outer_radius, GLfixed width, GLin
 	glVertexPointer(3, GL_FIXED, 0, vertexes);
 	glDrawArrays(GL_TRIANGLES, 0, nb_vertexes);
 
-	nb_vertexes = 0;
 	glNormal3x(0, 0, -1<<16);
 	/* draw back face */
+	nb_vertexes = 0;
 	for (i = 0; i <= teeth; i++) {
 		angle = i * 2 * FIXED_PI / teeth;
 		addVertex(Fix_mul(r1, Fix_cos(angle)), Fix_mul(r1, Fix_sin(angle)), -width>>1);
@@ -133,9 +133,9 @@ static void gear(GLfixed inner_radius, GLfixed outer_radius, GLfixed width, GLin
 	}
 	glVertexPointer(3, GL_FIXED, 0, vertexes);
 	glDrawArrays(GL_TRIANGLE_STRIP, 0, nb_vertexes);
-	nb_vertexes = 0;
 
 	/* draw back sides of teeth */
+	nb_vertexes = 0;
 	for (i = 0; i < teeth; i++) {
 		angle = i * 2 * FIXED_PI / teeth;
 
@@ -181,10 +181,10 @@ static void gear(GLfixed inner_radius, GLfixed outer_radius, GLfixed width, GLin
 	glNormalPointer(GL_FIXED, 0, normals);
 	glDrawArrays(GL_TRIANGLE_STRIP, 0, nb_vertexes);
 	glDisableClientState(GL_NORMAL_ARRAY);
-	nb_vertexes = 0;
 	
    glShadeModel(GL_SMOOTH);
 	/* draw inside radius cylinder */
+	nb_vertexes = 0;
 	for (i = 0; i <= teeth; i++) {
 		angle = i * 2 * FIXED_PI / teeth;
 		addNormal(-Fix_cos(angle), -Fix_sin(angle), 0);
