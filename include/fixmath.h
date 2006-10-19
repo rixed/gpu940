@@ -54,7 +54,7 @@ static inline int64_t Fix_abs64(int64_t v) {
 	return (v^m)-m;
 }
 static inline int32_t Fix_inv(int32_t v) {
-#	if !defined(SOFT_DIVS) || !defined(GPU) || SOFT_DIVS == 0
+#	if defined(GP2X) || !defined(SOFT_DIVS) || !defined(GPU) || SOFT_DIVS == 0
 	if (v>0) return ~0UL/(uint32_t)v;
 	else return -(~0UL/(uint32_t)-v);
 #	else

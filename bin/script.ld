@@ -10,9 +10,10 @@ SECTIONS {
 		draw_line.gp2x.o(.text)
 		text.o(.text)
 		fixmath.o(.text)
+		mydiv.o(.text)
 		libconsole.a(.text)
 		libperftime.a(.text)
-		mydiv.o(.text)
+/*		libgcc.a */
 		. = ALIGN(16);
 		*(.data)
 		. = ALIGN(4);

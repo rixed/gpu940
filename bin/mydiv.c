@@ -16,7 +16,6 @@
  * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
  */
 #if defined(GP2X) || SOFT_DIVS == 1
-#include <stdlib.h>
 #include <stdint.h>
 #include "gpu940i.h"
 #include "../perftime/perftime.h"
@@ -25,55 +24,27 @@
  * Private Functions
  */
 
-// TODO : unloop and jump into the unrolled code to avoid testing n==0
-// This is called approx 10/15 times per division.
-static int nbbit(uint64_t v, int n)
-{
-	uint64_t single = (uint64_t)1 << (n-1);
-	while (n && 0 == (v & single)) {
-		n--;
-		single >>= 1;
-	}
-	return n;
-}
-
-static int nbbit_fast32(uint32_t v)
-{
-	if (v & 0xff000000U) return 32;
-	if (v & 0x00ff0000U) return 24;
-	if (v & 0x0000ff00U) return 16;
-	if (v & 0x000000ffU) return 8;
-	return 0;
-}
-
-static int nbbit_fast(uint64_t v)
-{
-	uint32_t v_hi = v>>32;
-	uint32_t v_lo = v;
-	if (v_hi) return nbbit_fast32(v_hi)+32;
-	return nbbit_fast32(v_lo);
-}
-
 static uint64_t unsigned_divide(uint64_t R, uint64_t D)
 {
-	if (D == 0) abort();
+	if (R < D) return 0;
 	uint64_t Q = 0, normD;
-	int d = nbbit_fast(D);//, (D>>32) ? 64:32);	// many times we come here with R and/or D beeing 32 bits only
-	int r = nbbit_fast(R);//(R>>32) ? 64:32;
-	int e;
-	d = nbbit(D, d);
-	while (R >= D) {
-		r = nbbit(R, r);
-		e = r-d;
-		normD = D << e;
-		if (normD > R) {
-			normD >>= 1;
-			e --;
-		}
+	int e = -1;// uint64_t e = 1;
+	uint64_t next_normD = D;
+	do {
+		normD = next_normD;
+		next_normD = normD<<1;
+		e ++;//<<= 1;
+	} while (next_normD <= R);
+	//e >>= 1;
+	do {
 		R -= normD;
 		Q += (uint64_t)1<<e;
-	}
-	return Q;
+		if (R < D) return Q;
+		do {
+			normD >>= 1;
+			e --;//>>= 1;
+		} while (normD > R);
+	} while (1);
 }
 
 static int64_t signed_divide(int64_t n, int64_t d)
