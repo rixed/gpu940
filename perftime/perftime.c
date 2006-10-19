@@ -72,11 +72,13 @@ void perftime_async_upd(void)
 	}
 }
 
-void perftime_enter(unsigned target, char const *name, bool is_enter)
+void perftime_enter(unsigned target, char const *name)
 {
-	if (name) stats[target].name = name;
-	if (is_enter) stats[target].nb_enter ++;
 	in_target = target;
+	if (name) {
+		stats[target].name = name;
+		stats[target].nb_enter ++;
+	}
 }
 
 unsigned perftime_target(void) {

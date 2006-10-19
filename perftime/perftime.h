@@ -18,10 +18,9 @@ int perftime_begin(void);
 // call this frequently and asynchronously with your code
 void perftime_async_upd(void);
 
-// name can be NULL
+// name can be NULL ; in this case, we suppose we are returning to target
 // target 0 is reserved for undef sections.
-// set is_enter to false if you return to an interrupted target
-void perftime_enter(unsigned target, char const *name, bool is_enter);
+void perftime_enter(unsigned target, char const *name);
 
 unsigned perftime_target(void);
 

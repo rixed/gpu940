@@ -42,7 +42,7 @@ typedef void (*draw_line_t)(void);
 #define max(a,b) ((a)>(b) ? (a):(b))
 static void draw_line(void) {
 	unsigned previous_target = perftime_target();
-	perftime_enter(PERF_POLY_DRAW, "line", true);
+	perftime_enter(PERF_POLY_DRAW, "line");
 	int32_t c_start, c_stop;
 	c_start = ctx.trap.side[ctx.trap.left_side].c>>16;
 	c_stop = ctx.trap.side[!ctx.trap.left_side].c>>16;	// TODO: +1 if fractionnal
@@ -123,7 +123,7 @@ static void draw_line(void) {
 	draw_lines[ctx.poly.cmdFacet.perspective][ctx.poly.cmdFacet.rendering_type]();
 	if (start_poly) start_poly --;
 quit_dl:
-	perftime_enter(previous_target, NULL, false);
+	perftime_enter(previous_target, NULL);
 }
 
 static void next_params_frac(unsigned side, int32_t dnc) {
@@ -295,7 +295,7 @@ static void draw_trapeze(void) {
 // nb DIVs = 2 + 3*nb_sizes+2*nb_scan_lines
 void draw_poly(void) {
 	unsigned previous_target = perftime_target();
-	perftime_enter(PERF_POLY, "poly", true);
+	perftime_enter(PERF_POLY, "poly");
 	start_poly = 6;
 	// compute decliveness related parameters
 	ctx.poly.decliveness = 0;
@@ -438,5 +438,5 @@ void draw_poly(void) {
 		draw_trapeze();
 	} while (1);
 end_poly:;
-	perftime_enter(previous_target, NULL, false);
+	perftime_enter(previous_target, NULL);
 }

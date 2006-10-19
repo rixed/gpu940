@@ -63,54 +63,54 @@ static int64_t signed_divide(int64_t n, int64_t d)
 int32_t __divsi3(int32_t n, int32_t d)
 {
 	unsigned previous_target = perftime_target();
-	perftime_enter(PERF_DIV, "div", true);
+	perftime_enter(PERF_DIV, "div");
 	int32_t q = signed_divide(n, d);
-	perftime_enter(previous_target, NULL, false);
+	perftime_enter(previous_target, NULL);
 	return q;
 }
 
 uint32_t __udivsi3(uint32_t n, uint32_t d)
 {
 	unsigned previous_target = perftime_target();
-	perftime_enter(PERF_DIV, "div", true);
+	perftime_enter(PERF_DIV, "div");
 	uint32_t q = unsigned_divide(n, d);
-	perftime_enter(previous_target, NULL, false);
+	perftime_enter(previous_target, NULL);
 	return q;
 }
 
 int64_t __divdi3(int64_t n, int64_t d)
 {
 	unsigned previous_target = perftime_target();
-	perftime_enter(PERF_DIV, "div", true);
+	perftime_enter(PERF_DIV, "div");
 	int64_t q = signed_divide(n, d);
-	perftime_enter(previous_target, NULL, false);
+	perftime_enter(previous_target, NULL);
 	return q;
 }
 
 uint64_t __udivdi3(uint64_t n, uint64_t d)
 {
 	unsigned previous_target = perftime_target();
-	perftime_enter(PERF_DIV, "div", true);
+	perftime_enter(PERF_DIV, "div");
 	uint64_t q = unsigned_divide(n, d);
-	perftime_enter(previous_target, NULL, false);
+	perftime_enter(previous_target, NULL);
 	return q;
 }
 
 int64_t __divti3(int64_t n, int64_t d)
 {
 	unsigned previous_target = perftime_target();
-	perftime_enter(PERF_DIV, "div", true);
+	perftime_enter(PERF_DIV, "div");
 	int64_t q = signed_divide(n, d);
-	perftime_enter(previous_target, NULL, false);
+	perftime_enter(previous_target, NULL);
 	return q;
 }
 
 uint64_t __udivti3(uint64_t n, uint64_t d)
 {
 	unsigned previous_target = perftime_target();
-	perftime_enter(PERF_DIV, "div", true);
+	perftime_enter(PERF_DIV, "div");
 	uint64_t q = unsigned_divide(n, d);
-	perftime_enter(previous_target, NULL, false);
+	perftime_enter(previous_target, NULL);
 	return q;
 }
 

@@ -62,7 +62,7 @@ static unsigned displist_begin = 0, displist_end = 0;	// same convention than fo
 static void display(struct buffer_loc const *loc) {
 	// display current workingBuffer
 	int in_target = perftime_target();
-	perftime_enter(PERF_DISPLAY, "display", true);
+	perftime_enter(PERF_DISPLAY, "display");
 #ifdef GP2X
 	static unsigned previous_width = 0;
 	unsigned width = 1<<(1+loc->width_log);
@@ -94,7 +94,7 @@ static void display(struct buffer_loc const *loc) {
 	SDL_BlitSurface(sdl_console, NULL, sdl_screen, NULL);
 	SDL_UpdateRect(sdl_screen, 0, 0, SCREEN_WIDTH, SCREEN_HEIGHT);
 #endif
-	perftime_enter(in_target, NULL, 0);
+	perftime_enter(in_target, NULL);
 }
 
 static void console_setup(void) {
@@ -358,7 +358,7 @@ static void do_facet(void) {
 static void do_reset(void) {
 	read_from_cmdBuf(&allCmds.reset, sizeof(allCmds.reset));
 	perftime_reset();
-	perftime_enter(PERF_WAITCMD, NULL, true);
+	perftime_enter(PERF_WAITCMD, "idle");
 	proj_cache_reset();
 	ctx_reset();
 	shared_soft_reset();
@@ -366,7 +366,7 @@ static void do_reset(void) {
 
 static void fetch_command(void) {
 	unsigned previous_target = perftime_target();
-	perftime_enter(PERF_CMD, "cmd", true);
+	perftime_enter(PERF_CMD, "cmd");
 	uint32_t first_word;
 	copy32(&first_word, shared->cmds+shared->cmds_begin, 1);
 	switch (first_word) {
@@ -403,7 +403,7 @@ static void fetch_command(void) {
 		default:
 			set_error_flag(gpuEPARSE);
 	}
-	perftime_enter(previous_target, NULL, false);
+	perftime_enter(previous_target, NULL);
 }
 
 static void GCCunused play_nodiv_anim(void) {
@@ -470,7 +470,7 @@ static void run(void) {
 #ifdef GP2X
 	unsigned wait = 0;
 #endif
-	perftime_enter(PERF_WAITCMD, "idle", true);
+	perftime_enter(PERF_WAITCMD, "idle");
 	while (1) {
 #ifndef GP2X
 		if (SDL_QuitRequested()) return;
