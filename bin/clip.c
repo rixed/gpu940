@@ -125,6 +125,7 @@ static void proj_vec(unsigned v)
 		int32_t const z = ctx.poly.vectors[v].cmdVector.u.geom.c3d[2];
 		int32_t const dproj = ctx.view.dproj;
 		int32_t c2d;
+		int32_t inv_z = Fix_inv(-z);
 		switch (ctx.poly.vectors[v].clipFlag & 0xa) {
 			case 0x2:	// right
 				c2d = ctx.view.clipMax[0]<<16;
@@ -133,7 +134,7 @@ static void proj_vec(unsigned v)
 				c2d = ctx.view.clipMin[0]<<16;
 				break;
 			default:
-				c2d = ((int64_t)x<<(16+dproj))/-z;
+				c2d = Fix_mul(x<<dproj, inv_z);//((int64_t)x<<(16+dproj))/-z;
 				break;
 		}
 		ctx.poly.vectors[v].c2d[0] = c2d + (ctx.view.winWidth<<15);
@@ -145,7 +146,7 @@ static void proj_vec(unsigned v)
 				c2d = ctx.view.clipMin[1]<<16;
 				break;
 			default:
-				c2d = ((int64_t)y<<(16+dproj))/-z;
+				c2d = Fix_mul(y<<dproj, inv_z);//((int64_t)y<<(16+dproj))/-z;
 				break;
 		}
 		ctx.poly.vectors[v].c2d[1] = c2d + (ctx.view.winHeight<<15);
@@ -169,7 +170,7 @@ int clip_poly(void)
 {
 	int disp = 0;
 	unsigned previous_target = perftime_target();
-	perftime_enter(PERF_CLIP, "clip & proj", true);
+	perftime_enter(PERF_CLIP, "clip & proj");
 	// init facet
 	static unsigned const nb_params_for_rendering[NB_RENDERING_TYPES] = {
 		0, 1, 2, 3, 2, 3, 0, 2
@@ -216,7 +217,7 @@ int clip_poly(void)
 	magick ++;
 	disp = 1;
 ret:
-	perftime_enter(previous_target, NULL, false);
+	perftime_enter(previous_target, NULL);
 	return disp;
 }
 
