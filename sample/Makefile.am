@@ -6,7 +6,9 @@ sample2_SOURCES = sample2.c
 codealone_SOURCES = codealone.c pics.h
 
 sample1_LDADD = ../lib/libgpu940.la
+sample1_LDFLAGS = -static
 sample2_LDADD = ../lib/libgpu940.la
+sample2_LDFLAGS = -static
 codealone_LDADD = ../lib/libgpu940.la
 codealone_LDFLAGS = -static
 

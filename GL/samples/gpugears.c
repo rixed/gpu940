@@ -281,7 +281,8 @@ static void destroy_window(void)
 
 static void event_loop(void)
 {
-	while (1) {
+	unsigned nbf = 1000;
+	while (nbf--) {
 
 		view_roty += 51;
 		view_rotx -= 37;

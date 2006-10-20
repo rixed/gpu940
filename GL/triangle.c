@@ -185,31 +185,23 @@ void gli_triangle_array(enum gli_DrawMode mode, GLint first, unsigned count)
 	}
 }
 
-void gli_clear(GLclampx colors[4])
+void gli_clear(gpuBufferType type, GLclampx *val)
 {
-	// Won't work with user clip planes
-	// Better implement a true fill function
-	static gpuCmdVector vec_bg[] = {
-		{ .same_as = 0, .u = { .geom = { .c3d = { -10<<16, -10<<16, -257 } }, }, },
-		{ .same_as = 0, .u = { .geom = { .c3d = {  10<<16, -10<<16, -257 } }, }, },
-		{ .same_as = 0, .u = { .geom = { .c3d = {  10<<16,  10<<16, -257 } }, }, },
-		{ .same_as = 0, .u = { .geom = { .c3d = { -10<<16,  10<<16, -257 } }, }, },
+	static gpuCmdRect rect = {
+		.opcode = gpuRECT,
+		.type = 0,
+		.pos = { 0, 0 },
+		.width = SCREEN_WIDTH,
+		.height = SCREEN_HEIGHT,
+		.relative_to_window = 1,
+		.value = 0,
 	};
-	static gpuCmdFacet facet_bg = {
-		.opcode = gpuFACET,
-		.size = sizeof_array(vec_bg),
-		.color = 0,
-		.rendering_type = rendering_c,
-		.perspective = 0,
-	};
-	static struct iovec cmdvec[1+4] = {
-		{ .iov_base = &facet_bg, .iov_len = sizeof(facet_bg) },	// first facet to clear the background
-		{ .iov_base = vec_bg+0, .iov_len = sizeof(*vec_bg) },
-		{ .iov_base = vec_bg+1, .iov_len = sizeof(*vec_bg) },
-		{ .iov_base = vec_bg+2, .iov_len = sizeof(*vec_bg) },
-		{ .iov_base = vec_bg+3, .iov_len = sizeof(*vec_bg) }
-	};
-	facet_bg.color = gpuColor((colors[0]>>8)&0xFF, (colors[1]>>8)&0xFF, (colors[2]>>8)&0xFF);
-	gpuErr err = gpuWritev(cmdvec, sizeof_array(cmdvec), true);
+	rect.type = type;
+	if (type == gpuZBuffer) {
+		rect.value = *val;
+	} else {	// color
+		rect.value = gpuColor((val[0]>>8)&0xFF, (val[1]>>8)&0xFF, (val[2]>>8)&0xFF);
+	}
+	gpuErr err = gpuWrite(&rect, sizeof(rect), true);
 	assert(gpuOK == err);
 }

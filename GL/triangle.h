@@ -22,6 +22,6 @@ int gli_triangle_begin(void);
 static inline void gli_triangle_end(void) {}
 
 void gli_triangle_array(enum gli_DrawMode mode, GLint first, unsigned count);
-void gli_clear(GLclampx colors[4]);
+void gli_clear(gpuBufferType type, GLclampx *val);
 
 #endif

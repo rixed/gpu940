@@ -61,16 +61,6 @@ void draw_line_c(void) {
 }
 #endif
 
-void draw_line_c_lin(void) {
-	uint32_t *restrict w = ctx.line.w;
-	int count = ctx.line.count;
-	do {
-//		if (start_poly) *w = ctx.poly.scan_dir ? 0x3e0 : 0xf800; else
-		*w = ctx.poly.cmdFacet.color;
-		w ++;
-	} while (--count >= 0);
-}
-
 void draw_line_shadow(void) {	// used for shadowing a flat polygon
 	uint32_t *restrict w = ctx.line.w;
 	int count = ctx.line.count;

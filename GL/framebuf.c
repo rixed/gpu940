@@ -141,9 +141,11 @@ void glClear(GLbitfield mask)
 		return gli_set_error(GL_INVALID_VALUE);
 	}
 	if (mask & GL_COLOR_BUFFER_BIT) {
-		gli_clear(clear_colors);
+		gli_clear(gpuOutBuffer, clear_colors);
 	}
-	// TODO clear ZBuffer
+	if (mask & GL_DEPTH_BUFFER_BIT) {	// && zbuffer was set
+//		gli_clear(gpuZBuffer, &clear_depth);
+	}
 }
 
 void glClearColorx(GLclampx red, GLclampx green, GLclampx blue, GLclampx alpha)
@@ -161,7 +163,7 @@ void glClearColorx(GLclampx red, GLclampx green, GLclampx blue, GLclampx alpha)
 void glClearDepthx(GLclampx depth)
 {
 	CLAMP(depth, 0, 0xFFFF);
-	clear_depth = depth;
+	clear_depth = depth;	// TODO: normalize
 }
 
 void glClearStencil(GLint s)

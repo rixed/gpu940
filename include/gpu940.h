@@ -41,7 +41,7 @@
 #define GPU_DEFAULT_CLIPMAX1 ((SCREEN_HEIGHT>>1)+1)
 #define GPU_DEFAULT_WINPOS0 ((512-SCREEN_WIDTH)>>1)
 #define GPU_DEFAULT_WINPOS1 3
-#define GPU_NB_PARAMS 3
+#define GPU_NB_PARAMS (3+1)
 #define GPU_NB_USER_CLIPPLANES 5
 #define GPU_DISPLIST_SIZE 64
 #define SHARED_PHYSICAL_ADDR 0x2100000	// this is from 920T or for the video controler.
@@ -192,11 +192,11 @@ typedef struct {
 	uint32_t value;
 } gpuCmdRect;
 
-typedef enum { gpu_z_lt, gpu_z_eq, gpu_z_ne, gpu_z_ltq, gpu_z_gt, gpu_z_gte } gpuZMode;
+typedef enum { gpu_z_off, gpu_z_lt, gpu_z_eq, gpu_z_ne, gpu_z_ltq, gpu_z_gt, gpu_z_gte } gpuZMode;
 typedef struct {
 	gpuOpcode opcode;
-	gpuZMode z_mode;
-} gpuZMode;
+	gpuZMode mode;
+} gpuCmdZMode;
 
 /* Client Functions */
 

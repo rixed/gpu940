@@ -39,7 +39,8 @@ int main(void) {
 	printctxoff(poly.first_vector);
 	printctxoff(poly.nb_params);
 	printctxoff(poly.nc_log);
-	printctxoff(location.txt.address);
+	printf("OFF_ctx.location.txt.address=%d\n", offsetof(struct ctx, location.buffer_loc[gpuTxtBuffer].address));
+	printf("OFF_ctx.location.z.address=%d\n", offsetof(struct ctx, location.buffer_loc[gpuZBuffer].address));
 	printctxoff(location.txt_mask);
 	printctxoff(line.count);
 	printctxoff(line.w);

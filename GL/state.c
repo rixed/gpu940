@@ -56,9 +56,9 @@ GLubyte const *glGetString(GLenum name)
 {
 	switch (name) {
 		case GL_VENDOR:
-			return "Free Software Community (see http://gna.org/projects/gpu940/)";
+			return (GLubyte const *)"Free Software Community (see http://gna.org/projects/gpu940/)";
 		case GL_RENDERER:
-			return "GPU940 for "
+			return (GLubyte const *)"GPU940 for "
 #			ifdef GP2X
 				"GP2X"
 #			else
@@ -66,9 +66,9 @@ GLubyte const *glGetString(GLenum name)
 #			endif
 				;
 		case GL_VERSION:
-			return TOSTR(VERSION);
+			return (GLubyte const *)TOSTR(VERSION);
 		case GL_EXTENSIONS:
-			return "";
+			return (GLubyte const *)"";
 	}
 	gli_set_error(GL_INVALID_ENUM);
 	return NULL;

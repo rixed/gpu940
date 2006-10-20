@@ -77,7 +77,7 @@ static void draw_line(void) {
 		ctx.line.dw <<= ctx.location.buffer_loc[gpuOutBuffer].width_log;
 	}
 	static draw_line_t const draw_lines[2][GPU_NB_RENDERING_TYPES] = {
-		{ draw_line_c_lin, draw_line_ci, draw_line_uv, draw_line_uvi_lin, draw_line_uvk, draw_line_cs, draw_line_shadow, draw_line_uvk_shadow },	// no perspective
+		{ draw_line_c, draw_line_ci, draw_line_uv, draw_line_uvi_lin, draw_line_uvk, draw_line_cs, draw_line_shadow, draw_line_uvk_shadow },	// no perspective
 		{ draw_line_c, draw_line_ci, draw_line_uv, draw_line_uvi, draw_line_uvk, draw_line_cs, draw_line_shadow, draw_line_uvk_shadow }	// perspective
 	};
 #ifdef GP2X
@@ -297,6 +297,15 @@ void draw_poly(void) {
 	unsigned previous_target = perftime_target();
 	perftime_enter(PERF_POLY, "poly");
 	start_poly = 6;
+	// if zbuffer is enabled, add z as a parameter
+	if (ctx.view.z_mode != gpu_z_off) {
+		unsigned v = ctx.poly.first_vector;
+		do {
+			ctx.poly.vectors[v].cmdVector.u.geom.param[ ctx.poly.nb_params ] = ctx.poly.vectors[v].cmdVector.u.geom.c3d[2];
+			v = ctx.poly.vectors[v].next;
+		} while (v != ctx.poly.first_vector);
+		ctx.poly.nb_params++;
+	}
 	// compute decliveness related parameters
 	ctx.poly.decliveness = 0;
 	ctx.poly.scan_dir = 0;

@@ -205,6 +205,7 @@ static void ctx_reset(void) {
 	ctx.view.winWidth = ctx.view.clipMax[0] - ctx.view.clipMin[0];
 	ctx.view.winHeight = ctx.view.clipMax[1] - ctx.view.clipMin[1];
 	ctx.view.dproj = GPU_DEFAULT_DPROJ;
+	ctx.view.z_mode = gpu_z_off;
 	reset_clipPlanes();
 	ctx.view.nb_clipPlanes = 5;
 }
@@ -264,6 +265,7 @@ static union {
 	gpuCmdSetBuf setBuf;
 	gpuCmdShowBuf showBuf;
 	gpuCmdRect rect;
+	gpuCmdZMode z_mode;
 } allCmds;
 
 static void do_setView(void) {
@@ -359,14 +361,19 @@ static void do_rect(void) {
 	read_from_cmdBuf(&allCmds.rect, sizeof(allCmds.rect));
 	// TODO: add clipping against winPos ?
 	ctx.line.count = allCmds.rect.width;
+	ctx.line.dw = 4;
 	ctx.poly.cmdFacet.color = allCmds.rect.value;
 	ctx.line.w = allCmds.rect.relative_to_window ?
 		location_winPos(allCmds.rect.type, allCmds.rect.pos[0], allCmds.rect.pos[1]) :
 		location_pos(allCmds.rect.type, allCmds.rect.pos[0], allCmds.rect.pos[1]);
 	for (unsigned h=allCmds.rect.height; h--; ) {
-		draw_line_c_lin();
+		draw_line_c();
 		ctx.line.w += 1 << ctx.location.buffer_loc[allCmds.rect.type].width_log;
 	}
+}
+static void do_zmode(void) {
+	read_from_cmdBuf(&allCmds.z_mode, sizeof(allCmds.z_mode));
+	ctx.view.z_mode = allCmds.z_mode.mode;
 }
 static void do_reset(void) {
 	read_from_cmdBuf(&allCmds.reset, sizeof(allCmds.reset));
@@ -409,6 +416,9 @@ static void fetch_command(void) {
 			break;
 		case gpuRECT:
 			do_rect();
+			break;
+		case gpuZMODE:
+			do_zmode();
 			break;
 		default:
 			set_error_flag(gpuEPARSE);
