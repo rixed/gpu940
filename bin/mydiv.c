@@ -28,21 +28,21 @@ static uint64_t unsigned_divide(uint64_t R, uint64_t D)
 {
 	if (R < D) return 0;
 	uint64_t Q = 0, normD;
-	int e = -1;// uint64_t e = 1;
+	uint64_t e = 1;
 	uint64_t next_normD = D;
 	do {
 		normD = next_normD;
 		next_normD = normD<<1;
-		e ++;//<<= 1;
+		e <<= 1;
 	} while (next_normD <= R);
-	//e >>= 1;
+	e >>= 1;
 	do {
 		R -= normD;
-		Q += (uint64_t)1<<e;
+		Q += e;
 		if (R < D) return Q;
 		do {
 			normD >>= 1;
-			e --;//>>= 1;
+			e >>= 1;
 		} while (normD > R);
 	} while (1);
 }
