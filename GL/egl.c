@@ -92,7 +92,7 @@ GLboolean glSwapBuffers(void)
 			active_out_buffer = 0;
 		}
 	}
-	if (gpuOK != gpuSetOutBuf(out_buffer[active_out_buffer], true)) {
+	if (gpuOK != gpuSetBuf(gpuOutBuffer, out_buffer[active_out_buffer], true)) {
 		return GL_FALSE;
 	}
 	return GL_TRUE;

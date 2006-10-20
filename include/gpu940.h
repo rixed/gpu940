@@ -90,13 +90,12 @@ typedef enum {
 	gpuRESET,
 	gpuSETVIEW,
 	gpuSETUSRCLIPPLANES,
-	gpuSETOUTBUF,	// change view parameters
-	gpuSETTXTBUF,
-	gpuSETZBUF,
+	gpuSETBUF,
 	gpuSHOWBUF,
 	gpuPOINT,
 	gpuLINE,
 	gpuFACET,
+	gpuRect,
 } gpuOpcode;
 
 struct buffer_loc {
@@ -122,20 +121,13 @@ typedef struct {
 	gpuPlane planes[GPU_NB_USER_CLIPPLANES];
 } gpuCmdSetUserClipPlanes;
 
-typedef struct {
-	gpuOpcode opcode;
-	struct buffer_loc loc;
-} gpuCmdSetOutBuf;
+typedef enum { gpuOutBuffer, gpuTxtBuffer, gpuZBuffer } gpuBufferType;
 
 typedef struct {
 	gpuOpcode opcode;
+	gpuBufferType type;
 	struct buffer_loc loc;
-} gpuCmdSetTxtBuf;
-
-typedef struct {
-	gpuOpcode opcode;
-	struct buffer_loc loc;
-} gpuCmdSetZBuf;
+} gpuCmdSetBuf;
 
 typedef struct {
 	gpuOpcode opcode;
@@ -184,6 +176,14 @@ typedef struct {
 		} geom;
 	} u;
 } gpuCmdVector;
+
+typedef struct {
+	gpuOpcode opcode;
+	gpuBufferType type;
+	int32_t pos[2];	// coordinate of the lower left corner of the rectangle
+	uint32_t width, height;
+	uint32_t value;
+} gpuCmdRect;
 
 /* Client Functions */
 
@@ -237,9 +237,7 @@ static inline uint32_t gpuColor(unsigned r, unsigned g, unsigned b) {
 struct gpuBuf *gpuAlloc(unsigned width_log, unsigned height, bool can_wait);
 void gpuFree(struct gpuBuf *buf);
 void gpuFreeFC(struct gpuBuf *buf, unsigned fc);
-gpuErr gpuSetOutBuf(struct gpuBuf *buf, bool can_wait);
-gpuErr gpuSetTxtBuf(struct gpuBuf *buf, bool can_wait);
-gpuErr gpuSetZBuf(struct gpuBuf *buf, bool can_wait);
+gpuErr gpuSetBuf(gpuBufferType type, struct gpuBuf *buf, bool can_wait);
 gpuErr gpuShowBuf(struct gpuBuf *buf, bool can_wait);
 struct buffer_loc const *gpuBuf_get_loc(struct gpuBuf const *buf);
 void gpuWaitDisplay(void);

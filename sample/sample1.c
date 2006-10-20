@@ -54,7 +54,7 @@ int main(void) {
 		fprintf(stderr, "Cannot load texture.\n");
 		return EXIT_FAILURE;
 	}
-	if (gpuOK != gpuSetTxtBuf(txtBuf, false)) {
+	if (gpuOK != gpuSetBuf(gpuTxtBuffer, txtBuf, false)) {
 		fprintf(stderr, "Cannot set texture buffer.\n");
 		return EXIT_FAILURE;
 	}
@@ -130,7 +130,7 @@ int main(void) {
 		struct gpuBuf *outBuf;
 		gpuErr err;
 		outBuf = gpuAlloc(9, 250, true);
-		err = gpuSetOutBuf(outBuf, true);
+		err = gpuSetBuf(gpuOutBuffer, outBuf, true);
 		assert(gpuOK == err);
 		err = gpuWritev(cmdvec, sizeof_array(cmdvec), true);
 		assert(gpuOK == err);

@@ -145,30 +145,15 @@ void gpuFreeFC(struct gpuBuf *buf, unsigned fc) {
 	list_add_tail(&buf->fc_list, &fc_list);
 }
 
-gpuErr gpuSetOutBuf(struct gpuBuf *buf, bool can_wait) {
-	static gpuCmdSetOutBuf setOutBuf = {
-		.opcode = gpuSETOUTBUF,
+gpuErr gpuSetBuf(gpuBufferType type, struct gpuBuf *buf, bool can_wait) {
+	gpuCmdSetBuf setBuf = {
+		.opcode = gpuSETBUF,
+		.type = type,
 	};
 	assert(buf);
-	setOutBuf.loc = buf->loc;
-	return gpuWrite(&setOutBuf, sizeof(setOutBuf), can_wait);
-}
-gpuErr gpuSetTxtBuf(struct gpuBuf *buf, bool can_wait) {
-	static gpuCmdSetTxtBuf setTxtBuf = {
-		.opcode = gpuSETTXTBUF,
-	};
-	assert(buf);
-	if (! is_power_of_2(buf->loc.height)) return gpuEPARAM;
-	setTxtBuf.loc = buf->loc;
-	return gpuWrite(&setTxtBuf, sizeof(setTxtBuf), can_wait);
-}
-gpuErr gpuSetZBuf(struct gpuBuf *buf, bool can_wait) {
-	static gpuCmdSetZBuf setZBuf = {
-		.opcode = gpuSETZBUF,
-	};
-	assert(buf);
-	setZBuf.loc = buf->loc;
-	return gpuWrite(&setZBuf, sizeof(setZBuf), can_wait);
+	if (type == gpuTxtBuffer && !is_power_of_2(buf->loc.height)) return gpuEPARAM;
+	setBuf.loc = buf->loc;
+	return gpuWrite(&setBuf, sizeof(setBuf), can_wait);
 }
 gpuErr gpuShowBuf(struct gpuBuf *buf, bool can_wait) {
 	static gpuCmdShowBuf show = {

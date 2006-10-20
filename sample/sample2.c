@@ -202,9 +202,9 @@ int main(void) {
 		struct gpuBuf *outBuf;
 		gpuErr err;
 		outBuf = gpuAlloc(9, 250, true);
-		err = gpuSetOutBuf(outBuf, true);
+		err = gpuSetBuf(gpuOutBuffer, outBuf, true);
 		assert(gpuOK == err);
-		if (gpuOK != gpuSetTxtBuf(txtGenBuf, false)) {
+		if (gpuOK != gpuSetBuf(gpuTxtBuffer, txtGenBuf, false)) {
 			fprintf(stderr, "Cannot set texture buffer.\n");
 			return EXIT_FAILURE;
 		}

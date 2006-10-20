@@ -261,10 +261,9 @@ static union {
 	gpuCmdReset reset;
 	gpuCmdSetView setView;
 	gpuCmdSetUserClipPlanes setCP;
-	gpuCmdSetOutBuf setOutBuf;
-	gpuCmdSetTxtBuf setTxtBuf;
-	gpuCmdSetZBuf setZBuf;
+	gpuCmdSetBuf setBuf;
 	gpuCmdShowBuf showBuf;
+	gpuCmdRect rect;
 } allCmds;
 
 static void do_setView(void) {
@@ -288,16 +287,14 @@ static void do_setUsrClipPlanes(void) {
 	}
 }
 static void do_setOutBuf(void) {
-	read_from_cmdBuf(&allCmds.setOutBuf, sizeof(allCmds.setOutBuf));
-	my_memcpy(&ctx.location.out, &allCmds.setOutBuf.loc, sizeof(ctx.location.out));
+	my_memcpy(&ctx.location.out, &allCmds.setBuf.loc, sizeof(ctx.location.out));
 }
 static void do_setTxtBuf(void) {
-	read_from_cmdBuf(&allCmds.setTxtBuf, sizeof(allCmds.setTxtBuf));
-	if ((1U<<allCmds.setTxtBuf.loc.width_log) != allCmds.setTxtBuf.loc.height) {
+	if ((1U<<allCmds.setBuf.loc.width_log) != allCmds.setBuf.loc.height) {
 		set_error_flag(gpuEPARAM);
 		return;
 	}
-	my_memcpy(&ctx.location.txt, &allCmds.setTxtBuf.loc, sizeof(ctx.location.txt));
+	my_memcpy(&ctx.location.txt, &allCmds.setBuf.loc, sizeof(ctx.location.txt));
 #ifdef GP2X
 	unsigned new_mask = (1<<ctx.location.txt.width_log)-1;
 	if (new_mask != ctx.location.txt_mask) {
@@ -316,8 +313,22 @@ static void do_setTxtBuf(void) {
 #endif
 }
 static void do_setZBuf(void) {
-	read_from_cmdBuf(&allCmds.setZBuf, sizeof(allCmds.setZBuf));
-	my_memcpy(&ctx.location.z, &allCmds.setZBuf.loc, sizeof(ctx.location.z));
+	my_memcpy(&ctx.location.z, &allCmds.setBuf.loc, sizeof(ctx.location.z));
+}
+static void do_setBuf(void) {
+	read_from_cmdBuf(&allCmds.setBuf, sizeof(allCmds.setBuf));
+	switch (allCmds.setBuf.type) {
+		case gpuOutBuffer:
+			do_setOutBuf();
+			return;
+		case gpuTxtBuffer:
+			do_setTxtBuf();
+			return;
+		case gpuZBuffer:
+			do_setZBuf();
+			return;
+	}
+	set_error_flag(gpuEPARAM);
 }
 static void do_showBuf(void) {
 	read_from_cmdBuf(&allCmds.showBuf, sizeof(allCmds.showBuf));
@@ -379,14 +390,8 @@ static void fetch_command(void) {
 		case gpuSETUSRCLIPPLANES:
 			do_setUsrClipPlanes();
 			break;
-		case gpuSETOUTBUF:
-			do_setOutBuf();
-			break;
-		case gpuSETTXTBUF:
-			do_setTxtBuf();
-			break;
-		case gpuSETZBUF:
-			do_setZBuf();
+		case gpuSETBUF:
+			do_setBuf();
 			break;
 		case gpuSHOWBUF:
 			do_showBuf();

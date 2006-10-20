@@ -95,7 +95,7 @@ static struct gpuBuf *grab_menu_texture(void) {
 static struct gpuBuf *outBuf;
 static void next_out_buf(void) {
 	outBuf = gpuAlloc(9, 250, true);
-	gpuErr err = gpuSetOutBuf(outBuf, true);
+	gpuErr err = gpuSetBuf(gpuOutBuffer, outBuf, true);
 	assert(gpuOK == err);
 }
 
@@ -302,7 +302,7 @@ static void draw_facet(unsigned f, bool ext, int32_t i_dec) {
 	// is the facet backward ?
 	if (ext && scal > 0) return;
 	if (!ext && scal < 0) return;
-	if (gpuOK != gpuSetTxtBuf(facet_text[f], true)) {
+	if (gpuOK != gpuSetBuf(gpuTxtBuffer, facet_text[f], true)) {
 		assert(0);
 	}
 	cube_cmdFacet.rendering_type = facet_rendering[f];
@@ -771,7 +771,7 @@ static void transf_draw_pic(struct gpuBuf *pic_txt, FixVec *pic_vec, enum draw_w
 		{ .iov_base = vecs+2, .iov_len = sizeof(*vecs) },
 		{ .iov_base = vecs+3, .iov_len = sizeof(*vecs) },
 	};
-	if (gpuOK != gpuSetTxtBuf(pic_txt, true)) {
+	if (gpuOK != gpuSetBuf(gpuTxtBuffer, pic_txt, true)) {
 		assert(0);
 	}
 	if (draw_what == PIC) {	// Simply rotate and draw
