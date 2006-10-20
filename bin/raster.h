@@ -19,6 +19,7 @@
 #define RASTER_H_060928
 
 void draw_line_c(void);
+void draw_line_c_lin(void);
 void draw_line_shadow(void);
 void draw_line_ci(void);
 void draw_line_uv(void);

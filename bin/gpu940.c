@@ -194,8 +194,8 @@ static int32_t next_power_of_2(int32_t x) {
 
 static void ctx_reset(void) {
 	my_memset(&ctx, 0, sizeof ctx);
-	ctx.location.out.width_log = next_power_of_2(SCREEN_WIDTH+6);
-	ctx.location.out.height = SCREEN_HEIGHT+6;
+	ctx.location.buffer_loc[gpuOutBuffer].width_log = next_power_of_2(SCREEN_WIDTH+6);
+	ctx.location.buffer_loc[gpuOutBuffer].height = SCREEN_HEIGHT+6;
 	ctx.view.winPos[0] = GPU_DEFAULT_WINPOS0;
 	ctx.view.winPos[1] = GPU_DEFAULT_WINPOS1;
 	ctx.view.clipMin[0] = GPU_DEFAULT_CLIPMIN0;
@@ -286,23 +286,19 @@ static void do_setUsrClipPlanes(void) {
 		my_memcpy(ctx.view.clipPlanes+5+cp, allCmds.setCP.planes+cp, sizeof(ctx.view.clipPlanes[0]));
 	}
 }
-static void do_setOutBuf(void) {
-	my_memcpy(&ctx.location.out, &allCmds.setBuf.loc, sizeof(ctx.location.out));
-}
 static void do_setTxtBuf(void) {
 	if ((1U<<allCmds.setBuf.loc.width_log) != allCmds.setBuf.loc.height) {
 		set_error_flag(gpuEPARAM);
 		return;
 	}
-	my_memcpy(&ctx.location.txt, &allCmds.setBuf.loc, sizeof(ctx.location.txt));
 #ifdef GP2X
-	unsigned new_mask = (1<<ctx.location.txt.width_log)-1;
+	unsigned new_mask = (1<<ctx.location.buffer_loc[gpuTxtBuffer].width_log)-1;
 	if (new_mask != ctx.location.txt_mask) {
 		ctx.location.txt_mask = new_mask;
 		extern uint16_t patch_uv_width, patch_uvi_width, patch_uvi_lin_width;
 		// Never ever _read_ this value, or it will be loaded in DCache ; so
 		// that there is no need to clean and flush DCache.
-		patch_uv_width = patch_uvi_width = patch_uvi_lin_width = 0x1002 | (ctx.location.txt.width_log<<7);
+		patch_uv_width = patch_uvi_width = patch_uvi_lin_width = 0x1002 | (ctx.location.buffer_loc[gpuTxtBuffer].width_log<<7);
 		__asm__ volatile (	// Drain write buffer then fush ICache
 			"mov r0, #0\n"
 			"mcr p15, 0, r0, c7, c10, 4\n"
@@ -312,23 +308,16 @@ static void do_setTxtBuf(void) {
 	}
 #endif
 }
-static void do_setZBuf(void) {
-	my_memcpy(&ctx.location.z, &allCmds.setBuf.loc, sizeof(ctx.location.z));
-}
 static void do_setBuf(void) {
 	read_from_cmdBuf(&allCmds.setBuf, sizeof(allCmds.setBuf));
-	switch (allCmds.setBuf.type) {
-		case gpuOutBuffer:
-			do_setOutBuf();
-			return;
-		case gpuTxtBuffer:
-			do_setTxtBuf();
-			return;
-		case gpuZBuffer:
-			do_setZBuf();
-			return;
+	if (allCmds.setBuf.type >= GPU_NB_BUFFER_TYPES) {
+		set_error_flag(gpuEPARAM);
+		return;
 	}
-	set_error_flag(gpuEPARAM);
+	my_memcpy(&ctx.location.buffer_loc[allCmds.setBuf.type], &allCmds.setBuf.loc, sizeof(*ctx.location.buffer_loc));
+	if (allCmds.setBuf.type == gpuTxtBuffer) {
+		do_setTxtBuf();
+	}
 }
 static void do_showBuf(void) {
 	read_from_cmdBuf(&allCmds.showBuf, sizeof(allCmds.showBuf));
@@ -366,6 +355,19 @@ static void do_facet(void) {
 		draw_poly();
 	}
 }
+static void do_rect(void) {
+	read_from_cmdBuf(&allCmds.rect, sizeof(allCmds.rect));
+	// TODO: add clipping against winPos ?
+	ctx.line.count = allCmds.rect.width;
+	ctx.poly.cmdFacet.color = allCmds.rect.value;
+	ctx.line.w = allCmds.rect.relative_to_window ?
+		location_winPos(allCmds.rect.type, allCmds.rect.pos[0], allCmds.rect.pos[1]) :
+		location_pos(allCmds.rect.type, allCmds.rect.pos[0], allCmds.rect.pos[1]);
+	for (unsigned h=allCmds.rect.height; h--; ) {
+		draw_line_c_lin();
+		ctx.line.w += 1 << ctx.location.buffer_loc[allCmds.rect.type].width_log;
+	}
+}
 static void do_reset(void) {
 	read_from_cmdBuf(&allCmds.reset, sizeof(allCmds.reset));
 	perftime_reset();
@@ -380,7 +382,7 @@ static void fetch_command(void) {
 	perftime_enter(PERF_CMD, "cmd");
 	uint32_t first_word;
 	copy32(&first_word, shared->cmds+shared->cmds_begin, 1);
-	switch (first_word) {
+	switch ((gpuOpcode)first_word) {
 		case gpuRESET:
 			do_reset();
 			break;
@@ -405,6 +407,9 @@ static void fetch_command(void) {
 		case gpuFACET:
 			do_facet();
 			break;
+		case gpuRECT:
+			do_rect();
+			break;
 		default:
 			set_error_flag(gpuEPARSE);
 	}
@@ -415,9 +420,9 @@ static void GCCunused play_nodiv_anim(void) {
 	int x = ctx.view.clipMin[0], y = ctx.view.clipMin[1];
 	int dx = 1, dy = 1;
 	while (1) {
-		uint32_t *w = &shared->buffers[ctx.location.out.address + ((y+ctx.view.winPos[1]+ctx.view.winHeight/2)<<ctx.location.out.width_log) + x+ctx.view.winPos[0]+ctx.view.winWidth/2];
+		uint32_t *w = location_winPos(gpuOutBuffer, x, y);
 		*w = 0xffff;
-		display(&ctx.location.out);
+		display(&ctx.location.buffer_loc[gpuOutBuffer]);
 		x += dx;
 		y += dy;
 		if (x >= ctx.view.clipMax[0] || x <= ctx.view.clipMin[0]) dx = -dx;
@@ -428,9 +433,9 @@ static void GCCunused play_nodiv_anim(void) {
 static void GCCunused play_div_anim(void) {
 	for (int64_t x = ctx.view.clipMin[0]; x<ctx.view.clipMax[0]; x++) {
 		int64_t y = x? ctx.view.clipMax[1]/x : 0;
-		uint32_t *w = &shared->buffers[ctx.location.out.address + ((y+ctx.view.winPos[1]+ctx.view.winHeight/2)<<ctx.location.out.width_log) + x+ctx.view.winPos[0]+ctx.view.winWidth/2];
+		uint32_t *w = location_winPos(gpuOutBuffer, x+ctx.view.winWidth/2, y+ctx.view.winHeight/2);
 		*w = 0xffff;
-		display(&ctx.location.out);
+		display(&ctx.location.buffer_loc[gpuOutBuffer]);
 	}
 }
 
@@ -505,7 +510,9 @@ static void run(void) {
 	}
 }
 
-static inline void set_error_flag(unsigned err_mask);
+extern inline void set_error_flag(unsigned err_mask);
+extern inline uint32_t *location_pos(gpuBufferType type, int32_t x, int32_t y);
+extern inline uint32_t *location_winPos(gpuBufferType type, int32_t x, int32_t y);
 
 #ifdef GP2X
 void enable_irqs(void) {

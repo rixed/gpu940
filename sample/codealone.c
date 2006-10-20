@@ -324,29 +324,17 @@ static void draw_cube(bool ext, int32_t i_dec) {
 }
 
 static void clear_screen(void) {
-	static gpuCmdVector vec_bg[] = {
-		{ .same_as = 0, .u = { .geom = { .c3d = { -10<<16, -10<<16, -257 } }, }, },
-		{ .same_as = 0, .u = { .geom = { .c3d = {  10<<16, -10<<16, -257 } }, }, },
-		{ .same_as = 0, .u = { .geom = { .c3d = {  10<<16,  10<<16, -257 } }, }, },
-		{ .same_as = 0, .u = { .geom = { .c3d = { -10<<16,  10<<16, -257 } }, }, },
+	static gpuCmdRect clear_rect = {
+		.opcode = gpuRECT,
+		.type = gpuOutBuffer,
+		.pos = { 0, 0 },
+		.width = SCREEN_WIDTH,
+		.height = SCREEN_HEIGHT,
+		.relative_to_window = 1,
+		.value = 0,
 	};
-	static gpuCmdFacet facet_bg = {
-		.opcode = gpuFACET,
-		.size = sizeof_array(vec_bg),
-		.color = 0,
-		.rendering_type = rendering_c,
-		.perspective = 0,
-		.cull_mode = 0,
-	};
-	facet_bg.color = gpuColor(0, 0, 0);
-	static struct iovec cmdvec[1+4] = {
-		{ .iov_base = &facet_bg, .iov_len = sizeof(facet_bg) },	// first facet to clear the background
-		{ .iov_base = vec_bg+0, .iov_len = sizeof(*vec_bg) },
-		{ .iov_base = vec_bg+1, .iov_len = sizeof(*vec_bg) },
-		{ .iov_base = vec_bg+2, .iov_len = sizeof(*vec_bg) },
-		{ .iov_base = vec_bg+3, .iov_len = sizeof(*vec_bg) }
-	};
-	gpuErr err = gpuWritev(cmdvec, sizeof_array(cmdvec), true);
+	clear_rect.value = gpuColor(0, 0, 0);
+	gpuErr err = gpuWrite(&clear_rect, sizeof(clear_rect), true);
 	assert(gpuOK == err);
 }
 

@@ -80,25 +80,17 @@ int main(void) {
 		.perspective = 1,
 		.cull_mode = GPU_CCW,
 	};
-	gpuCmdVector vec_bg[] = {
-		{ .same_as = 0, .u = { .geom = { .c3d = { -10<<16, -10<<16, -257 } }, }, },
-		{ .same_as = 0, .u = { .geom = { .c3d = {  10<<16, -10<<16, -257 } }, }, },
-		{ .same_as = 0, .u = { .geom = { .c3d = {  10<<16,  10<<16, -257 } }, }, },
-		{ .same_as = 0, .u = { .geom = { .c3d = { -10<<16,  10<<16, -257 } }, }, },
+	gpuCmdRect clear_rect = {
+		.opcode = gpuRECT,
+		.type = gpuOutBuffer,
+		.pos = { 0, 0 },
+		.width = SCREEN_WIDTH,
+		.height = SCREEN_HEIGHT,
+		.relative_to_window = 1,
+		.value = gpuColor(0, 0, 0),
 	};
-	gpuCmdFacet facet_bg = {
-		.opcode = gpuFACET,
-		.size = sizeof_array(vec_bg),
-		.color = gpuColor(0, 0, 0),
-		.rendering_type = rendering_c,
-		.perspective = 0,
-	};
-	struct iovec cmdvec[1+4+1+sizeof_array(vectors)] = {
-		{ .iov_base = &facet_bg, .iov_len = sizeof(facet_bg) },	// first facet to clear the background
-		{ .iov_base = vec_bg+0, .iov_len = sizeof(*vec_bg) },
-		{ .iov_base = vec_bg+1, .iov_len = sizeof(*vec_bg) },
-		{ .iov_base = vec_bg+2, .iov_len = sizeof(*vec_bg) },
-		{ .iov_base = vec_bg+3, .iov_len = sizeof(*vec_bg) },
+	struct iovec cmdvec[] = {
+		{ .iov_base = &clear_rect, .iov_len = sizeof(clear_rect) },
 		{ .iov_base = &facet, .iov_len = sizeof(facet) },	// textured facet
 		{ .iov_base = vectors+0, .iov_len = sizeof(*vectors) },
 		{ .iov_base = vectors+1, .iov_len = sizeof(*vectors) },

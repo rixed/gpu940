@@ -172,10 +172,10 @@ int clip_poly(void)
 	unsigned previous_target = perftime_target();
 	perftime_enter(PERF_CLIP, "clip & proj");
 	// init facet
-	static unsigned const nb_params_for_rendering[NB_RENDERING_TYPES] = {
+	static unsigned const nb_params_for_rendering[GPU_NB_RENDERING_TYPES] = {
 		0, 1, 2, 3, 2, 3, 0, 2
 	};
-	if (ctx.poly.cmdFacet.rendering_type >= NB_RENDERING_TYPES) {
+	if (ctx.poly.cmdFacet.rendering_type >= GPU_NB_RENDERING_TYPES) {
 		set_error_flag(gpuEPARAM);
 		goto ret;
 	}

@@ -23,6 +23,7 @@
 #include "poly.h"
 #include "clip.h"
 #include "mylib.h"
+#include "raster.h"
 #ifdef GP2X
 #	define assert(x)
 #else
@@ -73,7 +74,7 @@ extern struct ctx {
 	} view;
 	// Buffers
 	struct {
-		struct buffer_loc out, txt, z;
+		struct buffer_loc buffer_loc[GPU_NB_BUFFER_TYPES];
 		uint32_t txt_mask;
 	} location;
 	// Current Polygon
@@ -111,7 +112,7 @@ extern struct ctx {
 	// Current line
 	struct {
 		int32_t count;
-		uint8_t *restrict w;
+		uint32_t *restrict w;
 		int32_t dw;
 		int32_t decliv;
 		int32_t ddecliv;
@@ -122,6 +123,19 @@ extern struct ctx {
 
 static inline void set_error_flag(unsigned err_mask) {
 	shared->error_flags |= err_mask;	// TODO : use a bit atomic set instruction
+}
+static inline uint32_t *location_pos(gpuBufferType type, int32_t x, int32_t y) {
+	return &shared->buffers[
+		ctx.location.buffer_loc[type].address +
+		(y << ctx.location.buffer_loc[type].width_log) + x
+	];
+}
+static inline uint32_t *location_winPos(gpuBufferType type, int32_t x, int32_t y) {
+	return &shared->buffers[
+		ctx.location.buffer_loc[type].address +
+		((y + ctx.view.winPos[1])<<ctx.location.buffer_loc[type].width_log) +
+		x + ctx.view.winPos[0]
+	];
 }
 
 #endif

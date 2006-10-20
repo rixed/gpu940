@@ -46,7 +46,7 @@ static void draw_line(void) {
 	int32_t c_start, c_stop;
 	c_start = ctx.trap.side[ctx.trap.left_side].c>>16;
 	c_stop = ctx.trap.side[!ctx.trap.left_side].c>>16;	// TODO: +1 if fractionnal
-	ctx.line.dw = 4;
+	ctx.line.dw = sizeof(uint32_t);
 	ctx.line.ddecliv = ctx.poly.decliveness;
 	if ( c_stop < c_start ) {	// may happen on some pathological cases ?
 		goto quit_dl;
@@ -71,13 +71,13 @@ static void draw_line(void) {
 	}
 	ctx.line.decliv = ctx.poly.decliveness*c_start;	// 16.16
 	if (ctx.poly.scan_dir == 0) {
-		ctx.line.w = (uint8_t *)&shared->buffers[ctx.location.out.address + (((ctx.poly.nc_declived>>16)+ctx.view.winPos[1])<<ctx.location.out.width_log) + c_start+ctx.view.winPos[0]];
+		ctx.line.w = location_winPos(gpuOutBuffer, c_start, ctx.poly.nc_declived>>16);
 	} else {
-		ctx.line.w = (uint8_t *)&shared->buffers[ctx.location.out.address + ((c_start+ctx.view.winPos[1])<<ctx.location.out.width_log) + (ctx.poly.nc_declived>>16) + ctx.view.winPos[0]];
-		ctx.line.dw <<= ctx.location.out.width_log;
+		ctx.line.w = location_winPos(gpuOutBuffer, ctx.poly.nc_declived>>16, c_start);
+		ctx.line.dw <<= ctx.location.buffer_loc[gpuOutBuffer].width_log;
 	}
-	static draw_line_t const draw_lines[2][NB_RENDERING_TYPES] = {
-		{ draw_line_c, draw_line_ci, draw_line_uv, draw_line_uvi_lin, draw_line_uvk, draw_line_cs, draw_line_shadow, draw_line_uvk_shadow },	// no perspective
+	static draw_line_t const draw_lines[2][GPU_NB_RENDERING_TYPES] = {
+		{ draw_line_c_lin, draw_line_ci, draw_line_uv, draw_line_uvi_lin, draw_line_uvk, draw_line_cs, draw_line_shadow, draw_line_uvk_shadow },	// no perspective
 		{ draw_line_c, draw_line_ci, draw_line_uv, draw_line_uvi, draw_line_uvk, draw_line_cs, draw_line_shadow, draw_line_uvk_shadow }	// perspective
 	};
 #ifdef GP2X
@@ -300,7 +300,7 @@ void draw_poly(void) {
 	// compute decliveness related parameters
 	ctx.poly.decliveness = 0;
 	ctx.poly.scan_dir = 0;
-	ctx.poly.nc_log = ctx.location.out.width_log+2;
+	ctx.poly.nc_log = ctx.location.buffer_loc[gpuOutBuffer].width_log+2;
 	// bounding box
 	unsigned b_vec, c_vec;
 	c_vec = b_vec = ctx.poly.first_vector;

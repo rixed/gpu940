@@ -95,7 +95,7 @@ typedef enum {
 	gpuPOINT,
 	gpuLINE,
 	gpuFACET,
-	gpuRect,
+	gpuRECT,
 } gpuOpcode;
 
 struct buffer_loc {
@@ -121,7 +121,12 @@ typedef struct {
 	gpuPlane planes[GPU_NB_USER_CLIPPLANES];
 } gpuCmdSetUserClipPlanes;
 
-typedef enum { gpuOutBuffer, gpuTxtBuffer, gpuZBuffer } gpuBufferType;
+typedef enum {
+	gpuOutBuffer,
+	gpuTxtBuffer,
+	gpuZBuffer,
+	GPU_NB_BUFFER_TYPES
+} gpuBufferType;
 
 typedef struct {
 	gpuOpcode opcode;
@@ -143,7 +148,7 @@ enum gpuRenderingType {
 	rendering_cs,	// use vectors param r, g, b
 	rendering_shadow,	// use intens for shadowing the region
 	rendering_uvk_shadow,	// use vectors param u, v, and color for keying texture, and intens to then shadow the region
-	NB_RENDERING_TYPES
+	GPU_NB_RENDERING_TYPES
 };
 typedef struct {
 	gpuOpcode opcode;
@@ -180,8 +185,9 @@ typedef struct {
 typedef struct {
 	gpuOpcode opcode;
 	gpuBufferType type;
-	int32_t pos[2];	// coordinate of the lower left corner of the rectangle
-	uint32_t width, height;
+	int32_t pos[2];	// coordinate of the lower left corner of the rectangle, in buffer (32.0)
+	uint32_t width, height;	// 32.0
+	uint32_t relative_to_window:1;	// if set, pos are relative to window, not buffer
 	uint32_t value;
 } gpuCmdRect;
 

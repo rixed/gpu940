@@ -51,27 +51,38 @@ static void shadow(uint32_t *w, int32_t intens) {
 
 #ifndef GP2X
 void draw_line_c(void) {
-	uint8_t *restrict w = ctx.line.w;
+	uint32_t *restrict w = ctx.line.w;
 	int count = ctx.line.count;
 	do {
 //		if (start_poly) *w = ctx.poly.scan_dir ? 0x3e0 : 0xf800; else
-		*(uint32_t *restrict)w = ctx.poly.cmdFacet.color;
-		w += ctx.line.dw;
+		*w = ctx.poly.cmdFacet.color;
+		w = (uint32_t *)((uint8_t *)w + ctx.line.dw);
 	} while (--count >= 0);
 }
 #endif
 
-void draw_line_shadow(void) {	// used for shadowing a flat polygon
+void draw_line_c_lin(void) {
+	uint32_t *restrict w = ctx.line.w;
+	int count = ctx.line.count;
 	do {
-		uint32_t *w = (uint32_t *)(ctx.line.w);
+//		if (start_poly) *w = ctx.poly.scan_dir ? 0x3e0 : 0xf800; else
+		*w = ctx.poly.cmdFacet.color;
+		w ++;
+	} while (--count >= 0);
+}
+
+void draw_line_shadow(void) {	// used for shadowing a flat polygon
+	uint32_t *restrict w = ctx.line.w;
+	int count = ctx.line.count;
+	do {
 		shadow(w, ctx.poly.cmdFacet.intens);
-		ctx.line.w += ctx.line.dw;
-		ctx.line.count --;
-	} while (ctx.line.count >= 0);
+		w = (uint32_t *)((uint8_t *)w + ctx.line.dw);
+	} while (--count >= 0);
 }
 
 #ifndef GP2X
 void draw_line_ci(void) {
+	int count = ctx.line.count;
 	uint32_t const color = ctx.poly.cmdFacet.color;
 //	if (start_poly) color |= ctx.poly.scan_dir ? 0x3e0 : 0xf800;
 #ifdef GP2X	// gp2x uses YUV
@@ -79,7 +90,7 @@ void draw_line_ci(void) {
 	ctx.line.dparam[0] *= 55;
 #endif
 	do {
-		uint32_t *w = (uint32_t *)(ctx.line.w + ((ctx.line.decliv>>16)<<ctx.poly.nc_log));
+		uint32_t *w = (uint32_t *)((uint8_t *)ctx.line.w + ((ctx.line.decliv>>16)<<ctx.poly.nc_log));
 #ifdef GP2X	// gp2x uses YUV
 		int32_t i = ctx.line.param[0]>>22;
 		int y = color&0xff;
@@ -96,11 +107,10 @@ void draw_line_ci(void) {
 		SAT8(b);
 		*w = (r<<16)|(g<<8)|b;
 #endif
-		ctx.line.w += ctx.line.dw;
+		ctx.line.w = (uint32_t *)((uint8_t *)ctx.line.w + ctx.line.dw);
 		ctx.line.decliv += ctx.line.ddecliv;
 		ctx.line.param[0] += ctx.line.dparam[0];
-		ctx.line.count --;
-	} while (ctx.line.count >= 0);
+	} while (--count >= 0);
 }
 #endif
 
@@ -109,11 +119,11 @@ void draw_line_uv(void) {
 	do {
 //		uint8_t z = ctx.poly.z_alpha>>8;
 //		uint32_t color = (z<<16)|(z<<8)|z;
-		uint32_t color = texture_color(&ctx.location.txt, ctx.line.param[0], ctx.line.param[1]);
+		uint32_t color = texture_color(&ctx.location.buffer_loc[gpuTxtBuffer], ctx.line.param[0], ctx.line.param[1]);
 //		if (start_poly) color = ctx.poly.scan_dir ? 0x3e0 : 0xf800;
-		uint32_t *w = (uint32_t *)(ctx.line.w + ((ctx.line.decliv>>16)<<ctx.poly.nc_log));
+		uint32_t *w = (uint32_t *)((uint8_t *)ctx.line.w + ((ctx.line.decliv>>16)<<ctx.poly.nc_log));
 		*w = color;
-		ctx.line.w += ctx.line.dw;
+		ctx.line.w = (uint32_t *)((uint8_t *)ctx.line.w + ctx.line.dw);
 		ctx.line.decliv += ctx.line.ddecliv;
 		ctx.line.param[0] += ctx.line.dparam[0];
 		ctx.line.param[1] += ctx.line.dparam[1];
@@ -124,10 +134,10 @@ void draw_line_uv(void) {
 
 void draw_line_uvk(void) {
 	do {
-		uint32_t color = texture_color(&ctx.location.txt, ctx.line.param[0], ctx.line.param[1]);
-		uint32_t *w = (uint32_t *)(ctx.line.w + ((ctx.line.decliv>>16)<<ctx.poly.nc_log));
+		uint32_t color = texture_color(&ctx.location.buffer_loc[gpuTxtBuffer], ctx.line.param[0], ctx.line.param[1]);
+		uint32_t *w = (uint32_t *)((uint8_t *)ctx.line.w + ((ctx.line.decliv>>16)<<ctx.poly.nc_log));
 		if (color != ctx.poly.cmdFacet.color) *w = color;
-		ctx.line.w += ctx.line.dw;
+		ctx.line.w = (uint32_t *)((uint8_t *)ctx.line.w + ctx.line.dw);
 		ctx.line.decliv += ctx.line.ddecliv;
 		ctx.line.param[0] += ctx.line.dparam[0];
 		ctx.line.param[1] += ctx.line.dparam[1];
@@ -144,9 +154,9 @@ void draw_line_cs(void) {
 			((ctx.line.param[0]&0xFF00)<<8)|(ctx.line.param[1]&0xFF00)|((ctx.line.param[2]&0xFF00)>>8);
 #endif
 //		if (start_poly) color = ctx.poly.scan_dir ? 0x3e0 : 0xf800;
-		uint32_t *w = (uint32_t *)(ctx.line.w + ((ctx.line.decliv>>16)<<ctx.poly.nc_log));
+		uint32_t *w = (uint32_t *)((uint8_t *)ctx.line.w + ((ctx.line.decliv>>16)<<ctx.poly.nc_log));
 		*w = color;
-		ctx.line.w += ctx.line.dw;
+		ctx.line.w = (uint32_t *)((uint8_t *)ctx.line.w + ctx.line.dw);
 		ctx.line.decliv += ctx.line.ddecliv;
 		ctx.line.param[0] += ctx.line.dparam[0];
 		ctx.line.param[1] += ctx.line.dparam[1];
@@ -157,10 +167,10 @@ void draw_line_cs(void) {
 
 void draw_line_uvk_shadow(void) {	// used to shadow a keyed uv poly (read texture for keycolor)
 	do {
-		uint32_t color = texture_color(&ctx.location.txt, ctx.line.param[0], ctx.line.param[1]);
-		uint32_t *w = (uint32_t *)(ctx.line.w + ((ctx.line.decliv>>16)<<ctx.poly.nc_log));
+		uint32_t color = texture_color(&ctx.location.buffer_loc[gpuTxtBuffer], ctx.line.param[0], ctx.line.param[1]);
+		uint32_t *w = (uint32_t *)((uint8_t *)ctx.line.w + ((ctx.line.decliv>>16)<<ctx.poly.nc_log));
 		if (color != ctx.poly.cmdFacet.color) shadow(w, ctx.poly.cmdFacet.intens);
-		ctx.line.w += ctx.line.dw;
+		ctx.line.w = (uint32_t *)((uint8_t *)ctx.line.w + ctx.line.dw);
 		ctx.line.decliv += ctx.line.ddecliv;
 		ctx.line.param[0] += ctx.line.dparam[0];
 		ctx.line.param[1] += ctx.line.dparam[1];
@@ -175,9 +185,9 @@ void draw_line_uvi(void) {
 	ctx.line.dparam[2] *= 55;
 #endif
 	do {
-		uint32_t color = texture_color(&ctx.location.txt, ctx.line.param[0], ctx.line.param[1]);
+		uint32_t color = texture_color(&ctx.location.buffer_loc[gpuTxtBuffer], ctx.line.param[0], ctx.line.param[1]);
 //		if (start_poly) color = ctx.poly.scan_dir ? 0x3e0 : 0xf800;
-		uint32_t *w = (uint32_t *)(ctx.line.w + ((ctx.line.decliv>>16)<<ctx.poly.nc_log));
+		uint32_t *w = (uint32_t *)((uint8_t *)ctx.line.w + ((ctx.line.decliv>>16)<<ctx.poly.nc_log));
 		int32_t i = ctx.line.param[2]>>16;
 #ifdef GP2X	// gp2x uses YUV
 		int y = color&0xff;
@@ -193,7 +203,7 @@ void draw_line_uvi(void) {
 		SAT8(b);
 		*w = (r<<16)|(g<<8)|b;
 #endif
-		ctx.line.w += ctx.line.dw;
+		ctx.line.w = (uint32_t *)((uint8_t *)ctx.line.w + ctx.line.dw);
 		ctx.line.decliv += ctx.line.ddecliv;
 		ctx.line.param[0] += ctx.line.dparam[0];
 		ctx.line.param[1] += ctx.line.dparam[1];
@@ -210,7 +220,7 @@ void draw_line_uvi_lin(void) {
 	ctx.line.dparam[2] *= 55;
 #endif
 	do {
-		uint32_t color = texture_color(&ctx.location.txt, ctx.line.param[0], ctx.line.param[1]);
+		uint32_t color = texture_color(&ctx.location.buffer_loc[gpuTxtBuffer], ctx.line.param[0], ctx.line.param[1]);
 //		if (start_poly) color = ctx.poly.scan_dir ? 0x3e0 : 0xf800;
 		uint32_t *w = (uint32_t *)(ctx.line.w);
 		int32_t i = ctx.line.param[2]>>16;
@@ -228,7 +238,7 @@ void draw_line_uvi_lin(void) {
 		SAT8(b);
 		*w = (r<<16)|(g<<8)|b;
 #endif
-		ctx.line.w += 4;
+		ctx.line.w ++;
 		ctx.line.param[0] += ctx.line.dparam[0];
 		ctx.line.param[1] += ctx.line.dparam[1];
 		ctx.line.param[2] += ctx.line.dparam[2];
