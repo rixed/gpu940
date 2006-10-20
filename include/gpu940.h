@@ -96,6 +96,7 @@ typedef enum {
 	gpuLINE,
 	gpuFACET,
 	gpuRECT,
+	gpuZMODE,
 } gpuOpcode;
 
 struct buffer_loc {
@@ -190,6 +191,12 @@ typedef struct {
 	uint32_t relative_to_window:1;	// if set, pos are relative to window, not buffer
 	uint32_t value;
 } gpuCmdRect;
+
+typedef enum { gpu_z_lt, gpu_z_eq, gpu_z_ne, gpu_z_ltq, gpu_z_gt, gpu_z_gte } gpuZMode;
+typedef struct {
+	gpuOpcode opcode;
+	gpuZMode z_mode;
+} gpuZMode;
 
 /* Client Functions */
 
