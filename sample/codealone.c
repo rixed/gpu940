@@ -224,9 +224,13 @@ static gpuCmdFacet cube_cmdFacet = {
 	.opcode = gpuFACET,
 	.size = 4,
 	.color = 0xF08080,
-	.rendering_type = rendering_uvi,
+	.rendering_type = rendering_text,
+	.use_key = 0,
+	.use_intens = 1,
 	.perspective = 1,
 	.cull_mode = 0,
+	.write_out = 1,
+	.write_z = 0,
 };
 static unsigned cube_facet[6][4] = {
 	{ 0, 4, 5, 1 },
@@ -280,7 +284,7 @@ static int32_t uvs[6][4][2] = {
 		{   0<<16, 256<<16 }
 	}
 };
-static int facet_rendering[6] = { rendering_uvi, rendering_uvi, rendering_uvi, rendering_uvi, rendering_uvi, rendering_uvi };
+static int facet_intens[6] = { 1,1,1,1,1,1 };
 static struct gpuBuf *facet_text[6];
 
 static void draw_facet(unsigned f, bool ext, int32_t i_dec) {
@@ -293,9 +297,9 @@ static void draw_facet(unsigned f, bool ext, int32_t i_dec) {
 			cmdVec[v].u.geom.c3d[c] = c3d[ cube_facet[f][v] ][c];
 			normal[c] += cmdVec[v].u.geom.c3d[c] - camera.transf.trans[c];
 		}
-		cmdVec[v].u.uvi_params.u = uvs[f][v][0];
-		cmdVec[v].u.uvi_params.v = uvs[f][v][1];
-		cmdVec[v].u.uvi_params.i = (i_dec+c3d[ cube_facet[f][v] ][2])<<6;
+		cmdVec[v].u.text_params.u = uvs[f][v][0];
+		cmdVec[v].u.text_params.v = uvs[f][v][1];
+		cmdVec[v].u.text_params.i_zb = (i_dec+c3d[ cube_facet[f][v] ][2])<<6;
 	}
 	Fix_normalize(normal);
 	int64_t scal = Fix_scalar(normal, c3d[ cube_facet[f][0] ]);
@@ -305,7 +309,7 @@ static void draw_facet(unsigned f, bool ext, int32_t i_dec) {
 	if (gpuOK != gpuSetBuf(gpuTxtBuffer, facet_text[f], true)) {
 		assert(0);
 	}
-	cube_cmdFacet.rendering_type = facet_rendering[f];
+	cube_cmdFacet.use_intens = facet_intens[f];
 	static struct iovec cmdvec[4+1] = {
 		{ .iov_base = &cube_cmdFacet, .iov_len = sizeof(cube_cmdFacet) },
 		{ .iov_base = cmdVec+0, .iov_len = sizeof(*cmdVec) },
@@ -578,7 +582,7 @@ static void scene1(void) {
 	unsigned target = 0;
 	camera.target = &targets_scene1[target];
 	facet_text[4] = grab_menu_texture();
-	facet_rendering[4] = rendering_uv;	// all others stay with default's rendering_uvi
+	facet_intens[4] = 0;	// all others stay with intensity enabled
 	facet_text[0] = uncomp(pic1, 24, gpuColor(180, 180, 160), gpuColor(100, 150, 200));
 	facet_text[5] = uncomp(pic2, 10, gpuColor(123, 50, 200), gpuColor(30, 200, 200));
 	facet_text[2] = uncomp(pic3, 10, gpuColor(180, 180, 200), gpuColor(200, 70, 230));
@@ -602,7 +606,7 @@ static void scene1(void) {
 	gpuFreeFC(facet_text[0], 1);
 	gpuFreeFC(facet_text[5], 1);
 	gpuFreeFC(facet_text[2], 1);
-	facet_rendering[4] = rendering_uvi;	// restore default
+	facet_intens[4] = 1;	// restore default
 }
 
 /*
@@ -742,15 +746,19 @@ static void transf_draw_pic(struct gpuBuf *pic_txt, FixVec *pic_vec, enum draw_w
 	static gpuCmdFacet pic_facet = {
 		.opcode = gpuFACET,
 		.size = 4,
-		.intens = -30,
+		.shadow = -30,
+		.use_key = 1,
+		.use_intens = 0,
 		.cull_mode = 0,
+		.write_out = 1,
+		.write_z = 0,
 	};
-	pic_facet.color = gpuColor(0, 0, 255);
+	pic_facet.color = gpuColor(0, 0, 255);	// key color of the texture
 	static gpuCmdVector vecs[4] = {
-		{ .same_as = 0, .u = { .uvi_params = { .u =   0<<16, .v =   0<<16 } }, },
-		{ .same_as = 0, .u = { .uvi_params = { .u = 255<<16, .v =   0<<16 } }, },
-		{ .same_as = 0, .u = { .uvi_params = { .u = 255<<16, .v = 255<<16 } }, },
-		{ .same_as = 0, .u = { .uvi_params = { .u =   0<<16, .v = 255<<16 } }, }
+		{ .same_as = 0, .u = { .text_params = { .u =   0<<16, .v =   0<<16 } }, },
+		{ .same_as = 0, .u = { .text_params = { .u = 255<<16, .v =   0<<16 } }, },
+		{ .same_as = 0, .u = { .text_params = { .u = 255<<16, .v = 255<<16 } }, },
+		{ .same_as = 0, .u = { .text_params = { .u =   0<<16, .v = 255<<16 } }, }
 	};
 	static struct iovec cmdvec[4+1] = {
 		{ .iov_base = &pic_facet, .iov_len = sizeof(pic_facet) },
@@ -763,7 +771,7 @@ static void transf_draw_pic(struct gpuBuf *pic_txt, FixVec *pic_vec, enum draw_w
 		assert(0);
 	}
 	if (draw_what == PIC) {	// Simply rotate and draw
-		pic_facet.rendering_type = rendering_uvk;
+		pic_facet.rendering_type = rendering_text;
 		pic_facet.perspective = 1;
 		for (unsigned v=4; v--; ) {
 		//	FixMat_x_Vec(vecs[v].geom.c3d, &camera.transf, pic_vec+v, true);
@@ -773,7 +781,7 @@ static void transf_draw_pic(struct gpuBuf *pic_txt, FixVec *pic_vec, enum draw_w
 		gpuErr err = gpuWritev(cmdvec, sizeof_array(cmdvec), true);
 		assert(gpuOK == err);
 	} else {	// SHADOWS
-		pic_facet.rendering_type = rendering_uvk_shadow;
+		pic_facet.rendering_type = rendering_shadow;
 		pic_facet.perspective = 0;
 		int32_t L[3] = {
 			camera.pos[0] + camera.transf.rot[0][2] + camera.transf.rot[0][1],

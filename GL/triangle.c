@@ -111,11 +111,11 @@ static void send_triangle(int32_t vi[4], GLint ci, bool facet_is_inverted)
 	if (cmdFacet.cull_mode == 3) return;
 	// Set facet rendering type and color if needed
 	if (gli_smooth()) {
-		cmdFacet.rendering_type = rendering_cs;
+		cmdFacet.rendering_type = rendering_smooth;
 	} else {
 		GLfixed const *c = get_vertex_color(vi, ci);
 		cmdFacet.color = color_GL2gpu(c);
-		cmdFacet.rendering_type = rendering_c;
+		cmdFacet.rendering_type = rendering_flat;
 	}
 	// Send to GPU
 	gpuErr err = gpuWritev(iov_triangle, sizeof_array(iov_triangle), true);
@@ -130,12 +130,12 @@ static void write_vertex(GLfixed v[4], unsigned vec_idx, GLint arr_idx)
 	cmdVec[vec_idx].u.geom.c3d[2] = v[2];
 	if (gli_smooth()) {
 		GLfixed const *c = get_vertex_color(v, arr_idx);
-		cmdVec[vec_idx].u.c_params.r = Fix_gpuColor1(c[0], c[1], c[2]);
-		cmdVec[vec_idx].u.c_params.g = Fix_gpuColor2(c[0], c[1], c[2]);
-		cmdVec[vec_idx].u.c_params.b = Fix_gpuColor3(c[0], c[1], c[2]);
-		CLAMP(cmdVec[vec_idx].u.c_params.r, 0, 0xFFFF);
-		CLAMP(cmdVec[vec_idx].u.c_params.g, 0, 0xFFFF);
-		CLAMP(cmdVec[vec_idx].u.c_params.b, 0, 0xFFFF);
+		cmdVec[vec_idx].u.smooth_params.r = Fix_gpuColor1(c[0], c[1], c[2]);
+		cmdVec[vec_idx].u.smooth_params.g = Fix_gpuColor2(c[0], c[1], c[2]);
+		cmdVec[vec_idx].u.smooth_params.b = Fix_gpuColor3(c[0], c[1], c[2]);
+		CLAMP(cmdVec[vec_idx].u.smooth_params.r, 0, 0xFFFF);
+		CLAMP(cmdVec[vec_idx].u.smooth_params.g, 0, 0xFFFF);
+		CLAMP(cmdVec[vec_idx].u.smooth_params.b, 0, 0xFFFF);
 	}
 }
 
@@ -146,8 +146,12 @@ static void write_vertex(GLfixed v[4], unsigned vec_idx, GLint arr_idx)
 int gli_triangle_begin(void)
 {
 	cmdFacet.opcode = gpuFACET;
-	cmdFacet.perspective = 0;
 	cmdFacet.size = 3;
+	cmdFacet.use_key = 0;
+	cmdFacet.use_intens = 0;
+	cmdFacet.perspective = 0;
+	cmdFacet.write_out = 1;
+	cmdFacet.write_z = 0;
 	return 0;
 }
 

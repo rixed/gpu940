@@ -61,6 +61,10 @@ typedef struct {
 } gpuVector;
 
 extern struct ctx {
+	// global rendering parameters
+	struct {
+		gpuZMode z_mode;
+	} rendering;
 	// View parameters
 	struct {
 		int32_t clipMin[2];
@@ -71,7 +75,6 @@ extern struct ctx {
 		gpuPlane clipPlanes[GPU_NB_CLIPPLANES];
 		uint32_t nb_clipPlanes;
 		uint32_t dproj;
-		gpuZMode z_mode;
 	} view;
 	// Buffers
 	struct {

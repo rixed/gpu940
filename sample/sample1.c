@@ -67,17 +67,21 @@ int main(void) {
 		{ .c = { -LEN, -LEN, LEN/4 }, .xy = LEN2 },
 	};
 	gpuCmdVector vectors[sizeof_array(vec3d)] = {
-		{ .same_as = 0, .u = { .uvi_params = { .u=0, .v=0, .i=16<<16 }, }, },
-		{ .same_as = 0, .u = { .uvi_params = { .u=255<<16, .v=0, .i=0<<16 }, }, },
-		{ .same_as = 0, .u = { .uvi_params = { .u=255<<16, .v=255<<16, .i=16<<16 }, }, },
-		{ .same_as = 0, .u = { .uvi_params = { .u=0, .v=255<<16, .i=32<<16 }, }, },
+		{ .same_as = 0, .u = { .text_params = { .u=0, .v=0, .i_zb=16<<16 }, }, },
+		{ .same_as = 0, .u = { .text_params = { .u=255<<16, .v=0, .i_zb=0<<16 }, }, },
+		{ .same_as = 0, .u = { .text_params = { .u=255<<16, .v=255<<16, .i_zb=16<<16 }, }, },
+		{ .same_as = 0, .u = { .text_params = { .u=0, .v=255<<16, .i_zb=32<<16 }, }, },
 	};
 	gpuCmdFacet facet = {
 		.opcode = gpuFACET,
 		.size = sizeof_array(vectors),
 		.color = gpuColor(20, 30, 180),
-		.rendering_type = rendering_uv,
+		.rendering_type = rendering_text,
+		.use_intens = 1,
 		.perspective = 1,
+		.use_key = 0,
+		.write_out = 1,
+		.write_z = 0,
 		.cull_mode = GPU_CCW,
 	};
 	gpuCmdRect clear_rect = {

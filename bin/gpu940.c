@@ -205,7 +205,7 @@ static void ctx_reset(void) {
 	ctx.view.winWidth = ctx.view.clipMax[0] - ctx.view.clipMin[0];
 	ctx.view.winHeight = ctx.view.clipMax[1] - ctx.view.clipMin[1];
 	ctx.view.dproj = GPU_DEFAULT_DPROJ;
-	ctx.view.z_mode = gpu_z_off;
+	ctx.rendering.z_mode = gpu_z_off;
 	reset_clipPlanes();
 	ctx.view.nb_clipPlanes = 5;
 }
@@ -373,7 +373,7 @@ static void do_rect(void) {
 }
 static void do_zmode(void) {
 	read_from_cmdBuf(&allCmds.z_mode, sizeof(allCmds.z_mode));
-	ctx.view.z_mode = allCmds.z_mode.mode;
+	ctx.rendering.z_mode = allCmds.z_mode.mode;
 }
 static void do_reset(void) {
 	read_from_cmdBuf(&allCmds.reset, sizeof(allCmds.reset));

@@ -18,6 +18,7 @@
 #ifndef RASTER_H_060928
 #define RASTER_H_060928
 
+void raster_gen(void);
 void draw_line_c(void);
 void draw_line_shadow(void);
 void draw_line_ci(void);

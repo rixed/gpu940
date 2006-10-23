@@ -41,7 +41,7 @@
 #define GPU_DEFAULT_CLIPMAX1 ((SCREEN_HEIGHT>>1)+1)
 #define GPU_DEFAULT_WINPOS0 ((512-SCREEN_WIDTH)>>1)
 #define GPU_DEFAULT_WINPOS1 3
-#define GPU_NB_PARAMS (3+1)
+#define GPU_NB_PARAMS 5 // at most r,g,b,i,z
 #define GPU_NB_USER_CLIPPLANES 5
 #define GPU_DISPLIST_SIZE 64
 #define SHARED_PHYSICAL_ADDR 0x2100000	// this is from 920T or for the video controler.
@@ -141,42 +141,43 @@ typedef struct {
 } gpuCmdShowBuf;
 
 enum gpuRenderingType {
-	rendering_c,	// use color for flat rendering
-	rendering_ci,	// use color and vectors param i
-	rendering_uv,	// use vectors param u, v
-	rendering_uvi,	// use vectors param u, v, i
-	rendering_uvk,	// use vectors param u, v, and color for keying texture
-	rendering_cs,	// use vectors param r, g, b
-	rendering_shadow,	// use intens for shadowing the region
-	rendering_uvk_shadow,	// use vectors param u, v, and color for keying texture, and intens to then shadow the region
+	rendering_flat,	// use facet color for flat rendering
+	rendering_text,	// use u,v for textured rendering
+	rendering_smooth,	// use vectors r,g,b and interpolate
+	rendering_shadow,	// use facet shadow for changing ilum
 	GPU_NB_RENDERING_TYPES
 };
 typedef struct {
 	gpuOpcode opcode;
 	uint32_t size;	// >=3
 	uint32_t color;	// used for flat rendering or keyed textures
-	int32_t intens;	// used for shadowing
+	int32_t shadow;	// used for shadow rendering
+	uint32_t rendering_type:2;
+	uint32_t use_key:1;
+	uint32_t use_intens:1;
 	uint32_t perspective:1;
-	uint32_t rendering_type:3;
 #	define GPU_CW 1
 #	define GPU_CCW 2
 	uint32_t cull_mode:2;	// bit 0 for direct (counter clock-wise), bit 1 for indirect (clock-wise)
+	uint32_t write_out:1;
+	uint32_t write_z:1;
 } gpuCmdFacet;
 
 typedef struct {
 	uint32_t same_as;	// x,y and z are the same that this last vector. 0 means this same as this one, which of course allways stands true.
+	// Params are : x,y,z,  r?,g?,b?|u?,v?, i?,zb?
 	union {
 		// No opcode: it must follow a point/line/facet
 		int32_t all_params[3+GPU_NB_PARAMS];
 		struct {
-			int32_t x, y, z, u, v, i;
-		} uvi_params;
+			int32_t x, y, z, i_zb, zb;
+		} flat_params;
 		struct {
-			int32_t x, y, z, i;
-		} ci_params;
+			int32_t x, y, z, u, v, i_zb, zb;
+		} text_params;
 		struct {
-			int32_t x, y, z, r, g, b;
-		} c_params;
+			int32_t x, y, z, r, g, b, zb;
+		} smooth_params;
 		struct {
 			int32_t c3d[3], param[GPU_NB_PARAMS];
 		} geom;
@@ -192,7 +193,7 @@ typedef struct {
 	uint32_t value;
 } gpuCmdRect;
 
-typedef enum { gpu_z_off, gpu_z_lt, gpu_z_eq, gpu_z_ne, gpu_z_ltq, gpu_z_gt, gpu_z_gte } gpuZMode;
+typedef enum { gpu_z_off, gpu_z_lt, gpu_z_eq, gpu_z_ne, gpu_z_lte, gpu_z_gt, gpu_z_gte } gpuZMode;
 typedef struct {
 	gpuOpcode opcode;
 	gpuZMode mode;

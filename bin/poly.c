@@ -46,7 +46,7 @@ static void draw_line(void) {
 	int32_t c_start, c_stop;
 	c_start = ctx.trap.side[ctx.trap.left_side].c>>16;
 	c_stop = ctx.trap.side[!ctx.trap.left_side].c>>16;	// TODO: +1 if fractionnal
-	ctx.line.dw = sizeof(uint32_t);
+	ctx.line.dw = 1;
 	ctx.line.ddecliv = ctx.poly.decliveness;
 	if ( c_stop < c_start ) {	// may happen on some pathological cases ?
 		goto quit_dl;
@@ -76,6 +76,7 @@ static void draw_line(void) {
 		ctx.line.w = location_winPos(gpuOutBuffer, ctx.poly.nc_declived>>16, c_start);
 		ctx.line.dw <<= ctx.location.buffer_loc[gpuOutBuffer].width_log;
 	}
+#if 0
 	static draw_line_t const draw_lines[2][GPU_NB_RENDERING_TYPES] = {
 		{ draw_line_c, draw_line_ci, draw_line_uv, draw_line_uvi_lin, draw_line_uvk, draw_line_cs, draw_line_shadow, draw_line_uvk_shadow },	// no perspective
 		{ draw_line_c, draw_line_ci, draw_line_uv, draw_line_uvi, draw_line_uvk, draw_line_cs, draw_line_shadow, draw_line_uvk_shadow }	// perspective
@@ -121,6 +122,8 @@ static void draw_line(void) {
 	}
 #endif
 	draw_lines[ctx.poly.cmdFacet.perspective][ctx.poly.cmdFacet.rendering_type]();
+#endif
+	raster_gen();
 	if (start_poly) start_poly --;
 quit_dl:
 	perftime_enter(previous_target, NULL);
@@ -144,7 +147,7 @@ static void draw_trapeze_frac(void) {
 	int32_t dnc = ctx.poly.nc_declived_next - ctx.poly.nc_declived;
 	dnc = Fix_abs(dnc);
 	// compute next z_alpha
-	if (ctx.poly.cmdFacet.perspective && ctx.poly.nb_params > 0) {
+	if (ctx.poly.cmdFacet.perspective) {
 		ctx.poly.z_den += (int64_t)dnc*ctx.poly.z_dden;
 		ctx.poly.z_num += (int64_t)dnc*ctx.poly.z_dnum;
 		if (ctx.poly.z_den) ctx.poly.z_alpha = ctx.poly.z_num/(ctx.poly.z_den>>16);	// FIXME: use Fix_div
@@ -182,7 +185,7 @@ static void next_params_int(unsigned side) {
 
 static void draw_trapeze_int(void) {
 	// compute next z_alpha
-	if (ctx.poly.cmdFacet.perspective && ctx.poly.nb_params > 0) {
+	if (ctx.poly.cmdFacet.perspective) {
 		ctx.poly.z_den += (int64_t)ctx.poly.z_dden<<16;	// wrong if !complete_scan_line
 		ctx.poly.z_num += (int64_t)ctx.poly.z_dnum<<16;
 		if (ctx.poly.z_den) ctx.poly.z_alpha = ctx.poly.z_num/(ctx.poly.z_den>>16);
@@ -217,7 +220,7 @@ static void draw_trapeze(void) {
 	ctx.trap.side[ctx.trap.left_side].is_growing = ctx.trap.side[ctx.trap.left_side].dc < 0;
 	ctx.trap.side[!ctx.trap.left_side].is_growing = ctx.trap.side[!ctx.trap.left_side].dc > 0;
 	// Compute constant linear coefs for non-perspective mode if possible
-	if (!ctx.poly.cmdFacet.perspective && ctx.poly.nb_params>0) {
+	if (!ctx.poly.cmdFacet.perspective) {
 		// We can use the same dparam for all the trapeze if the trapeze is in fact a triangle
 		ctx.trap.is_triangle = ctx.trap.side[0].start_v == ctx.trap.side[1].start_v ||
 			ctx.trap.side[0].end_v == ctx.trap.side[1].end_v;
@@ -295,25 +298,18 @@ static void draw_trapeze(void) {
 // nb DIVs = 2 + 3*nb_sizes+2*nb_scan_lines
 void draw_poly(void) {
 	unsigned previous_target = perftime_target();
+	// TODO: disable use_intens if rendering_smooth
 	perftime_enter(PERF_POLY, "poly");
 	start_poly = 6;
-	// if zbuffer is enabled, add z as a parameter
-	if (ctx.view.z_mode != gpu_z_off) {
-		unsigned v = ctx.poly.first_vector;
-		do {
-			ctx.poly.vectors[v].cmdVector.u.geom.param[ ctx.poly.nb_params ] = ctx.poly.vectors[v].cmdVector.u.geom.c3d[2];
-			v = ctx.poly.vectors[v].next;
-		} while (v != ctx.poly.first_vector);
-		ctx.poly.nb_params++;
-	}
 	// compute decliveness related parameters
 	ctx.poly.decliveness = 0;
 	ctx.poly.scan_dir = 0;
-	ctx.poly.nc_log = ctx.location.buffer_loc[gpuOutBuffer].width_log+2;
+	ctx.poly.nc_log = ctx.location.buffer_loc[gpuOutBuffer].width_log;
+	if (0 == ctx.poly.nb_params) ctx.poly.cmdFacet.perspective = 0;
 	// bounding box
 	unsigned b_vec, c_vec;
 	c_vec = b_vec = ctx.poly.first_vector;
-	if (ctx.poly.cmdFacet.perspective && ctx.poly.nb_params > 0) {
+	if (ctx.poly.cmdFacet.perspective) {
 		// compute decliveness (2 DIVs)
 		// FIXME: with clipping, A can get very close from B or C.
 		// we want b = zmin, c = zmax (closer)
@@ -347,7 +343,7 @@ void draw_poly(void) {
 		}
 		if (Fix_abs(m[0]) < Fix_abs(m[1])) {
 			ctx.poly.scan_dir = 1;
-			ctx.poly.nc_log = 2;
+			ctx.poly.nc_log = 0;
 			SWAP(int32_t, m[0], m[1]);
 		}
 		if (m[0]) ctx.poly.decliveness = (((int64_t)m[1])<<16)/m[0];
