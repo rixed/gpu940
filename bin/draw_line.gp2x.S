@@ -243,7 +243,6 @@ patch_uvi_lin_width:
 	// quit
 	ldmfd	sp!, {r4-r12, pc}
 
-.shared: .word shared
 .ctx: .word ctx
 
 #endif

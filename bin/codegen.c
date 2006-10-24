@@ -49,7 +49,8 @@
 #define VARP_G 0x400000U
 #define VARP_B 0x800000U
 #define VARP_I 0x1000000U
-#define MAX_VARP VARP_I
+#define VARP_CTX 0x2000000U	// not really a VAR, but we need to keep in a dedicated register in some cases
+#define MAX_VARP VARP_CTX
 #define MIN_VARP VARP_W
 
 struct {
@@ -57,64 +58,72 @@ struct {
 	uint32_t needed_vars;	// which vars are needed
 	void (*write_code)(void);	// write the code to addr, return size
 } const code_bloc_defs[] = {
-	{	// zbuffer test
-#		define ZBUFFER_PERSP 0
+	{	// preload definitive colors in some rare case
+#		define PRELOAD_FLAT 0
+		.working_set = 0,
+		.needed_vars = CONSTP_COLOR,
+	}, {	// no code neede here but we need to get the address
+#		define BEGIN_PIXEL_LOOP 1
+		.working_set = 0,
+		.needed_vars = 0,
+	}, {	// zbuffer test
+#		define ZBUFFER_PERSP 2
 		.working_set = 1,	// to read former z
-		.needed_vars = CONSTP_Z;
-	{	// zbuffer test
-#		define ZBUFFER_NOPERSP 1
+		.needed_vars = CONSTP_Z,
+	}, {	// zbuffer test
+#		define ZBUFFER_NOPERSP 3
 		.working_set = 1,	// to read former z
-		.needed_vars = VARP_Z;
+		.needed_vars = VARP_Z,
 	}, {	// peek flat
-#		define PEEK_FLAT 2
+#		define PEEK_FLAT 4
 		.working_set = 0,
 		.needed_vars = CONSTP_COLOR,
 	}, {	// peek text without key
-#		define PEEK_TEXT 3
+#		define PEEK_TEXT 5
 		.working_set = 0,
 		.needed_vars = VARP_COLOR|VARP_U|VARP_V|CONSTP_DU|CONSTP_DV|CONSTP_TEXT,
 	}, {	// peed text with key
-#		define KEY_TEST 4
+#		define KEY_TEST 6
 		.working_set = 0,
 		.needed_vars = CONSTP_KEY,
 	}, {	// peek smooth
-#		define PEEK_SMOOTH 5
+#		define PEEK_SMOOTH 7
 		.working_set = 1,	// intermediate value
 		.needed_vars = VARP_COLOR|VARP_R|VARP_G|VARP_B|CONSTP_DR|CONSTP_DG|CONSTP_DB,
 	}, {	// intens
-#		define INTENS 6
+#		define INTENS 8
 		.working_set = 1,	// intermediate value
 		.needed_vars = VARP_COLOR|VARP_I|CONSTP_DI,
 	}, {	// shadow
-#		define SHADOW 7
+#		define SHADOW 9
 		.working_set = 2,	// former color + intermediate value
 		.needed_vars = VARP_COLOR|CONSTP_SHADOW,
 	}, {
-#		define POKE_OUT_PERSP 8
+#		define POKE_OUT_PERSP 10
 		.working_set = 0,
 		.needed_vars = VARP_W|VARP_DECLIV,
 	}, {
-#		define POKE_OUT_NOPERSP 9
+#		define POKE_OUT_NOPERSP 11
 		.working_set = 0,
 		.needed_vars = VARP_W,
 	}, {
-#		define POKE_Z_PERSP 10
+#		define POKE_Z_PERSP 12
 		.working_set = 0,
 		.needed_vars = VARP_W|CONSTP_Z|VARP_DECLIV,
 	}, {
-#		define POKE_Z_NOPERSP 11
+#		define POKE_Z_NOPERSP 13
 		.working_set = 0,
 		.needed_vars = VARP_W|VARP_Z|VARP_DECLIV,
 	}, {
-#		define NEXT_PERSP 12
+#		define NEXT_PERSP 14
 		.working_set = 0,
 		.needed_vars = VARP_W|VARP_DECLIV|CONSTP_DW|CONSTP_DDECLIV,
 	}, {
-#		define NEXT_NOPERSP 13
+#		define NEXT_NOPERSP 15
 		.working_set = 0,
 		.needed_vars = VARP_W,
 	}, {
-#		define NEXT_Z 14
+#		define NEXT_Z 16
 		.working_set = 0,
 		.needed_vars = VARP_Z|CONSTP_DZ,
 	}
@@ -128,6 +137,10 @@ static struct {
 	uint32_t affected_vars;	// a single var or severall consts
 } regs[15];
 static char *gen_dst, *loop_begin;
+static uint32_t regs_pushed;
+static uint32_t sp_save;
+static const uint32_t sp_save_addr = &sp_save;
+static char *r13_save_addr;
 
 /*
  * Private Functions
@@ -135,35 +148,38 @@ static char *gen_dst, *loop_begin;
 
 static void bloc_def_func(void (*cb)(unsigned))
 {	
-	// Loop nb_pixels_per_loop
-	// TODO: appeler CB avec tous les blocs de code recquit en fonction des paramètres
-	// utile pour calculer l'allocation des registres comme pour générer le code final
 	// ZBuffer
-	for (unsigned n = 0; n < nb_pixels_per_loop; n++) {
-		if (ctx.rendering.z_mode != gpu_z_off) {
-			if (ctx.poly.cmdFacet.perspective) cb(ZBUFFER_PERSP);
-			else cb(ZBUFFER_NOPERSP);
-		}
-		// Peek color
-		switch (ctx.poly.cmdFacet.rendering_type) {
-			case rendering_flat:
-				if (ctx.poly.cmdFacet.write_out) cb(PEEK_FLAT);
-				break;
-			case rendering_shadow:
-				if (! ctx.poly.cmdFacet.use_key) break;
-			case rendering_text:
-				if (ctx.poly.cmdFacet.write_out || ctx.poly.cmdFacet.use_key) cb(PEEK_TEXT);
-				if (ctx.poly.cmdFacet.use_key) cb(KEY_TEST);
-				break;
-			case rendering_smooth:
-				if (ctx.poly.cmdFacet.write_out) cb(PEEK_SMOOTH);
-				break;
-		}
-		// Intens
-		if (ctx.poly.cmdFacet.use_intens && ctx.poly.cmdFacet.write_out) cb(INTENS);
-		// Shadow
-		if (ctx.poly.cmdFacet.rendering_type == rendering_shadow && ctx.poly.cmdFacet.write_out) cb(SHADOW);
+	if (
+		ctx.poly.cmdFacet.rendering_type == rendering_flat &&
+		!ctx.poly.cmdFacet.use_intens &&
+		ctx.poly.cmdFacet.write_out
+	) {
+		cb(PRELOAD_FLAT);
 	}
+	cb(BEGIN_PIXEL_LOOP);
+	if (ctx.rendering.z_mode != gpu_z_off) {
+		if (ctx.poly.cmdFacet.perspective) cb(ZBUFFER_PERSP);
+		else cb(ZBUFFER_NOPERSP);
+	}
+	// Peek color
+	switch (ctx.poly.cmdFacet.rendering_type) {
+		case rendering_flat:
+			if (ctx.poly.cmdFacet.write_out && ctx.poly.cmdFacet.use_intens) cb(PEEK_FLAT);
+			break;
+		case rendering_shadow:
+			if (! ctx.poly.cmdFacet.use_key) break;
+		case rendering_text:
+			if (ctx.poly.cmdFacet.write_out || ctx.poly.cmdFacet.use_key) cb(PEEK_TEXT);
+			if (ctx.poly.cmdFacet.use_key) cb(KEY_TEST);
+			break;
+		case rendering_smooth:
+			if (ctx.poly.cmdFacet.write_out) cb(PEEK_SMOOTH);
+			break;
+	}
+	// Intens
+	if (ctx.poly.cmdFacet.use_intens && ctx.poly.cmdFacet.write_out) cb(INTENS);
+	// Shadow
+	if (ctx.poly.cmdFacet.rendering_type == rendering_shadow && ctx.poly.cmdFacet.write_out) cb(SHADOW);
 	// Poke
 	if (ctx.poly.cmdFacet.write_out) {
 		if (ctx.poly.cmdFacet.perspective) cb(POKE_OUT_PERSP);
@@ -196,18 +212,27 @@ static void alloc_regs(void)
 {
 	unsigned var, r;
 	for (var = MIN_VARP, r = 0; var <= MAX_VARP; var <<= 1) {
-		regs[r].affected_vars |= var;
+		regs[r].affected_vars = var;
 	}
 	nb_vars = r;
 	assert(nb_vars < sizeof_array(regs) - working_set);
+	bool need_ctx = false;
 	for (var = MIN_CONSTP, nb_consts = 0; var <= MAX_CONSTP; var << = 1) {
 		if (r > sizeof_array(regs) - working_set) {
 			r = nb_vars;
+			if (! need_ctx) {	// we will need to reload some constp, so we'd better keep a ctx with us.
+				regs[r+1].affected_vars |= regs[r].affected_vars;
+				regs[r].affected_vars = VARP_CTX;
+				nb_vars++;
+				r++;
+				need_ctx = true;
+			}
 		}
 		regs[r].affected_vars |= var;
 		nb_consts ++;
 	}
 	nb_used_regs = nb_vars + nb_consts + working_set;
+	nb_pixels_per_loop = 1;
 	if (nb_used_regs >= sizeof_array(regs)) {
 		nb_used_regs = sizeof_array(regs);
 	} else {	// use remaining regs to write several pixels in the loop
@@ -222,22 +247,65 @@ static void alloc_regs(void)
 	}
 }
 
-static void write_saves(void)
+static void write_save(void)
 {
-	// TODO : write stmia for all these regs but the first four
-	// and save regs[13] (SP) somewhere in RAM if used
-	*gen_dst++ = 0xeeeeeeee;	// stmia sp! all these
+	bool need_save = false;
+	regs_pushed = 0;
+	for (unsigned r=4; r<sizeof_array(regs); r++) {
+		if (regs[r].affected_vars) {
+			if (r == 13) continue;	// stack pointer deserve special treatment
+			regs_pushed |= 1U<<r;
+			need_save = true;
+		}
+	}
+	if (! need_save) return;
+	if (regs_pushed) {
+		uint32_t const stm = 0xe8ad0000; // 1110 1001 0010 1101 0000 0000 0000 0000 ie "stmdb r13!,{...}
+		*gen_dst++ = stm | regs_pushed;
+	}
 	if (regs[13].affected_vars) {
-		*gen_dst++ = 0xeeeeeeee;	// save SP in a safe place
+		*gen_dst++ = 0xe58fd000;	// 1110 0101 1000 1111 1101 0000 0000 0000 ie "str r13,[r15, #+0]"
+		*gen_dst++ = 0xea000000;	// 1110 1010 0000 0000 0000 0000 0000 0000 ie "b here+8"
+		r13_saved_addr = gen_dst;
+		gen_dst++;	// space where r13 is saved
+		
 	}
 }
 
-static void write_const_init()
+static void write_restore(void)
 {
-	return dest;
+	if (regs[13].affected_vars) {
+		uint32_t ldr = 0xe51fd000;	// 1110 0101 0001 1111 1101 0000 0000 0000 "ldr r13,[r15, #-r13_saved_addr_offset]
+		uint32_t offset = gen_dst+8 - r13_saved_addr;
+		assert(offset < (1<<12));
+		*gen_dst++ = ldr|offset;
+	}
+	if (regs_pushed) {
+		uint32_t const ldm = 0xe8bd0000;	// 1110 1000 1011 1101 0000 0000 0000 0000 ie "ldmia r13!,{...}"
+		if (regs_pushed & (1<<14)) {	// we pushed the back-link, restore it in pc
+			regs_pushed &= ~(1<<14);
+			regs_pushed |= 1<<15;
+			*gen_dst++ = ldm|regs_pushed;
+			return;
+		}
+		*gen_dst++ = ldm|regs_pushed;	// we still need to get out of here
+	}
+	*gen_dst++ = 0xe1a0f00e;	// 1110 0001 1010 0000 1111 0000 0000 1110 ie "mov r15, r14"
 }
 
-static void write_blocks(unsignedi block)
+static void write_const_init(void)
+{
+	char *ctx_ptr = NULL
+	// TODO: If we have a VARP_CTX to affect to a register, do it now.
+	// If not, use the last afected registers (varp or constp) to store a temp ctx_ptr.
+	// We always need a ctx_ptr, anyway.
+	*gen_dst++ = 0xea000000;	// 1110 1010 0000 0000 0000 0000 0000 0000 ie "b here+8"
+	*gen_dst++ = &ctx;
+	// TODO: choose a register where to store this...
+	//*gen_dst++ = "mov reg,.ctx";
+}
+
+static void write_blocks(unsigned block)
 {
 	code_bloc_defs[block].write_code();
 }
@@ -248,8 +316,8 @@ static void write_all(void)
 	write_save();
 	write_const_init();
 	write_var_init();
-	loop_begin = gen_dst;
 	bloc_def_func(write_block);
+	write_restore();
 }
 
 /*
@@ -261,7 +329,6 @@ int build_code(void *dst)
 	needed_vars = needed_constp = 0;
 	working_set = 0;
 	nb_vars = nb_consts = nb_used_regs = 0;
-	nb_pixels_per_loop = 1;
 	my_memset(regs, 0, sizeof(regs));
 	gen_dst = dst;
 	loop_begin = NULL;
