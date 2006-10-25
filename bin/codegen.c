@@ -21,35 +21,61 @@
  * Data Definitions
  */
 
-#define CONSTP_DW 0x1U
-#define CONSTP_DDECLIV 0x2U
-#define CONSTP_Z 0x4U
-#define CONSTP_DZ 0x8U
-#define CONSTP_DU 0x10U
-#define CONSTP_DV 0x20U
-#define CONSTP_DR 0x40U
-#define CONSTP_DG 0x80U
-#define CONSTP_DB 0x100U
-#define CONSTP_DI 0x200U
-#define CONSTP_KEY 0x400U
-#define CONSTP_COLOR 0x800U
-#define CONSTP_OUT2ZB 0x1000U
-#define CONSTP_OUT 0x2000U
-#define CONSTP_TEXT 0x4000U
-#define CONSTP_SHADOW 0x8000U
+#define CONSTP_DW 0
+#define CONSTP_DW_M (1<<CONSTP_DW)
+#define CONSTP_DDECLIV 1
+#define CONSTP_DDECLIV_M (1<<CONSTP_DDECLIV)
+#define CONSTP_Z 2
+#define CONSTP_Z_M (1<<CONSTP_Z)
+#define CONSTP_DZ 3
+#define CONSTP_DZ_M (1<<CONSTP_DZ)
+#define CONSTP_DU 4
+#define CONSTP_DU_M (1<<CONSTP_DU)
+#define CONSTP_DV 5
+#define CONSTP_DV_M (1<<CONSTP_DV)
+#define CONSTP_DR 6
+#define CONSTP_DR_M (1<<CONSTP_DR)
+#define CONSTP_DG 7
+#define CONSTP_DG_M (1<<CONSTP_DG)
+#define CONSTP_DB 8
+#define CONSTP_DB_M (1<<CONSTP_DB)
+#define CONSTP_DI 9
+#define CONSTP_DI_M (1<<CONSTP_DI)
+#define CONSTP_KEY 10
+#define CONSTP_KEY_M (1<<CONSTP_KEY)
+#define CONSTP_COLOR 11
+#define CONSTP_COLOR_M (1<<CONSTP_COLOR)
+#define CONSTP_OUT2ZB 12
+#define CONSTP_OUT2ZB_M (1<<CONSTP_OUT2ZB)
+#define CONSTP_OUT 13
+#define CONSTP_OUT_M (1<<CONSTP_OUT)
+#define CONSTP_TEXT 14
+#define CONSTP_TEXT_M (1<<CONSTP_TEXT)
+#define CONSTP_SHADOW 15
+#define CONSTP_SHADOW_M (1<<CONSTP_SHADOW)
 #define MAX_CONSTP CONSTP_SHADOW
 #define MIN_CONSTP CONSTP_DW
 
-#define VARP_W 0x10000U
-#define VARP_DECLIV 0x20000U
-#define VARP_Z 0x40000U
-#define VARP_U 0x80000U
-#define VARP_V 0x100000U
-#define VARP_R 0x200000U
-#define VARP_G 0x400000U
-#define VARP_B 0x800000U
-#define VARP_I 0x1000000U
-#define VARP_CTX 0x2000000U	// not really a VAR, but we need to keep in a dedicated register in some cases
+#define VARP_W 16
+#define VARP_W_M (1<<VARP_W)
+#define VARP_DECLIV 17
+#define VARP_DECLIV_M (1<<VARP_DECLIV)
+#define VARP_Z 18
+#define VARP_Z_M (1<<VARP_Z)
+#define VARP_U 19
+#define VARP_U_M (1<<VARP_U)
+#define VARP_V 20
+#define VARP_V_M (1<<VARP_V)
+#define VARP_R 21
+#define VARP_R_M (1<<VARP_R)
+#define VARP_G 22
+#define VARP_G_M (1<<VARP_G)
+#define VARP_B 23
+#define VARP_B_M (1<<VARP_B)
+#define VARP_I 24
+#define VARP_I_M (1<<VARP_I)
+#define VARP_CTX 25	// not really a VAR, but we need to keep in a dedicated register in some cases
+#define VARP_CTX_M (1<<VARP_CTX)
 #define MAX_VARP VARP_CTX
 #define MIN_VARP VARP_W
 
@@ -61,7 +87,7 @@ struct {
 	{	// preload definitive colors in some rare case
 #		define PRELOAD_FLAT 0
 		.working_set = 0,
-		.needed_vars = CONSTP_COLOR,
+		.needed_vars = CONSTP_COLOR_M,
 	}, {	// no code neede here but we need to get the address
 #		define BEGIN_PIXEL_LOOP 1
 		.working_set = 0,
@@ -69,73 +95,77 @@ struct {
 	}, {	// zbuffer test
 #		define ZBUFFER_PERSP 2
 		.working_set = 1,	// to read former z
-		.needed_vars = CONSTP_Z,
+		.needed_vars = CONSTP_Z_M,
 	}, {	// zbuffer test
 #		define ZBUFFER_NOPERSP 3
 		.working_set = 1,	// to read former z
-		.needed_vars = VARP_Z,
+		.needed_vars = VARP_Z_M,
 	}, {	// peek flat
 #		define PEEK_FLAT 4
 		.working_set = 0,
-		.needed_vars = CONSTP_COLOR,
+		.needed_vars = CONSTP_COLOR_M,
 	}, {	// peek text without key
 #		define PEEK_TEXT 5
 		.working_set = 0,
-		.needed_vars = VARP_COLOR|VARP_U|VARP_V|CONSTP_DU|CONSTP_DV|CONSTP_TEXT,
+		.needed_vars = VARP_COLOR_M|VARP_U_M|VARP_V_M|CONSTP_DU_M|CONSTP_DV_M|CONSTP_TEXT_M,
 	}, {	// peed text with key
 #		define KEY_TEST 6
 		.working_set = 0,
-		.needed_vars = CONSTP_KEY,
+		.needed_vars = CONSTP_KEY_M,
 	}, {	// peek smooth
 #		define PEEK_SMOOTH 7
 		.working_set = 1,	// intermediate value
-		.needed_vars = VARP_COLOR|VARP_R|VARP_G|VARP_B|CONSTP_DR|CONSTP_DG|CONSTP_DB,
+		.needed_vars = VARP_COLOR_M|VARP_R_M|VARP_G_M|VARP_B_M|CONSTP_DR_M|CONSTP_DG_M|CONSTP_DB_M,
 	}, {	// intens
 #		define INTENS 8
 		.working_set = 1,	// intermediate value
-		.needed_vars = VARP_COLOR|VARP_I|CONSTP_DI,
+		.needed_vars = VARP_COLOR_M|VARP_I_M|CONSTP_DI_M,
 	}, {	// shadow
 #		define SHADOW 9
 		.working_set = 2,	// former color + intermediate value
-		.needed_vars = VARP_COLOR|CONSTP_SHADOW,
+		.needed_vars = VARP_COLOR_M|CONSTP_SHADOW_M,
 	}, {
 #		define POKE_OUT_PERSP 10
 		.working_set = 0,
-		.needed_vars = VARP_W|VARP_DECLIV,
+		.needed_vars = VARP_W_M|VARP_DECLIV_M,
 	}, {
 #		define POKE_OUT_NOPERSP 11
 		.working_set = 0,
-		.needed_vars = VARP_W,
+		.needed_vars = VARP_W_M,
 	}, {
 #		define POKE_Z_PERSP 12
 		.working_set = 0,
-		.needed_vars = VARP_W|CONSTP_Z|VARP_DECLIV,
+		.needed_vars = VARP_W_M|CONSTP_Z_M|VARP_DECLIV_M,
 	}, {
 #		define POKE_Z_NOPERSP 13
 		.working_set = 0,
-		.needed_vars = VARP_W|VARP_Z|VARP_DECLIV,
+		.needed_vars = VARP_W_M|VARP_Z_M|VARP_DECLIV_M,
 	}, {
 #		define NEXT_PERSP 14
 		.working_set = 0,
-		.needed_vars = VARP_W|VARP_DECLIV|CONSTP_DW|CONSTP_DDECLIV,
+		.needed_vars = VARP_W_M|VARP_DECLIV_M|CONSTP_DW_M|CONSTP_DDECLIV_M,
 	}, {
 #		define NEXT_NOPERSP 15
 		.working_set = 0,
-		.needed_vars = VARP_W,
+		.needed_vars = VARP_W_M,
 	}, {
 #		define NEXT_Z 16
 		.working_set = 0,
-		.needed_vars = VARP_Z|CONSTP_DZ,
+		.needed_vars = VARP_Z_M|CONSTP_DZ_M,
 	}
 };
 // Il faut toujours W et, si write_color=1, des registres pour les couleurs, et si write_z=1 des registres pour les Z
 
-static uint32_t needed_vars, needed_constp
+static uint32_t needed_vars, needed_constp;
 static unsigned working_set;
-static unsigned nb_vars, nb_consts, nb_used_regs, nb_pixels_per_loop;
+static unsigned nb_pixels_per_loop;
 static struct {
 	uint32_t affected_vars;	// a single var or severall consts
 } regs[15];
+static struct {
+	int rnum;	// number of register affected to this variable (-1 if none).
+	// several registers can be affected to the same var ; we only need to know one.
+} vars[MAX_VARP+1];
 static char *gen_dst, *loop_begin;
 static uint32_t regs_pushed;
 static uint32_t sp_save;
@@ -211,36 +241,45 @@ static void look_regs(unsigned block)
 static void alloc_regs(void)
 {
 	unsigned var, r;
-	for (var = MIN_VARP, r = 0; var <= MAX_VARP; var <<= 1) {
-		regs[r].affected_vars = var;
+	// If we will need to reload some constp, better keep a ctx with us
+	unsigned nb_needed_regs = nbbit(needed_vars) + working_set;
+	if (nb_needed_regs > sizeof_array(regs)) {
+		if (! (needed_vars & VARP_CTX_M) ) {
+			needed_vars |= VARP_CTX_M;
+			nb_needed_regs ++;
+		}
 	}
-	nb_vars = r;
+	for (var = MIN_VARP, r = 0; var <= MAX_VARP; var ++) {
+		if (! (needed_vars & (1<<var))) continue;
+		regs[r].affected_vars = 1<<var;
+		vars[var].rnum = r;
+		r ++;
+	}
+	unsigned nb_vars = r;
 	assert(nb_vars < sizeof_array(regs) - working_set);
-	bool need_ctx = false;
-	for (var = MIN_CONSTP, nb_consts = 0; var <= MAX_CONSTP; var << = 1) {
+	for (var = MIN_CONSTP; var <= MAX_CONSTP; var ++) {
+		if (! (needed_vars & (1<<var))) continue;
 		if (r > sizeof_array(regs) - working_set) {
 			r = nb_vars;
-			if (! need_ctx) {	// we will need to reload some constp, so we'd better keep a ctx with us.
-				regs[r+1].affected_vars |= regs[r].affected_vars;
-				regs[r].affected_vars = VARP_CTX;
-				nb_vars++;
-				r++;
-				need_ctx = true;
-			}
 		}
-		regs[r].affected_vars |= var;
-		nb_consts ++;
+		regs[r].affected_vars |= 1<<var;
+		vars[var].rnum = r;
+		r ++;
 	}
-	nb_used_regs = nb_vars + nb_consts + working_set;
 	nb_pixels_per_loop = 1;
-	if (nb_used_regs >= sizeof_array(regs)) {
-		nb_used_regs = sizeof_array(regs);
-	} else {	// use remaining regs to write several pixels in the loop
+	if (nb_needed_regs < sizeof_array(regs)) {
+		// use remaining regs to write several pixels in the loop
 		if (!ctx.poly.cmdFacet.perspective && !ctx.poly.cmdFacet.use_key && ctx.rendering.z_mode != gpu_z_off) {
 			// we can read several values and poke them all at once
-			while (nb_vars + ctx.poly.cmdFacet.write_out + ctx.poly.cmdFacet.write_z <= sizeof_array(regs) - nb_consts - working_set) {
-				if (ctx.poly.cmdFacet.write_out) regs[r].affected_vars |= VARP_COLOR;
-				if (ctx.poly.cmdFacet.write_z) regs[r].affected_vars |= VARP_Z;
+			while (nb_needed_regs + ctx.poly.cmdFacet.write_out + ctx.poly.cmdFacet.write_z <= sizeof_array(regs)) {
+				if (ctx.poly.cmdFacet.write_out) {
+					regs[r].affected_vars |= VARP_COLOR_M;
+					nb_needed_regs ++;
+				}
+				if (ctx.poly.cmdFacet.write_z) {
+					regs[r].affected_vars |= VARP_Z_M;
+					nb_needed_regs ++;
+				}
 				nb_pixels_per_loop ++;
 			}
 		}
@@ -296,13 +335,21 @@ static void write_restore(void)
 static void write_const_init(void)
 {
 	char *ctx_ptr = NULL
-	// TODO: If we have a VARP_CTX to affect to a register, do it now.
-	// If not, use the last afected registers (varp or constp) to store a temp ctx_ptr.
+	// If we have a VARP_CTX to affect to a register, do it now.
+	if (vars[VARP_CTX].rnum != -1) {
+		// TODO poke "ldr this_reg,[ctx_addr_addr]" (provided by caller)
+	} else {
+		// If not, use the last affected registers (varp or constp) to store a temp ctx_ptr.
+	}
 	// We always need a ctx_ptr, anyway.
 	*gen_dst++ = 0xea000000;	// 1110 1010 0000 0000 0000 0000 0000 0000 ie "b here+8"
 	*gen_dst++ = &ctx;
 	// TODO: choose a register where to store this...
 	//*gen_dst++ = "mov reg,.ctx";
+}
+
+static void write_var_init(void)
+{
 }
 
 static void write_blocks(unsigned block)
@@ -328,8 +375,8 @@ int build_code(void *dst)
 {
 	needed_vars = needed_constp = 0;
 	working_set = 0;
-	nb_vars = nb_consts = nb_used_regs = 0;
 	my_memset(regs, 0, sizeof(regs));
+	my_memset(vars, -1, sizeof(vars));
 	gen_dst = dst;
 	loop_begin = NULL;
 	bloc_def_func(look_regs);
