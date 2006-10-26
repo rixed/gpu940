@@ -16,7 +16,9 @@ gpu940_SOURCES = \
 	raster.h \
 	draw_line.gp2x.S \
 	crt0.S \
-	mydiv.c
+	mydiv.c \
+	codegen.c \
+	codegen.h
 gpu940_LDADD = ../console/libconsole.a ../perftime/libperftime.a ../lib/fixmath.lo
 #AM_CFLAGS += -fno-pic -ffreestanding
 load940_SOURCES = load940.c

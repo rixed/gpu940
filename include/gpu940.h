@@ -176,7 +176,7 @@ typedef struct {
 			int32_t x, y, z, u, v, i_zb, zb;
 		} text_params;
 		struct {
-			int32_t x, y, z, r, g, b, zb;
+			int32_t x, y, z, r, g, b, i_zb, zb;
 		} smooth_params;
 		struct {
 			int32_t c3d[3], param[GPU_NB_PARAMS];

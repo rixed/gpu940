@@ -16,8 +16,6 @@
  * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
  */
 #include "gpu940i.h"
-#include "text.h"
-#include "raster.h"
 
 /*
  * Data Definitions
@@ -123,6 +121,7 @@ static void draw_line(void) {
 #endif
 	draw_lines[ctx.poly.cmdFacet.perspective][ctx.poly.cmdFacet.rendering_type]();
 #endif
+	// if GP2x, call code_cached routine
 	raster_gen();
 	if (start_poly) start_poly --;
 quit_dl:
@@ -301,6 +300,9 @@ void draw_poly(void) {
 	// TODO: disable use_intens if rendering_smooth
 	perftime_enter(PERF_POLY, "poly");
 	start_poly = 6;
+#	ifdef TEST_RASTERIZER
+	ctx.poly.rasterizer = get_rasterizer();
+#	endif
 	// compute decliveness related parameters
 	ctx.poly.decliveness = 0;
 	ctx.poly.scan_dir = 0;

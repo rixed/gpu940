@@ -11,6 +11,7 @@ SECTIONS {
 		text.o(.text)
 		fixmath.o(.text)
 		mydiv.o(.text)
+		codegen.o(.text)
 		libconsole.a(.text)
 		libperftime.a(.text)
 /*		libgcc.a */

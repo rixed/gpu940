@@ -192,6 +192,22 @@ static int32_t next_power_of_2(int32_t x) {
 	return x;
 }
 
+static void ctx_code_buf_reset(void)
+{
+	for (unsigned b=0; b<sizeof_array(ctx.location.buffer_loc); b++) {
+		ctx.code.buff_addr[b] = (uint32_t)&shared->buffers[ctx.location.buffer_loc[b].address];
+	}
+	ctx.code.out2zb = ctx.code.buff_addr[gpuZBuffer] - ctx.code.buff_addr[gpuOutBuffer];
+}
+
+static void ctx_code_reset(void)
+{
+	ctx_code_buf_reset();
+	for (unsigned r=0; r<sizeof_array(ctx.code.caches); r++) {
+		ctx.code.caches[r].rendering_key = 0;	// meaning : not set
+	}
+}
+
 static void ctx_reset(void) {
 	my_memset(&ctx, 0, sizeof ctx);
 	ctx.location.buffer_loc[gpuOutBuffer].width_log = next_power_of_2(SCREEN_WIDTH+6);
@@ -208,6 +224,7 @@ static void ctx_reset(void) {
 	ctx.rendering.z_mode = gpu_z_off;
 	reset_clipPlanes();
 	ctx.view.nb_clipPlanes = 5;
+	ctx_code_reset();
 }
 
 static void shared_soft_reset(void) {
@@ -234,8 +251,8 @@ static inline void copy32(uint32_t *restrict dest, uint32_t const *restrict src,
 static void flush_shared(void) {
 #ifdef GP2X
 	// drain the write buffer
-	// reading from uncached memory is enought. shared, for exemple...
-	volatile uint32_t GCCunused dummy = shared->error_flags;
+	// reading from uncached memory is enought. IO for exemple...
+	volatile uint32_t GCCunused dummy = gp2x_regs[0];
 #endif
 }
 
@@ -293,6 +310,7 @@ static void do_setTxtBuf(void) {
 		set_error_flag(gpuEPARAM);
 		return;
 	}
+	ctx_code_buf_reset();
 #ifdef GP2X
 	unsigned new_mask = (1<<ctx.location.buffer_loc[gpuTxtBuffer].width_log)-1;
 	if (new_mask != ctx.location.txt_mask) {
@@ -332,7 +350,7 @@ static void do_showBuf(void) {
 	displist[displist_end] = allCmds.showBuf.loc;
 	displist_end = next_displist_end;
 #ifndef GP2X
-//	vertical_interrupt();
+	vertical_interrupt();
 #endif
 }
 static void do_point(void) {}
@@ -367,7 +385,7 @@ static void do_rect(void) {
 		location_winPos(allCmds.rect.type, allCmds.rect.pos[0], allCmds.rect.pos[1]) :
 		location_pos(allCmds.rect.type, allCmds.rect.pos[0], allCmds.rect.pos[1]);
 	for (unsigned h=allCmds.rect.height; h--; ) {
-		draw_line_c();
+		draw_line_c();	// TODO: replace with my_memset_long(dst, value, nb_words);
 		ctx.line.w += 1 << ctx.location.buffer_loc[allCmds.rect.type].width_log;
 	}
 }
@@ -659,10 +677,10 @@ int main(void) {
 			.tv_usec = 20000,
 		},
 	};
-	if (0 != setitimer(ITIMER_REAL, &itimer, NULL)) {
-		perror("setitimer");
-		return EXIT_FAILURE;
-	}
+//	if (0 != setitimer(ITIMER_REAL, &itimer, NULL)) {
+//		perror("setitimer");
+//		return EXIT_FAILURE;
+//	}
 	console_begin();
 	console_setup();
 	run();

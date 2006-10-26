@@ -22,8 +22,10 @@
 #include "gpu940.h"
 #include "poly.h"
 #include "clip.h"
+#include "text.h"
 #include "mylib.h"
 #include "raster.h"
+#include "codegen.h"
 #ifdef GP2X
 #	define assert(x)
 #else
@@ -96,6 +98,7 @@ extern struct ctx {
 		int32_t z_alpha;
 		int64_t z_num, z_den;	// 32.32
 		int32_t z_dden, z_dnum;	// 16.16
+		uint32_t rasterizer;	// index in code.cache
 	} poly;
 	// Current trapeze
 	struct {
@@ -123,6 +126,20 @@ extern struct ctx {
 		int32_t param[GPU_NB_PARAMS];
 		int32_t dparam[GPU_NB_PARAMS];
 	} line;
+	// generated code
+	struct {
+		uint32_t buff_addr[GPU_NB_BUFFER_TYPES];	// address of the buffers
+		int32_t out2zb;	// maybe useless
+		uint32_t sp_save;
+#		define NB_CODE_CACHE 5
+		struct {
+#			define MAX_CODE_SIZE 80
+			uint32_t buf[MAX_CODE_SIZE];
+			uint32_t use_count;
+			uint32_t rendering_key;
+		} caches[NB_CODE_CACHE];
+		// cache handling goes here
+	} code;
 } ctx;
 
 static inline void set_error_flag(unsigned err_mask) {

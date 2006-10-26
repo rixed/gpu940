@@ -53,7 +53,8 @@ binPROGRAMS_INSTALL = $(INSTALL_PROGRAM)
 PROGRAMS = $(bin_PROGRAMS)
 am_gpu940_OBJECTS = gpu940.$(OBJEXT) poly.$(OBJEXT) clip.$(OBJEXT) \
 	mylib.$(OBJEXT) text.$(OBJEXT) raster.$(OBJEXT) \
-	draw_line.gp2x.$(OBJEXT) crt0.$(OBJEXT) mydiv.$(OBJEXT)
+	draw_line.gp2x.$(OBJEXT) crt0.$(OBJEXT) mydiv.$(OBJEXT) \
+	codegen.$(OBJEXT)
 gpu940_OBJECTS = $(am_gpu940_OBJECTS)
 gpu940_DEPENDENCIES = ../console/libconsole.a \
 	../perftime/libperftime.a ../lib/fixmath.lo
@@ -196,7 +197,9 @@ gpu940_SOURCES = \
 	raster.h \
 	draw_line.gp2x.S \
 	crt0.S \
-	mydiv.c
+	mydiv.c \
+	codegen.c \
+	codegen.h
 
 gpu940_LDADD = ../console/libconsole.a ../perftime/libperftime.a ../lib/fixmath.lo
 #AM_CFLAGS += -fno-pic -ffreestanding
@@ -278,6 +281,7 @@ distclean-compile:
 	-rm -f *.tab.c
 
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/clip.Po@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/codegen.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/gpu940.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/load940.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/mydiv.Po@am__quote@

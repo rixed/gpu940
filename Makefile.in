@@ -611,6 +611,11 @@ uninstall-info: uninstall-info-recursive
 
 cscope:
 	cscope -Rb -I$(topsrc)/include -Ilib -Ibin
+
+dumpcodegen:
+	@for i in /tmp/codegen_*; do \
+		/usr/local/devkitPro/devkitGP2X/bin/arm-linux-objdump -D -b binary -m arm $$i ; \
+	done
 # Tell versions [3.59,3.63) of GNU make to not export all variables.
 # Otherwise a system limit (for SysV at least) may be exceeded.
 .NOEXPORT:
