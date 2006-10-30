@@ -77,11 +77,11 @@
 #define VARP_B_M (1<<VARP_B)
 #define VARP_I 24
 #define VARP_I_M (1<<VARP_I)
-#define VARP_OUTCOLOR 25
-#define VARP_OUTCOLOR_M (1<<VARP_OUTCOLOR)
-#define VARP_COUNT 26
+#define VARP_COUNT 25
 #define VARP_COUNT_M (1<<VARP_COUNT)
-#define MAX_VARP VARP_COUNT
+#define VARP_OUTCOLOR 26
+#define VARP_OUTCOLOR_M (1<<VARP_OUTCOLOR)
+#define MAX_VARP VARP_OUTCOLOR
 #define MIN_VARP VARP_W
 
 static void preload_flat(void);
@@ -89,6 +89,11 @@ static void begin_write_loop(void);
 static void begin_pixel_loop(void);
 static void end_write_loop(void);
 static void zbuffer_persp(void);
+static void peek_text(void);
+static void intens(void);
+static void poke_persp(void);
+static void poke_nopersp(void);
+static void next_persp(void);
 
 struct {
 	unsigned working_set;	// how many regs are required for internal computations
@@ -129,62 +134,62 @@ struct {
 #		define ZBUFFER_NOPERSP 6
 		.working_set = 1,	// to read former z
 		.needed_vars = VARP_Z_M,
-		.write_code = NULL,
+		.write_code = NULL,	// TODO
 	}, {	// peek flat
 #		define PEEK_FLAT 7
 		.working_set = 0,
 		.needed_vars = CONSTP_COLOR_M,
-		.write_code = NULL,
+		.write_code = NULL,	// TODO (constp_color -> varp_outcolor)
 	}, {	// peek text without key
 #		define PEEK_TEXT 8
-		.working_set = 0,
+		.working_set = 3,
 		.needed_vars = VARP_OUTCOLOR_M|VARP_U_M|VARP_V_M|CONSTP_DU_M|CONSTP_DV_M|CONSTP_TEXT_M,
-		.write_code = NULL,
+		.write_code = peek_text,
 	}, {	// peed text with key
 #		define KEY_TEST 9
 		.working_set = 0,
 		.needed_vars = CONSTP_KEY_M,
-		.write_code = NULL,
+		.write_code = NULL,	// TODO
 	}, {	// peek smooth
 #		define PEEK_SMOOTH 10
 		.working_set = 1,	// intermediate value
 		.needed_vars = VARP_OUTCOLOR_M|VARP_R_M|VARP_G_M|VARP_B_M|CONSTP_DR_M|CONSTP_DG_M|CONSTP_DB_M,
-		.write_code = NULL,
+		.write_code = NULL,	// TODO
 	}, {	// intens
 #		define INTENS 11
 		.working_set = 1,	// intermediate value
 		.needed_vars = VARP_OUTCOLOR_M|VARP_I_M|CONSTP_DI_M,
-		.write_code = NULL,
+		.write_code = intens,
 	}, {	// shadow
 #		define SHADOW 12
 		.working_set = 2,	// former color + intermediate value
 		.needed_vars = VARP_OUTCOLOR_M|CONSTP_SHADOW_M,
-		.write_code = NULL,
+		.write_code = NULL,	// TODO
 	}, {
 #		define POKE_OUT_PERSP 13
-		.working_set = 0,
+		.working_set = 1,
 		.needed_vars = VARP_W_M|VARP_DECLIV_M,
-		.write_code = NULL,
+		.write_code = poke_persp,
 	}, {
 #		define POKE_OUT_NOPERSP 14
 		.working_set = 0,
 		.needed_vars = VARP_W_M,
-		.write_code = NULL,
+		.write_code = poke_nopersp,
 	}, {
 #		define POKE_Z_PERSP 15
 		.working_set = 0,
 		.needed_vars = VARP_W_M|CONSTP_Z_M|VARP_DECLIV_M,
-		.write_code = NULL,
+		.write_code = NULL,	// TODO
 	}, {
 #		define POKE_Z_NOPERSP 16
 		.working_set = 0,
 		.needed_vars = VARP_W_M|VARP_Z_M|VARP_DECLIV_M,
-		.write_code = NULL,
+		.write_code = NULL,	// TODO
 	}, {
 #		define NEXT_PERSP 17
 		.working_set = 0,
 		.needed_vars = VARP_W_M|VARP_DECLIV_M|CONSTP_DW_M|CONSTP_DDECLIV_M,
-		.write_code = NULL,
+		.write_code = next_persp,
 	}, {
 #		define NEXT_NOPERSP 18
 		.working_set = 0,
@@ -194,15 +199,16 @@ struct {
 #		define NEXT_Z 19
 		.working_set = 0,
 		.needed_vars = VARP_Z_M|CONSTP_DZ_M,
-		.write_code = NULL,
+		.write_code = NULL,	// TODO
 	}
 };
 
-static uint32_t needed_vars, needed_constp, nb_needed_regs;
-static unsigned working_set;
+static uint32_t needed_vars, needed_constp;
+static unsigned working_set, used_set;
 static unsigned nb_pixels_per_loop;
+static uint32_t outcolors_mask, outz_mask;
 static struct {
-	uint32_t affected_vars;	// a single var or severall consts
+	int var;
 } regs[15];
 static struct {
 	int rnum;	// number of register affected to this variable (-1 if none).
@@ -218,7 +224,7 @@ static struct {
 	{ .offset = offsetof(struct ctx, line.dparam[0]), },
 	{ .offset = offsetof(struct ctx, line.dparam[1]), },
 	{ .offset = offsetof(struct ctx, line.dparam[2]), },
-	{ .offset = 0 },
+	{ .offset = 0 },	// CONST_DI = 9
 	{ .offset = offsetof(struct ctx, poly.cmdFacet.color), },
 	{ .offset = offsetof(struct ctx, poly.cmdFacet.color), },
 	{ .offset = offsetof(struct ctx, code.out2zb), },
@@ -227,18 +233,18 @@ static struct {
 	{ .offset = offsetof(struct ctx, poly.cmdFacet.shadow), },
 	{ .offset = offsetof(struct ctx, line.w), },
 	{ .offset = offsetof(struct ctx, line.decliv), },
-	{ .offset = 0 },
+	{ .offset = 0 },	// VARP_Z = 18
 	{ .offset = offsetof(struct ctx, line.param[0]), },
 	{ .offset = offsetof(struct ctx, line.param[1]), },
 	{ .offset = offsetof(struct ctx, line.param[0]), },
 	{ .offset = offsetof(struct ctx, line.param[1]), },
 	{ .offset = offsetof(struct ctx, line.param[2]), },
-	{ .offset = 0 },
-	{ .offset = offsetof(struct ctx, line.count) }
+	{ .offset = 0 },	// VARP_I = 24
+	{ .offset = offsetof(struct ctx, line.count) },
+	{ .offset = 0 },	// VARP_OUTCOLOR, no offset
 };
 static uint32_t *gen_dst, *write_loop_begin, *pixel_loop_begin;
 static uint32_t *patch_bh;
-static uint32_t regs_pushed;
 
 /*
  * Private Functions
@@ -249,7 +255,7 @@ static void preload_flat(void)
 	// We already know VARP_OUTCOLOR: it's CONSP_COLOR. Preload all.
 	assert(vars[CONSTP_COLOR].rnum != -1);
 	for (unsigned r=0; r<sizeof_array(regs); r++) {
-		if (regs[r].affected_vars == 1<<VARP_OUTCOLOR) {
+		if (regs[r].var == VARP_OUTCOLOR) {
 			*gen_dst++ = 0xe1a00000 | (r<<12) | vars[CONSTP_COLOR].rnum;	// 1110 0001 1010 0000 Rvar 0000 0000 Rcst ie "mov Rvar, Rconst"
 		}
 	}
@@ -294,13 +300,14 @@ static uint32_t offset12(unsigned v)
 	return offset;
 }
 
-static unsigned load_constp(unsigned v, unsigned rtmp)
+static unsigned load_constp(unsigned v, int rtmp)
 {
-	if (regs[ vars[v].rnum ].affected_vars == 1<<v) {
+	if (vars[v].rnum != -1) {
 		// we have a dedicated reg
 		return vars[v].rnum;
 	} else {
-		// we need to load into register rtmp
+		// we need to load into register rtmp, or r14 if not giver
+		if (rtmp == -1) rtmp = sizeof_array(regs)-1;
 		uint32_t offset = offset12(v);
 		*gen_dst++ = 0xe51f0000 | (rtmp<<12) | offset;	// 1110 0101 0001 1111 Rtmp offt var_ v__ ie "ldr Rtmp, [r15, #-offset_v]"
 		return rtmp;
@@ -310,14 +317,105 @@ static unsigned load_constp(unsigned v, unsigned rtmp)
 static void zbuffer_persp(void)
 {
 	// compute W+DECLIV
-	unsigned rtmp1 = get_tmp_reg();
+	unsigned const rtmp1 = 0, rtmp2 = 1;
 	*gen_dst++ = 0xe1a00840 | (rtmp1<<12) | vars[VARP_DECLIV].rnum;	// 1110 0001 1010 0000 Tmp1 1000 0100 Decliv  ie "mov Rtmp1, Rdecliv, asr #16"
-	// ie "add Rtmp2, Rout2zb, Rw" oubien "ldr Rtmp2, [r15, #-offset_out2zb]" d'abord et Rtmp2 a la place de Rout2zb
+	unsigned const rout2zb = load_constp(CONSTP_OUT2ZB, rtmp2);
+	*gen_dst++ = 0xe0800000 | (rout2zb<<16) | (rtmp2<<12) | vars[VARP_W].rnum;	// 1110 0000 1000 out2z tmp2 0000 0000 _Rw_ ie "add Rtmp2, Rout2zb, Rw" oubien "ldr Rtmp2, [r15, #-offset_out2zb]" d'abord et Rtmp2 a la place de Rout2zb
 	// read Z
-	// ie "ldr Rtmp1, [Rtmp2, Rtmp1, asl #nc_log]"
+	*gen_dst++ = 0xe7900000 | (rtmp2<<16) | (rtmp1<<12) | (ctx.poly.nc_log<<7) | rtmp1;	// 1110 0111 1001 tmp2 tmp1 nclo g000 tmp1  ie "ldr Rtmp1, [Rtmp2, Rtmp1, lsl #nc_log]"
+	// TODO
 	// compare
 	// ie "cmp Rz, Rtmp1" oubien "ldr Rtmp2, [r15, #-offset_constp_z]" d'abord et Rtmp2 a la place de Rz
 	// ie "bZOP XXXXX" branch to next_pixel
+}
+
+static void write_mov_immediate(unsigned r, uint32_t imm)
+{
+	*gen_dst++ = 0xe3a00000 | (r<<12) | (imm&0xff); // 1110 0011 1010 0000 tmp2 0000 mask mask ie "mov r, mask"
+	imm >>= 8;
+	int rot = -8;
+	while (imm) {
+		*gen_dst++ = 0xe3800000 | (r<<16) | (r<<12) | (((32+rot)/2)<<8) | (imm&0xff);	// 1110 0011 1000 RegR RegR rotI mask mask ie "orr r, r, mask<<8"
+		imm >>= 8;
+		rot -= 8;
+	}
+}
+
+static unsigned outcolor_rnum(unsigned pix)
+{
+	// FIXME: speed this up
+	for (unsigned r=0; r<used_set; r++) {
+		if (regs[r].var == VARP_OUTCOLOR) {
+			if (pix == 0) return r;
+			pix --;
+		}
+	}
+	assert(0);
+	return 0;
+}
+
+static void peek_text(void)
+{
+	unsigned tmp1 = 0, tmp2 = 1, tmp3 = 2;
+	for (unsigned p=0; p<nb_pixels_per_loop; p++) {
+		write_mov_immediate(tmp2, ctx.location.txt_mask);
+		*gen_dst++ = 0xe0000840 | (tmp2<<16) | (tmp1<<12) | vars[VARP_U].rnum;	// 1110 0000 0000 tmp2 tmp1 1000 0100 varU ie "and tmp1, tmp2, varp_u, asr #16" ie tmp1 = U
+		*gen_dst++ = 0xe0000840 | (tmp2<<16) | (tmp3<<12) | vars[VARP_V].rnum;	// 1110 0000 0000 tmp2 tmp3 1000 0100 varV ie "and tmp3, tmp2, varp_v, asr #16" ie tmp3 = V
+		// load constp_du, possibly in tmp2
+		unsigned const constp_du = load_constp(CONSTP_DU, tmp2);
+		*gen_dst++ = 0xe0800000 | (vars[VARP_U].rnum<<16) | (vars[VARP_U].rnum<<12) | constp_du;	// 1110 0000 1000 varU varU 0000 0000 _DU_ ie "add varp_u, varp_u, constp_du"
+		*gen_dst++ = 0xe0800000 | (tmp1<<16) | (tmp1<<12) | (ctx.location.buffer_loc[gpuTxtBuffer].width_log<<7) | tmp3;	// 1110 0000 1000 tmp1 tmp1 txtw w000 tmp3 ie "add tmp1, tmp1, tmp3, lsl #txt_width" tmp1 = VU
+		// load constp_txt, possibly in tmp2
+		unsigned const constp_txt = load_constp(CONSTP_TEXT, tmp2);
+		*gen_dst++ = 0xe7900100 | (constp_txt<<16) | (outcolor_rnum(p)<<12) | tmp1;	// 1110 0111 1001 rtxt outc 0001 0000 tmp1 ie "ldr outcolor, [constp_txt, tmp1, lsl #2]"
+		// load constp_dv, possibly in tmp2
+		unsigned const constp_dv = load_constp(CONSTP_DV, tmp2);
+		*gen_dst++ = 0xe0800000 | (vars[VARP_V].rnum<<16) | (vars[VARP_V].rnum<<12) | constp_dv;	// 1110 0000 1000 varV varV 0000 0000 _DV_ ie "add varp_v, varp_v, constp_dv"
+	}
+}
+
+static void intens(void)
+{
+	// FIXME: VARP_I and CONSTP_DI should be pre-multiplied. A good place to do it is in the begining of draw_poly (I only)
+	unsigned tmp1 = 0;
+	for (unsigned p=0; p<nb_pixels_per_loop; p++) {
+		unsigned rcol = outcolor_rnum(p);
+		*gen_dst++ = 0xe20000ff | (rcol<<16) | (tmp1<<12);	// 1110 0010 0000 rcol tmp1 0000 1111 1111 ie "and tmp1, rcol, #0xff" ie tmp1 = Y component
+		*gen_dst++ = 0xe0900b40 | (tmp1<<16) | (tmp1<<12) | vars[VARP_I].rnum; // 1110 0000 1001 tmp1 tmp1 1011 0100 varI ie "adds tmp1, tmp1, varI, asr #22"	// r2 = Y + intens
+		*gen_dst++ = 0x43a00000 | (tmp1<<12);	// 0100 0011 1010 0000 tmp1 0000 0000 0000 ie "movmi tmp1, #0" ie saturate
+		*gen_dst++ = 0xe3500c01 | (tmp1<<16);	// 1110 0011 0101 tmp1 0000 1100 0000 0001 ie "cmp tmp1, #0x100"
+		*gen_dst++ = 0x53a000ff | (tmp1<<12);	// 0101 0011 1010 0000 tmp1 0000 1111 1111 ie "movpl tmp1, #0xff"
+		*gen_dst++ = 0xe3c000ff | (tmp1<<16) | (tmp1<<12);	// 1110 0011 1100 rcol rcol 0000 1111 1111 ie "bic rcol, rcol, #0xff" ie put new Y into color
+		*gen_dst++ = 0xe1800000 | (rcol<<16) | (rcol<<12) | tmp1;	// 1110 0001 1000 rcol rcol 0000 0000 tmp1 ie "orr rcol, rcol, tmp1"
+		unsigned const constp_di = load_constp(CONSTP_DI, tmp1);
+		*gen_dst++ = 0xe0800000 | (vars[VARP_I].rnum<<16) | (vars[VARP_I].rnum<<12) | constp_di;	// 1110 0000 1000 varI varI 0000 0000 _DI_ ie "add varI, varI, constDI"
+	}
+}
+
+static void poke_persp(void)
+{
+	assert(nb_pixels_per_loop == 1);
+	unsigned tmp1 = 0;
+	*gen_dst++ = 0xe1a00840 | (tmp1<<12) | vars[VARP_DECLIV].rnum;	// 1110 0001 1010 0000 tmp1 1000 0100 decliv ie "mov tmp1, decliv, asr #16" ie tmp1 = decliv>>16
+	*gen_dst++ = 0xe7800000 | (vars[VARP_W].rnum<<16) | (vars[VARP_OUTCOLOR].rnum<<12) | (ctx.poly.nc_log<<7) | tmp1;	// 1110 0111 1000 varW rcol nclo g000 tmp1 ie "str rcol, [varW, tmp1, lsl #nc_log]
+}
+
+static void poke_nopersp(void)
+{
+	// we increment VARP_W in the go, so that we have nothing left for NEXT_NOPERSP
+	if (nb_pixels_per_loop == 1) {
+		*gen_dst++ = 0xe4800004 | (vars[VARP_W].rnum<<16) | (vars[VARP_OUTCOLOR].rnum<<12);	// 1110 0100 1000 varW rcol 0000 0000 0100 ie "str rcol, [rW], #0x4"
+	} else {
+		*gen_dst++ = 0xe8a00000 | (vars[VARP_W].rnum<<16) | outcolors_mask;	// 1110 1000 1010 varW regi ster list 16bt ie "smtia rW!, {rcol1-rcolN}"
+	}
+}
+
+static void next_persp(void)
+{
+	unsigned const constp_ddecliv = load_constp(CONSTP_DDECLIV, -1);
+	*gen_dst++ = 0xe0800000 | (vars[VARP_DECLIV].rnum<<16) | (vars[VARP_DECLIV].rnum<<12) | constp_ddecliv;	// 1110 000c0 1000 decliv decliv 0000 0000 ddecliv ie "add decliv, decliv, ddecliv"
+	unsigned const constp_dw = load_constp(CONSTP_DW, -1);
+	*gen_dst++ = 0xe0800000 | (vars[VARP_W].rnum<<16) | (vars[VARP_W].rnum<<12) | constp_dw;	// 1110 0000 1000 varW varW 0000 0000 _DW_ ie "add varW, varW, constpDW
 }
 
 static void bloc_def_func(void (*cb)(unsigned))
@@ -385,102 +483,64 @@ static void look_regs(unsigned block)
 	}
 }
 
-static int nbbit(uint32_t v)
-{
-	unsigned r = 0;
-	uint32_t m = 1;
-	do {
-		if (v & m) r++;
-		m <<= 1;
-	} while (m);
-	return r;
-}
-
-// FIXME: aucun interet d'avoir plusieurs vars afectees au meme registre.
-// Il faudrait plutot affecter une seule var a tous les registres sauf un, et en garder
-// un pour charger les constp que l'on n'a pas pu affecter. c'est plus simple (tous les
-// registres sauf ceux du working set et éventuelement un de plus sont dédiés) et plus
-// rapide (moins de reload de constp).
-// -> simplifier les structures : vars[r].rnum contient le numero de la variable affecté
-// (dans le cas ou plusieurs reg recoivent la variables (cas de CONSTP_COLOR dans certains
-// cas), seulement une d'entre elles), et regs[r].var contient le numero de la variable
-// actuelement chargée dans le registre, et non plus un masque. Un numéro spécial (~0 par
-// exemple) signifie 'garbage'.
-// load_consp() peut ainsi utiliser ce membre (regs[r].var) pour savoir si une variable
-// contient déjà ce qu'on veut. Sinon, il utilise le registre dédié au chargement des constp
-// (le registre no r14).
-// les registres sont alloués comme suis :
-// - d'abord le working set
-// - ensuite les varp
-// - ensuite des constp (dans la suite, choisir les constp les plus utilisés)
-// - ensuite,
-//   - si r0 à r13 sont remplis et qu'il reste plus d'une constp, r14 sert de consp
-//     rechargeable pour les constp restantes.
-//   - si r0 à r13 sont remplis et qu'il reste une seule constp, r14 est dédié à cette constp.
-//   - s'il n'y a plus de const avant que r13 ne soit rempli, affecter les autres registres
-//     au VARP_OUTCOLOR et VARP_Z nécéssaire pour écrire plusieurs pixels d'un coup.
 static void alloc_regs(void)
 {
-	nb_needed_regs = nbbit(needed_vars) + working_set;
-	unsigned r = working_set;	// from 0 to working_set are tmp regs
-	unsigned var;
-	for (var = MIN_VARP; var <= MAX_VARP; var ++) {
-		if (! (needed_vars & (1<<var))) continue;
-		regs[r].affected_vars = 1<<var;
-		vars[var].rnum = r;
-		r ++;
+	unsigned v, r;
+	for (r=0; r<working_set; r++) {	// from 0 to working_set are tmp regs
+		regs[r].var = -1;
 	}
-	unsigned first_constp = r;
-	assert(first_constp < sizeof_array(regs));
-	for (var = MIN_CONSTP; var <= MAX_CONSTP; var ++) {
-		if (! (needed_vars & (1<<var))) continue;
-		if (r >= sizeof_array(regs)) {
-			r = nb_vars;
+	unsigned last_v;
+	for (v = MAX_VARP+1; v--; ) {
+		if (needed_vars & (1<<v)) {
+			if (r == sizeof_array(regs)) {	// we keep the last reg for tmp loading of constp
+				vars[last_v].rnum = -1;
+				regs[sizeof_array(regs)-1].var = -1;
+				break;
+			} else {
+				last_v = v;
+				vars[v].rnum = r;
+				regs[r].var = v;
+				r ++;
+			}
 		}
-		regs[r].affected_vars |= 1<<var;
-		vars[var].rnum = r;
-		r ++;
 	}
 	nb_pixels_per_loop = 1;
-	if (nb_needed_regs < sizeof_array(regs)) {
+	outcolors_mask = vars[VARP_OUTCOLOR].rnum != -1 ? 1U<<vars[VARP_OUTCOLOR].rnum:0;	// may be null if !write_color
+	outz_mask = vars[VARP_Z].rnum != -1 ? 1U<<vars[VARP_Z].rnum:0;
+	if (r < sizeof_array(regs)) {
 		// use remaining regs to write several pixels in the loop
 		if (!ctx.poly.cmdFacet.perspective && !ctx.poly.cmdFacet.use_key && ctx.rendering.z_mode == gpu_z_off) {
 			// we can read several values and poke them all at once
 			// notice : that z_mode is off does not mean that we do not want to write Z !
-			while (nb_needed_regs + ctx.poly.cmdFacet.write_out + ctx.poly.cmdFacet.write_z <= sizeof_array(regs)) {
+			while (r + ctx.poly.cmdFacet.write_out + ctx.poly.cmdFacet.write_z <= sizeof_array(regs)) {
 				if (ctx.poly.cmdFacet.write_out) {
-					regs[r].affected_vars |= VARP_OUTCOLOR_M;
-					nb_needed_regs ++;
+					regs[r].var = VARP_OUTCOLOR;
+					outcolors_mask |= 1U<<r;
+					r ++;
 				}
 				if (ctx.poly.cmdFacet.write_z) {
-					regs[r].affected_vars |= VARP_Z_M;
-					nb_needed_regs ++;
+					regs[r].var = VARP_Z;
+					outz_mask |= 1U<<r;
+					r ++;
 				}
 				nb_pixels_per_loop ++;
 			}
 		}
-	} else {
-		nb_needed_regs = sizeof_array(regs);
+	}
+	used_set = r;
+	while (r < sizeof_array(regs)) {
+		regs[r++].var = -1;
 	}
 }
 
 static void write_save(void)
 {
-	bool need_save = false;
-	regs_pushed = 0;
-	for (unsigned r=4; r<sizeof_array(regs); r++) {
-		if (regs[r].affected_vars) {
-			if (r == 13) continue;	// stack pointer deserve special treatment
-			regs_pushed |= 1U<<r;
-			need_save = true;
-		}
-	}
-	if (! need_save) return;
-	if (regs_pushed) {
+	if (used_set > 4) {
 		uint32_t const stm = 0xe8ad0000; // 1110 1001 0010 1101 0000 0000 0000 0000 ie "stmdb r13!,{...}
-		*gen_dst++ = stm | regs_pushed;
+		uint32_t const reg_mask = ((1<<used_set)-1) & 0x5ff0;
+		*gen_dst++ = stm | reg_mask;
 	}
-	if (regs[13].affected_vars) {
+	if (used_set >= 13) {
 		uint32_t sp_save_offset = (uint8_t *)(gen_dst+2) - (uint8_t *)&ctx.code.sp_save;
 		assert(sp_save_offset < 1<<12);
 		*gen_dst++ = 0xe50fd000 | sp_save_offset;	// 1110 0101 0000 1111 1101 0000 0000 0000 ie "str r13,[r15, #-sp_save_offset]"
@@ -490,44 +550,34 @@ static void write_save(void)
 
 static void write_restore(void)
 {
-	if (regs[13].affected_vars) {
+	if (used_set >= 13) {
 		uint32_t sp_save_offset = (uint8_t *)(gen_dst+2) - (uint8_t *)&ctx.code.sp_save;
 		assert(sp_save_offset < 1<<12);
 		*gen_dst++ = 0xe51fd000 | sp_save_offset;	// 1110 0101 0001 1111 1101 0000 0000 0000 "ldr r13,[r15, #-sp_save_offset]
 	}
-	if (regs_pushed) {
+	if (used_set > 4) {
 		uint32_t const ldm = 0xe8bd0000;	// 1110 1000 1011 1101 0000 0000 0000 0000 ie "ldmia r13!,{...}"
-		if (regs_pushed & (1<<14)) {	// we pushed the back-link, restore it in pc
-			regs_pushed &= ~(1<<14);
-			regs_pushed |= 1<<15;
-			*gen_dst++ = ldm|regs_pushed;
-			return;
+		uint32_t reg_mask;
+		if (used_set > 14) {	// we pushed the back-link, restore it in pc
+			reg_mask = 0x9ff0;
+		} else {
+			reg_mask = ((1<<used_set)-1) & 0x5ff0;
 		}
-		*gen_dst++ = ldm|regs_pushed;	// we still need to get out of here
+		*gen_dst++ = ldm | reg_mask;
+		if (used_set > 14) return;
 	}
 	*gen_dst++ = 0xe1a0f00e;	// 1110 0001 1010 0000 1111 0000 0000 1110 ie "mov r15, r14"
 }
 
-static void write_const_init(void)
+static void write_reg_preload(void)
 {
 	// Now load all required constp into their affected regs
-	for (unsigned v = MIN_CONSTP; v <= MAX_CONSTP; v++) {
-		if (vars[v].rnum != -1 && regs[vars[v].rnum].affected_vars == 1U<<v) {
-			// the reg is only for this constp, preload it !
+	for (unsigned v = 0; v < sizeof_array(vars); v++) {
+		if (vars[v].rnum != -1) {
+			if (v == VARP_OUTCOLOR) continue;
 			uint32_t offset = offset12(v);
 			*gen_dst++ = 0xe51f0000 | (vars[v].rnum<<12) | offset;	// 1110 0101 0001 1111 _Rd_ 0000 0000 0000 ie "ldr Rd,[r15, #-offset]"
 		}
-	}
-}
-
-static void write_var_init(void)
-{
-	// All vars have a unique dedicated reg, except for varp_outcolor which is special (computed during loop).
-	for (unsigned v = MIN_VARP; v <= MAX_VARP; v++) {
-		if (v == VARP_OUTCOLOR) continue;
-		if (vars[v].rnum == -1) continue;
-		uint32_t offset = offset12(v);
-		*gen_dst++ = 0xe51f0000 | (vars[v].rnum<<12) | offset;	// 1110 0101 0001 1111 _Rd_ 0000 0000 0000 ie "ldr Rd,[r15, #-offset]"
 	}
 }
 
@@ -540,10 +590,8 @@ static void write_block(unsigned block)
 
 static void write_all(void)
 {
-	// entry_point : save used registers
 	write_save();
-	write_const_init();
-	write_var_init();
+	write_reg_preload();
 	bloc_def_func(write_block);
 	write_restore();
 }
@@ -561,7 +609,7 @@ static uint32_t get_rendering_key(void)
 	return key;
 }
 
-#if TEST_RASTERIZER
+#ifdef TEST_RASTERIZER
 #	include <sys/types.h>
 #	include <sys/stat.h>
 #	include <fcntl.h>
@@ -575,8 +623,7 @@ static uint32_t get_rendering_key(void)
 void build_code(unsigned cache)
 {
 	needed_vars = needed_constp = 0;
-	working_set = 0;
-	my_memset(regs, 0, sizeof(regs));
+	working_set = used_set = 0;
 	for (unsigned v=0; v<sizeof_array(vars); v++) {
 		vars[v].rnum = -1;
 	}

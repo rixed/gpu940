@@ -18,7 +18,7 @@
 #ifndef CODEGEN_H_061026
 #define CODEGEN_H_061026
 
-#define TEST_RASTERIZER 1
+#define TEST_RASTERIZER
 
 unsigned get_rasterizer(void);
 

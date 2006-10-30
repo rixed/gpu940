@@ -311,10 +311,11 @@ static void do_setTxtBuf(void) {
 		return;
 	}
 	ctx_code_buf_reset();
-#ifdef GP2X
+#if defined(GP2X) || defined(TEST_RASTERIZER)
 	unsigned new_mask = (1<<ctx.location.buffer_loc[gpuTxtBuffer].width_log)-1;
 	if (new_mask != ctx.location.txt_mask) {
 		ctx.location.txt_mask = new_mask;
+#ifdef GP2X
 		extern uint16_t patch_uv_width, patch_uvi_width, patch_uvi_lin_width;
 		// Never ever _read_ this value, or it will be loaded in DCache ; so
 		// that there is no need to clean and flush DCache.
@@ -325,6 +326,7 @@ static void do_setTxtBuf(void) {
 			"mcr p15, 0, r0, c7, c5, 0\n"
 			:::"r0"
 		);
+#endif
 	}
 #endif
 }
