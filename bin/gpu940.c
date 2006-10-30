@@ -203,9 +203,7 @@ static void ctx_code_buf_reset(void)
 static void ctx_code_reset(void)
 {
 	ctx_code_buf_reset();
-	for (unsigned r=0; r<sizeof_array(ctx.code.caches); r++) {
-		ctx.code.caches[r].rendering_key = 0;	// meaning : not set
-	}
+	jit_invalidate();
 }
 
 static void ctx_reset(void) {

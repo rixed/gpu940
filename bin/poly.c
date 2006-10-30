@@ -122,7 +122,11 @@ static void draw_line(void) {
 	draw_lines[ctx.poly.cmdFacet.perspective][ctx.poly.cmdFacet.rendering_type]();
 #endif
 	// if GP2x, call code_cached routine
+#ifdef GP2X
+	jit_exec();
+#else
 	raster_gen();
+#endif
 	if (start_poly) start_poly --;
 quit_dl:
 	perftime_enter(previous_target, NULL);
@@ -300,8 +304,8 @@ void draw_poly(void) {
 	// TODO: disable use_intens if rendering_smooth
 	perftime_enter(PERF_POLY, "poly");
 	start_poly = 6;
-#	ifdef TEST_RASTERIZER
-	ctx.poly.rasterizer = get_rasterizer();
+#	if defined(GP2X) || defined(TEST_RASTERIZER)
+	ctx.poly.rasterizer = jit_prepare_rasterizer();
 #	endif
 	// compute decliveness related parameters
 	ctx.poly.decliveness = 0;

@@ -16,7 +16,6 @@
  * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
  */
 #include <stddef.h>
-#include <assert.h>
 #include <limits.h>
 #include "gpu940i.h"
 
@@ -492,7 +491,7 @@ static void alloc_regs(void)
 	unsigned last_v;
 	for (v = MAX_VARP+1; v--; ) {
 		if (needed_vars & (1<<v)) {
-			if (r == sizeof_array(regs)) {	// we keep the last reg for tmp loading of constp
+			if (r >= sizeof_array(regs)) {	// we keep the last reg for tmp loading of constp
 				vars[last_v].rnum = -1;
 				regs[sizeof_array(regs)-1].var = -1;
 				break;
@@ -507,7 +506,7 @@ static void alloc_regs(void)
 	nb_pixels_per_loop = 1;
 	outcolors_mask = vars[VARP_OUTCOLOR].rnum != -1 ? 1U<<vars[VARP_OUTCOLOR].rnum:0;	// may be null if !write_color
 	outz_mask = vars[VARP_Z].rnum != -1 ? 1U<<vars[VARP_Z].rnum:0;
-	if (r < sizeof_array(regs)) {
+	if (0 || r < sizeof_array(regs)) {	// TODO
 		// use remaining regs to write several pixels in the loop
 		if (!ctx.poly.cmdFacet.perspective && !ctx.poly.cmdFacet.use_key && ctx.rendering.z_mode == gpu_z_off) {
 			// we can read several values and poke them all at once
@@ -536,15 +535,14 @@ static void alloc_regs(void)
 static void write_save(void)
 {
 	if (used_set > 4) {
-		uint32_t const stm = 0xe8ad0000; // 1110 1001 0010 1101 0000 0000 0000 0000 ie "stmdb r13!,{...}
-		uint32_t const reg_mask = ((1<<used_set)-1) & 0x5ff0;
+		uint32_t const stm = 0xe92d0000; // 1110 1001 0010 1101 0000 0000 0000 0000 ie "stmdb r13!,{...}
+		uint32_t const reg_mask = ((1U<<used_set)-1) & 0x5ff0;
 		*gen_dst++ = stm | reg_mask;
 	}
 	if (used_set >= 13) {
 		uint32_t sp_save_offset = (uint8_t *)(gen_dst+2) - (uint8_t *)&ctx.code.sp_save;
-		assert(sp_save_offset < 1<<12);
+		assert(sp_save_offset < 1U<<12);
 		*gen_dst++ = 0xe50fd000 | sp_save_offset;	// 1110 0101 0000 1111 1101 0000 0000 0000 ie "str r13,[r15, #-sp_save_offset]"
-		
 	}
 }
 
@@ -561,7 +559,7 @@ static void write_restore(void)
 		if (used_set > 14) {	// we pushed the back-link, restore it in pc
 			reg_mask = 0x9ff0;
 		} else {
-			reg_mask = ((1<<used_set)-1) & 0x5ff0;
+			reg_mask = ((1U<<used_set)-1) & 0x5ff0;
 		}
 		*gen_dst++ = ldm | reg_mask;
 		if (used_set > 14) return;
@@ -609,7 +607,7 @@ static uint32_t get_rendering_key(void)
 	return key;
 }
 
-#ifdef TEST_RASTERIZER
+#if defined(TEST_RASTERIZER) && !defined(GP2X)
 #	include <sys/types.h>
 #	include <sys/stat.h>
 #	include <fcntl.h>
@@ -646,10 +644,10 @@ void build_code(unsigned cache)
 	write_all();
 	unsigned nb_words = gen_dst - ctx.code.caches[cache].buf;
 	assert(nb_words < sizeof_array(ctx.code.caches[cache].buf));
-#	ifdef TEST_RASTERIZER
+#	if defined(TEST_RASTERIZER) && !defined(GP2X)
 	static char fname[PATH_MAX];
 	snprintf(fname, sizeof(fname), "/tmp/codegen_%"PRIu32, ctx.code.caches[cache].rendering_key);
-	int fd = open(fname, O_WRONLY|O_CREAT);
+	int fd = open(fname, O_WRONLY|O_CREAT, 0644);
 	if (fd == -1) {
 		fprintf(stderr, "Cannot open %s : %s\n", fname, strerror(errno));
 	}
@@ -659,11 +657,37 @@ void build_code(unsigned cache)
 #	endif
 }
 
+void flush_cache(void)
+{
+#	ifdef GP2X
+	// TODO: don't clean all dcache lines
+	__asm__ volatile (	// Drain write buffer then fush ICache and DCache
+		"MOV r1,#0\n"             // Initialize line counter, r1
+		"0:\n"
+		"MOV r0,#0\n"             // Initialize segment counter, r0
+		"1:\n"
+		"ORR r2,r1,r0\n"          // Make segment and line address
+		"MCR p15,0,r2,c7,c14,2\n" // Clean and flush that line
+		"ADD r0,r0,#0x10\n"       // Increment segment counter
+		"CMP r0,#0x40\n"          // Complete all 4 segments?
+		"BNE 1b\n"        // If not, branch back to inner_loop
+		"ADD r1,r1,#0x04000000\n" // Increment line counter
+		"CMP r1,#0x0\n"           // Complete all lines?
+		"BNE 0b\n"        // If not, branch back to outer_loop
+
+		"mov r0, #0\n"
+		"mcr p15, 0, r0, c7, c10, 4\n"
+		"mcr p15, 0, r0, c7, c5, 0\n"
+		:::"r0","r1"
+	);
+#	endif
+}
+
 /*
  * Public Functions
  */
 
-unsigned get_rasterizer(void)
+unsigned jit_prepare_rasterizer(void)
 {
 	uint32_t key = get_rendering_key();
 	int r_dest = -1;
@@ -691,6 +715,20 @@ unsigned get_rasterizer(void)
 	ctx.code.caches[r_dest].use_count = 1;
 	ctx.code.caches[r_dest].rendering_key = key;
 	build_code(r_dest);
+	flush_cache();
 	return r_dest;
 }
 
+void jit_invalidate(void)	// TODO: give hint as to what invalidate
+{
+	for (unsigned r=0; r<sizeof_array(ctx.code.caches); r++) {
+		ctx.code.caches[r].rendering_key = 0;	// meaning : not set
+	}
+}
+
+void jit_exec(void)
+{
+	typedef void (*rasterizer_func)(void);
+	rasterizer_func const rasterizer = (rasterizer_func const)ctx.code.caches[ctx.poly.rasterizer].buf;
+	rasterizer();
+}

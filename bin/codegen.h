@@ -20,6 +20,8 @@
 
 #define TEST_RASTERIZER
 
-unsigned get_rasterizer(void);
+unsigned jit_prepare_rasterizer(void);
+void jit_invalidate(void);
+void jit_exec(void);
 
 #endif
