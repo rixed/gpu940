@@ -101,7 +101,7 @@ typedef enum {
 
 struct buffer_loc {
 	uint32_t address;	// in words, from shared->buffers
-	uint32_t width_log;	// width in bytes
+	uint32_t width_log;	// width in pixels
 	uint32_t height;
 };
 
@@ -248,7 +248,7 @@ static inline uint32_t gpuColor(unsigned r, unsigned g, unsigned b) {
 #endif
 }
 
-struct gpuBuf *gpuAlloc(unsigned width_log, unsigned height, bool can_wait);
+struct gpuBuf *gpuAlloc(unsigned width_log, unsigned height, bool can_wait);	// width is in pixels
 void gpuFree(struct gpuBuf *buf);
 void gpuFreeFC(struct gpuBuf *buf, unsigned fc);
 gpuErr gpuSetBuf(gpuBufferType type, struct gpuBuf *buf, bool can_wait);

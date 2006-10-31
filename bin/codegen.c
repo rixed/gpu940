@@ -321,7 +321,7 @@ static void zbuffer_persp(void)
 	unsigned const rout2zb = load_constp(CONSTP_OUT2ZB, rtmp2);
 	*gen_dst++ = 0xe0800000 | (rout2zb<<16) | (rtmp2<<12) | vars[VARP_W].rnum;	// 1110 0000 1000 out2z tmp2 0000 0000 _Rw_ ie "add Rtmp2, Rout2zb, Rw" oubien "ldr Rtmp2, [r15, #-offset_out2zb]" d'abord et Rtmp2 a la place de Rout2zb
 	// read Z
-	*gen_dst++ = 0xe7900000 | (rtmp2<<16) | (rtmp1<<12) | (ctx.poly.nc_log<<7) | rtmp1;	// 1110 0111 1001 tmp2 tmp1 nclo g000 tmp1  ie "ldr Rtmp1, [Rtmp2, Rtmp1, lsl #nc_log]"
+	*gen_dst++ = 0xe7900000 | (rtmp2<<16) | (rtmp1<<12) | ((ctx.poly.nc_log+2)<<7) | rtmp1;	// 1110 0111 1001 tmp2 tmp1 nclo g000 tmp1  ie "ldr Rtmp1, [Rtmp2, Rtmp1, lsl #nc_log]"
 	// TODO
 	// compare
 	// ie "cmp Rz, Rtmp1" oubien "ldr Rtmp2, [r15, #-offset_constp_z]" d'abord et Rtmp2 a la place de Rz
@@ -414,7 +414,7 @@ static void next_persp(void)
 	unsigned const constp_ddecliv = load_constp(CONSTP_DDECLIV, -1);
 	*gen_dst++ = 0xe0800000 | (vars[VARP_DECLIV].rnum<<16) | (vars[VARP_DECLIV].rnum<<12) | constp_ddecliv;	// 1110 000c0 1000 decliv decliv 0000 0000 ddecliv ie "add decliv, decliv, ddecliv"
 	unsigned const constp_dw = load_constp(CONSTP_DW, -1);
-	*gen_dst++ = 0xe0800000 | (vars[VARP_W].rnum<<16) | (vars[VARP_W].rnum<<12) | constp_dw;	// 1110 0000 1000 varW varW 0000 0000 _DW_ ie "add varW, varW, constpDW
+	*gen_dst++ = 0xe0800100 | (vars[VARP_W].rnum<<16) | (vars[VARP_W].rnum<<12) | constp_dw;	// 1110 0000 1000 varW varW 0001 0000 _DW_ ie "add varW, varW, constpDW lsl #2
 }
 
 static void bloc_def_func(void (*cb)(unsigned))
