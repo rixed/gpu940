@@ -321,7 +321,7 @@ static void zbuffer_persp(void)
 	unsigned const rout2zb = load_constp(CONSTP_OUT2ZB, rtmp2);
 	*gen_dst++ = 0xe0800000 | (rout2zb<<16) | (rtmp2<<12) | vars[VARP_W].rnum;	// 1110 0000 1000 out2z tmp2 0000 0000 _Rw_ ie "add Rtmp2, Rout2zb, Rw" oubien "ldr Rtmp2, [r15, #-offset_out2zb]" d'abord et Rtmp2 a la place de Rout2zb
 	// read Z
-	*gen_dst++ = 0xe7900000 | (rtmp2<<16) | (rtmp1<<12) | ((ctx.poly.nc_log+2)<<7) | rtmp1;	// 1110 0111 1001 tmp2 tmp1 nclo g000 tmp1  ie "ldr Rtmp1, [Rtmp2, Rtmp1, lsl #nc_log]"
+	*gen_dst++ = 0xe7900000 | (rtmp2<<16) | (rtmp1<<12) | ((ctx.poly.nc_log+2)<<7) | rtmp1;	// 1110 0111 1001 tmp2 tmp1 nclo g000 tmp1  ie "ldr Rtmp1, [Rtmp2, Rtmp1, lsl #(nc_log+2)]"
 	// TODO
 	// compare
 	// ie "cmp Rz, Rtmp1" oubien "ldr Rtmp2, [r15, #-offset_constp_z]" d'abord et Rtmp2 a la place de Rz
@@ -357,15 +357,15 @@ static void peek_text(void)
 {
 	unsigned tmp1 = 0, tmp2 = 1, tmp3 = 2;
 	for (unsigned p=0; p<nb_pixels_per_loop; p++) {
-		write_mov_immediate(tmp2, ctx.location.txt_mask);
+		write_mov_immediate(tmp2, ctx.location.txt_mask);	// TODO: out of loop ?
 		*gen_dst++ = 0xe0000840 | (tmp2<<16) | (tmp1<<12) | vars[VARP_U].rnum;	// 1110 0000 0000 tmp2 tmp1 1000 0100 varU ie "and tmp1, tmp2, varp_u, asr #16" ie tmp1 = U
 		*gen_dst++ = 0xe0000840 | (tmp2<<16) | (tmp3<<12) | vars[VARP_V].rnum;	// 1110 0000 0000 tmp2 tmp3 1000 0100 varV ie "and tmp3, tmp2, varp_v, asr #16" ie tmp3 = V
 		// load constp_du, possibly in tmp2
-		unsigned const constp_du = load_constp(CONSTP_DU, tmp2);
+		unsigned const constp_du = load_constp(CONSTP_DU, tmp2);	// TODO: out of loop ?
 		*gen_dst++ = 0xe0800000 | (vars[VARP_U].rnum<<16) | (vars[VARP_U].rnum<<12) | constp_du;	// 1110 0000 1000 varU varU 0000 0000 _DU_ ie "add varp_u, varp_u, constp_du"
 		*gen_dst++ = 0xe0800000 | (tmp1<<16) | (tmp1<<12) | (ctx.location.buffer_loc[gpuTxtBuffer].width_log<<7) | tmp3;	// 1110 0000 1000 tmp1 tmp1 txtw w000 tmp3 ie "add tmp1, tmp1, tmp3, lsl #txt_width" tmp1 = VU
 		// load constp_txt, possibly in tmp2
-		unsigned const constp_txt = load_constp(CONSTP_TEXT, tmp2);
+		unsigned const constp_txt = load_constp(CONSTP_TEXT, tmp2);	// TODO: out of loop ?
 		*gen_dst++ = 0xe7900100 | (constp_txt<<16) | (outcolor_rnum(p)<<12) | tmp1;	// 1110 0111 1001 rtxt outc 0001 0000 tmp1 ie "ldr outcolor, [constp_txt, tmp1, lsl #2]"
 		// load constp_dv, possibly in tmp2
 		unsigned const constp_dv = load_constp(CONSTP_DV, tmp2);
@@ -375,7 +375,6 @@ static void peek_text(void)
 
 static void intens(void)
 {
-	// FIXME: VARP_I and CONSTP_DI should be pre-multiplied. A good place to do it is in the begining of draw_poly (I only)
 	unsigned tmp1 = 0;
 	for (unsigned p=0; p<nb_pixels_per_loop; p++) {
 		unsigned rcol = outcolor_rnum(p);
@@ -384,9 +383,9 @@ static void intens(void)
 		*gen_dst++ = 0x43a00000 | (tmp1<<12);	// 0100 0011 1010 0000 tmp1 0000 0000 0000 ie "movmi tmp1, #0" ie saturate
 		*gen_dst++ = 0xe3500c01 | (tmp1<<16);	// 1110 0011 0101 tmp1 0000 1100 0000 0001 ie "cmp tmp1, #0x100"
 		*gen_dst++ = 0x53a000ff | (tmp1<<12);	// 0101 0011 1010 0000 tmp1 0000 1111 1111 ie "movpl tmp1, #0xff"
-		*gen_dst++ = 0xe3c000ff | (tmp1<<16) | (tmp1<<12);	// 1110 0011 1100 rcol rcol 0000 1111 1111 ie "bic rcol, rcol, #0xff" ie put new Y into color
+		*gen_dst++ = 0xe3c000ff | (rcol<<16) | (rcol<<12);	// 1110 0011 1100 rcol rcol 0000 1111 1111 ie "bic rcol, rcol, #0xff" ie put new Y into color
 		*gen_dst++ = 0xe1800000 | (rcol<<16) | (rcol<<12) | tmp1;	// 1110 0001 1000 rcol rcol 0000 0000 tmp1 ie "orr rcol, rcol, tmp1"
-		unsigned const constp_di = load_constp(CONSTP_DI, tmp1);
+		unsigned const constp_di = load_constp(CONSTP_DI, tmp1);	// TODO: if nb_pixels_per_loop>1, use another tmp and put this out of loop
 		*gen_dst++ = 0xe0800000 | (vars[VARP_I].rnum<<16) | (vars[VARP_I].rnum<<12) | constp_di;	// 1110 0000 1000 varI varI 0000 0000 _DI_ ie "add varI, varI, constDI"
 	}
 }
@@ -396,7 +395,7 @@ static void poke_persp(void)
 	assert(nb_pixels_per_loop == 1);
 	unsigned tmp1 = 0;
 	*gen_dst++ = 0xe1a00840 | (tmp1<<12) | vars[VARP_DECLIV].rnum;	// 1110 0001 1010 0000 tmp1 1000 0100 decliv ie "mov tmp1, decliv, asr #16" ie tmp1 = decliv>>16
-	*gen_dst++ = 0xe7800000 | (vars[VARP_W].rnum<<16) | (vars[VARP_OUTCOLOR].rnum<<12) | (ctx.poly.nc_log<<7) | tmp1;	// 1110 0111 1000 varW rcol nclo g000 tmp1 ie "str rcol, [varW, tmp1, lsl #nc_log]
+	*gen_dst++ = 0xe7800000 | (vars[VARP_W].rnum<<16) | (vars[VARP_OUTCOLOR].rnum<<12) | ((ctx.poly.nc_log+2)<<7) | tmp1;	// 1110 0111 1000 varW rcol nclo g000 tmp1 ie "str rcol, [varW, tmp1, lsl #(nc_log+2)]
 }
 
 static void poke_nopersp(void)
@@ -594,16 +593,24 @@ static void write_all(void)
 	write_restore();
 }
 
+static bool use_texture(void)
+{
+	return ctx.poly.cmdFacet.rendering_type == rendering_text ||
+		(ctx.poly.cmdFacet.rendering_type == rendering_shadow && ctx.poly.cmdFacet.use_key);
+}
+
 static uint32_t get_rendering_key(void)
 {
-	uint32_t key = ctx.poly.cmdFacet.rendering_type;
-	key |= ctx.poly.cmdFacet.use_key<<2;
-	key |= ctx.poly.cmdFacet.use_intens<<3;
-	key |= ctx.poly.cmdFacet.perspective<<4;
-	key |= ctx.poly.cmdFacet.write_out<<5;
-	key |= ctx.poly.cmdFacet.write_z<<6;
-	key |= 1<<7;	// meaning : key is set
-	key |= ctx.rendering.z_mode<<8;
+	uint32_t key = 1;	// meaning : key is set
+	key |= ctx.poly.cmdFacet.rendering_type << 1;
+	key |= ctx.poly.cmdFacet.use_key << 3;
+	key |= ctx.poly.cmdFacet.use_intens << 4;
+	key |= ctx.poly.cmdFacet.perspective << 5;
+	key |= ctx.poly.cmdFacet.write_out << 6;
+	key |= ctx.poly.cmdFacet.write_z << 7;
+	key |= ctx.rendering.z_mode << 8;	// need 3 bits
+	if (ctx.poly.cmdFacet.perspective) key |= ctx.poly.nc_log << 11;	// need 10 bits
+	if (use_texture()) key |= ctx.location.txt_mask << 21;	// need 10 bits
 	return key;
 }
 

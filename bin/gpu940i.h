@@ -20,12 +20,6 @@
 
 #include "../perftime/perftime.h"
 #include "gpu940.h"
-#include "poly.h"
-#include "clip.h"
-#include "text.h"
-#include "mylib.h"
-#include "raster.h"
-#include "codegen.h"
 #ifdef GP2X
 #	define assert(x)
 #else
@@ -141,6 +135,13 @@ extern struct ctx {
 		// cache handling goes here
 	} code;
 } ctx;
+
+#include "poly.h"
+#include "clip.h"
+#include "text.h"
+#include "mylib.h"
+#include "raster.h"
+#include "codegen.h"
 
 static inline void set_error_flag(unsigned err_mask) {
 	shared->error_flags |= err_mask;	// TODO : use a bit atomic set instruction

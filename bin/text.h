@@ -18,11 +18,9 @@
 #ifndef GPU940_TEXTURE_H_060409
 #define GPU940_TEXTURE_H_060409
 
-#include "gpu940i.h"
-
 static inline uint32_t texture_color(struct buffer_loc const *loc, int32_t u, int32_t v) {
 	// height of a texture location must be a power of two
-	return shared->buffers[loc->address + ((u>>16)&((1<<loc->width_log)-1)) + (((v>>16)&(loc->height-1))<<loc->width_log)];
+	return shared->buffers[loc->address + ((u>>16)&ctx.location.txt_mask) + (((v>>16)&ctx.location.txt_mask)<<loc->width_log)];
 }
 
 #endif

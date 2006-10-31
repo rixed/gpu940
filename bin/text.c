@@ -15,8 +15,7 @@
  * along with gpu940; if not, write to the Free Software
  * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
  */
-#include "gpu940.h"
-#include "text.h"
+#include "gpu940i.h"
 
 /*
  * Data Definitions

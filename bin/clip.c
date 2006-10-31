@@ -189,7 +189,15 @@ int clip_poly(void)
 			ctx.poly.nb_params = 3;
 			break;
 	}
-	if (ctx.poly.cmdFacet.use_intens) ctx.poly.nb_params++;
+#	ifdef GP2X
+	int i_param = -1;
+#	endif
+	if (ctx.poly.cmdFacet.use_intens) {
+#		ifdef GP2X
+		i_param = ctx.poly.nb_params;
+#		endif
+		ctx.poly.nb_params++;
+	}
 	if (ctx.rendering.z_mode != gpu_z_off) ctx.poly.nb_params++;
 	// init vectors
 	unsigned v;
@@ -220,6 +228,11 @@ int clip_poly(void)
 		if (ctx.poly.vectors[v].used == magick) {
 			proj_vec(v);
 			nb_v ++;
+#			ifdef GP2X
+			if (i_param != -1) {	// use this scan to premult i param for YUV illumination
+				ctx.poly.vectors[v].cmdVector.u.geom.param[i_param] *= 55;
+			}
+#			endif
 		} else if (v < ctx.poly.cmdFacet.size) {
 			next_cache();	// skip this entry (leave it blank: we won't use it)
 		}

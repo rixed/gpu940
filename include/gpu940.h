@@ -101,7 +101,7 @@ typedef enum {
 
 struct buffer_loc {
 	uint32_t address;	// in words, from shared->buffers
-	uint32_t width_log;	// width in pixels
+	uint32_t width_log;	// width in pixels ; must be <= 10 (for a max of 2^10=1024 pixels)
 	uint32_t height;
 };
 

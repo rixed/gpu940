@@ -304,9 +304,6 @@ void draw_poly(void) {
 	// TODO: disable use_intens if rendering_smooth
 	perftime_enter(PERF_POLY, "poly");
 	start_poly = 6;
-#	if defined(GP2X) || defined(TEST_RASTERIZER)
-	ctx.poly.rasterizer = jit_prepare_rasterizer();
-#	endif
 	// compute decliveness related parameters
 	ctx.poly.decliveness = 0;
 	ctx.poly.scan_dir = 0;
@@ -398,6 +395,10 @@ void draw_poly(void) {
 		}
 		ctx.trap.side[0].start_v = ctx.trap.side[0].end_v = ctx.trap.side[1].start_v = ctx.trap.side[1].end_v = c_vec;
 	}
+	// Now that's all is initialized, build rasterized
+#	if defined(GP2X) || defined(TEST_RASTERIZER)
+	ctx.poly.rasterizer = jit_prepare_rasterizer();
+#	endif
 	// cut into trapezes
 #	define DNC_MIN 0x8000
 	do {
