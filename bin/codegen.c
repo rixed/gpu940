@@ -506,7 +506,7 @@ static void alloc_regs(void)
 	nb_pixels_per_loop = 1;
 	outcolors_mask = vars[VARP_OUTCOLOR].rnum != -1 ? 1U<<vars[VARP_OUTCOLOR].rnum:0;	// may be null if !write_color
 	outz_mask = vars[VARP_Z].rnum != -1 ? 1U<<vars[VARP_Z].rnum:0;
-	if (0 || r < sizeof_array(regs)) {	// TODO
+	if (0 && r < sizeof_array(regs)) {	// TODO
 		// use remaining regs to write several pixels in the loop
 		if (!ctx.poly.cmdFacet.perspective && !ctx.poly.cmdFacet.use_key && ctx.rendering.z_mode == gpu_z_off) {
 			// we can read several values and poke them all at once

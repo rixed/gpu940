@@ -133,7 +133,7 @@ extern struct ctx {
 		uint32_t sp_save;
 #		define NB_CODE_CACHE 5
 		struct {
-#			define MAX_CODE_SIZE 80
+#			define MAX_CODE_SIZE 56
 			uint32_t buf[MAX_CODE_SIZE];
 			uint32_t use_count;
 			uint32_t rendering_key;
