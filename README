@@ -59,7 +59,7 @@ GPU uses several buffers :
 
 Each buffer is defined by it's starting address, width and height (all width 
 being constrained to a power of 2). All these are taken into a common pool of 
-memory (approx 30Mb in size). User application have to set all these 
+memory (approx 30Mb in size). User applications have to set all these 
 explicitly.  For the GPU standpoint, any memory is the same ; there are no 
 memory specialized for writing picture and other specialized for reading 
 textures.  Thus, user applications can mix all kind of buffer freely and 
@@ -75,7 +75,7 @@ means to push the designated buffer to the list of displayable buffers. Each
 time a vertical interrupt occur, the GPU take the next buffer from this list 
 and make it the current displayed buffer. If the list is empty, the interrupt 
 is 'missed' (missed frame count is displayed on the console), meaning that 
-there were to many commands to perform in one frame time. When, at the 
+there were too many commands to perform in one frame time. When, at the 
 contrary, more than one frames are published during one frame time, the GPU 
 will display them one at a time, synchronized with the vertical interrupt ; in 
 other words, it will not skip frames. It's assumed than it's better to have 
