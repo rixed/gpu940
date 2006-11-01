@@ -93,11 +93,14 @@ static void peek_smooth(void);
 static void key_test(void);
 static void intens(void);
 static void poke_persp(void);
+static void poke_nopersp(void);
+static void poke_z_persp(void);
+static void poke_z_nopersp(void);
 static void combine_persp(void);
 static void combine_nopersp(void);
-static void poke_nopersp(void);
 static void next_persp(void);
 static void next_nopersp(void);
+static void next_z(void);
 
 struct {
 	unsigned working_set;	// how many regs are required for internal computations
@@ -186,14 +189,14 @@ struct {
 		.write_code = poke_nopersp,
 	}, {
 #		define POKE_Z_PERSP 16
-		.working_set = 0,
+		.working_set = 2,
 		.needed_vars = VARP_W_M|CONSTP_Z_M|VARP_DECLIV_M,
-		.write_code = NULL,	// TODO
+		.write_code = poke_z_persp,
 	}, {
 #		define POKE_Z_NOPERSP 17
-		.working_set = 0,
+		.working_set = 1,
 		.needed_vars = VARP_W_M|VARP_Z_M|VARP_DECLIV_M,
-		.write_code = NULL,	// TODO
+		.write_code = poke_z_nopersp,
 	}, {
 #		define NEXT_PERSP 18
 		.working_set = 0,
@@ -208,7 +211,7 @@ struct {
 #		define NEXT_Z 20
 		.working_set = 0,
 		.needed_vars = VARP_Z_M|CONSTP_DZ_M,
-		.write_code = NULL,	// TODO
+		.write_code = next_z,
 	}
 };
 
@@ -292,7 +295,8 @@ static void preload_flat(void)
 	assert(vars[CONSTP_COLOR].rnum != -1);
 	for (unsigned r=0; r<sizeof_array(regs); r++) {
 		if (regs[r].var == VARP_OUTCOLOR) {
-			*gen_dst++ = 0xe1a00000 | (r<<12) | vars[CONSTP_COLOR].rnum;	// 1110 0001 1010 0000 Rvar 0000 0000 Rcst ie "mov Rvar, Rconst"
+			// 1110 0001 1010 0000 Rvar 0000 0000 Rcst ie "mov Rvar, Rconst"
+			*gen_dst++ = 0xe1a00000 | (r<<12) | vars[CONSTP_COLOR].rnum;
 		}
 	}
 }
@@ -302,9 +306,11 @@ static void begin_write_loop(void)
 	if (nb_pixels_per_loop > 1) {	// test that varp_count >= nb_pixels_per_loop, or jump straight to the "bottom half"
 		assert(nb_pixels_per_loop < (1<<8));
 		assert(vars[VARP_COUNT].rnum != -1);
-		*gen_dst++ = 0xe3500000 | (vars[VARP_COUNT].rnum<<16) | nb_pixels_per_loop;	// 1110 0011 0101 count 0000 0000 0000 0000 ie "cmp Rcount, nb_pixels_per_loop"
+		// 1110 0011 0101 count 0000 0000 0000 0000 ie "cmp Rcount, nb_pixels_per_loop"
+		*gen_dst++ = 0xe3500000 | (vars[VARP_COUNT].rnum<<16) | nb_pixels_per_loop;
 		//pacth_bh = gen_dst;
-		*gen_dst++ = 0x3a000000;	// 0011 1010 0000 0000 0000 0000 0000 0000 ie "blo XXXX"
+		// 0011 1010 0000 0000 0000 0000 0000 0000 ie "blo XXXX"
+		*gen_dst++ = 0x3a000000;
 	}
 	write_loop_begin = gen_dst;
 }
@@ -318,14 +324,19 @@ static void end_write_loop(void)
 {
 	if (nb_pixels_per_loop > 1) {
 		assert(nb_pixels_per_loop < (1<<8));
-		*gen_dst++ = 0xe2400000 | (vars[VARP_COUNT].rnum<<16) | (vars[VARP_COUNT].rnum<<12) | nb_pixels_per_loop;	// 1110 0010 0100 _Rn_ _Rd_ 0000 nbpix loop ie "sub rcount, rcount, #nb_pixels_per_loop"
-		*gen_dst++ = 0xe3500000 | (vars[VARP_COUNT].rnum<<16) | nb_pixels_per_loop;	// 1110 0011 0101 _Rn_ 0000 0000 nbpix loop ie "cmp rcount, #nb_pixels_per_loop"
+		// 1110 0010 0100 _Rn_ _Rd_ 0000 nbpix loop ie "sub rcount, rcount, #nb_pixels_per_loop"
+		*gen_dst++ = 0xe2400000 | (vars[VARP_COUNT].rnum<<16) | (vars[VARP_COUNT].rnum<<12) | nb_pixels_per_loop;
+		// 1110 0011 0101 _Rn_ 0000 0000 nbpix loop ie "cmp rcount, #nb_pixels_per_loop"
+		*gen_dst++ = 0xe3500000 | (vars[VARP_COUNT].rnum<<16) | nb_pixels_per_loop;
 		int32_t begin_offset =  (write_loop_begin - (gen_dst+2)) & 0xffffff;
-		*gen_dst++ = 0x2a000000 | (begin_offset);	// 0010 1010 0000 0000 0000 0000 0000 0000 ie "bhs write_loop_begin"
+		// 0010 1010 0000 0000 0000 0000 0000 0000 ie "bhs write_loop_begin"
+		*gen_dst++ = 0x2a000000 | (begin_offset);
 	} else {
-		*gen_dst++ = 0xe2500001 | (vars[VARP_COUNT].rnum<<16) | (vars[VARP_COUNT].rnum<<12);	// 1110 0010 0101 _Rn_ _Rd_ 0000 0000 0001 ie "subs rcount, rcount, #1"
+		// 1110 0010 0101 _Rn_ _Rd_ 0000 0000 0001 ie "subs rcount, rcount, #1"
+		*gen_dst++ = 0xe2500001 | (vars[VARP_COUNT].rnum<<16) | (vars[VARP_COUNT].rnum<<12);
 		int32_t begin_offset =  (write_loop_begin - (gen_dst+2)) & 0xffffff;
-		*gen_dst++ = 0x2a000000 | (begin_offset);	// ie "bhs wrote_loop_begin"
+		// ie "bhs wrote_loop_begin"
+		*gen_dst++ = 0x2a000000 | (begin_offset);
 	}
 }
 
@@ -345,7 +356,8 @@ static unsigned load_constp(unsigned v, int rtmp)
 		// we need to load into register rtmp, or r14 if not giver
 		if (rtmp == -1) rtmp = sizeof_array(regs)-1;
 		uint32_t offset = offset12(v);
-		*gen_dst++ = 0xe51f0000 | (rtmp<<12) | offset;	// 1110 0101 0001 1111 Rtmp offt var_ v__ ie "ldr Rtmp, [r15, #-offset_v]"
+		// 1110 0101 0001 1111 Rtmp offt var_ v__ ie "ldr Rtmp, [r15, #-offset_v]"
+		*gen_dst++ = 0xe51f0000 | (rtmp<<12) | offset;
 		return rtmp;
 	}
 }
@@ -374,19 +386,24 @@ static uint32_t z_mode_cond(void)
 static void write_z_test(void)	// come here with zb in r0
 {
 	unsigned const tmp1 = 0;
-	*gen_dst++ = 0xe1500000 | (vars[VARP_Z].rnum<<16) | tmp1;	// 1110 0001 0101 _RZ_ 0000 0000 0000 tmp1 ie "cmp rz, tmp1"
+	// 1110 0001 0101 _RZ_ 0000 0000 0000 tmp1 ie "cmp rz, tmp1"
+	*gen_dst++ = 0xe1500000 | (vars[VARP_Z].rnum<<16) | tmp1;
 	add_patch(offset_24, next_pixel);
-	*gen_dst++ = 0x0a000000 | z_mode_cond();	// ie "bZOP XXXXX" branch to next_pixel
+	// ie "bZOP XXXXX" branch to next_pixel
+	*gen_dst++ = 0x0a000000 | z_mode_cond();
 }
 
 static void ztest_persp(void)
 {
 	assert(nb_pixels_per_loop == 1);
 	unsigned const tmp1 = 0, tmp2 = 1;
-	*gen_dst++ = 0xe1a00840 | (tmp1<<12) | vars[VARP_DECLIV].rnum;	// 1110 0001 1010 0000 tmp1 1000 0100 Decliv  ie "mov tmp1, decliv, asr #16"
+	// 1110 0001 1010 0000 tmp1 1000 0100 Decliv  ie "mov tmp1, decliv, asr #16"
+	*gen_dst++ = 0xe1a00840 | (tmp1<<12) | vars[VARP_DECLIV].rnum;
 	unsigned const constp_out2zb = load_constp(CONSTP_OUT2ZB, tmp2);
-	*gen_dst++ = 0xe0800100 | (vars[VARP_W].rnum<<16) | (tmp2<<12) | constp_out2zb;	// 1110 0000 1000 _RW_ tmp2 0001 0000 out2zb ie "add tmp2, Rw, out2zb, lsl #2"
-	*gen_dst++ = 0xe7900000 | (tmp2<<16) | (tmp1<<12) | ((ctx.poly.nc_log+2)<<7) | tmp1;	// 1110 0111 1001 tmp2 tmp1 nclo g000 tmp1  ie "ldr tmp1, [tmp2, tmp1, lsl #(nc_log+2)]"
+	// 1110 0000 1000 _RW_ tmp2 0001 0000 out2zb ie "add tmp2, Rw, out2zb, lsl #2"
+	*gen_dst++ = 0xe0800100 | (vars[VARP_W].rnum<<16) | (tmp2<<12) | constp_out2zb;
+	// 1110 0111 1001 tmp2 tmp1 nclo g000 tmp1  ie "ldr tmp1, [tmp2, tmp1, lsl #(nc_log+2)]"
+	*gen_dst++ = 0xe7900000 | (tmp2<<16) | (tmp1<<12) | ((ctx.poly.nc_log+2)<<7) | tmp1;
 	write_z_test();
 }
 
@@ -395,19 +412,22 @@ static void ztest_nopersp(void)
 	assert(nb_pixels_per_loop == 1);
 	unsigned const tmp1 = 0;
 	unsigned const constp_out2zb = load_constp(CONSTP_OUT2ZB, tmp1);
-	*gen_dst++ = 0xe7900100 | (vars[VARP_W].rnum<<16) | (tmp1<<12) | constp_out2zb;	// 1110 0111 1001 _RW_ tmp1 0001 0000 out2zb ie "ldr tmp1, [Rw, out2zb, lsl #2]"
+	// 1110 0111 1001 _RW_ tmp1 0001 0000 out2zb ie "ldr tmp1, [Rw, out2zb, lsl #2]"
+	*gen_dst++ = 0xe7900100 | (vars[VARP_W].rnum<<16) | (tmp1<<12) | constp_out2zb;
 	write_z_test();
 }
 
 static void write_mov_immediate(unsigned r, uint32_t imm)
 {
-	*gen_dst++ = 0xe3a00000 | (r<<12) | (imm&0xff); // 1110 0011 1010 0000 tmp2 0000 mask mask ie "mov r, mask"
+	// 1110 0011 1010 0000 tmp2 0000 mask mask ie "mov r, mask"
+	*gen_dst++ = 0xe3a00000 | (r<<12) | (imm&0xff);
 	imm >>= 8;
 	int rot = -8;
 	while (imm) {
 		uint8_t b = imm&0xff;
 		if (b) {
-			*gen_dst++ = 0xe3800000 | (r<<16) | (r<<12) | (((32+rot)/2)<<8) | b;	// 1110 0011 1000 RegR RegR rotI mask mask ie "orr r, r, mask<<8"
+			// 1110 0011 1000 RegR RegR rotI mask mask ie "orr r, r, mask<<8"
+			*gen_dst++ = 0xe3800000 | (r<<16) | (r<<12) | (((32+rot)/2)<<8) | b;
 		}
 		imm >>= 8;
 		rot -= 8;
@@ -432,18 +452,24 @@ static void peek_text(void)
 	unsigned tmp1 = 0, tmp2 = 1, tmp3 = 2;
 	for (unsigned p=0; p<nb_pixels_per_loop; p++) {
 		write_mov_immediate(tmp2, ctx.location.txt_mask);	// TODO: out of loop ?
-		*gen_dst++ = 0xe0000840 | (tmp2<<16) | (tmp1<<12) | vars[VARP_U].rnum;	// 1110 0000 0000 tmp2 tmp1 1000 0100 varU ie "and tmp1, tmp2, varp_u, asr #16" ie tmp1 = U
-		*gen_dst++ = 0xe0000840 | (tmp2<<16) | (tmp3<<12) | vars[VARP_V].rnum;	// 1110 0000 0000 tmp2 tmp3 1000 0100 varV ie "and tmp3, tmp2, varp_v, asr #16" ie tmp3 = V
+		// 1110 0000 0000 tmp2 tmp1 1000 0100 varU ie "and tmp1, tmp2, varp_u, asr #16" ie tmp1 = U
+		*gen_dst++ = 0xe0000840 | (tmp2<<16) | (tmp1<<12) | vars[VARP_U].rnum;
+		// 1110 0000 0000 tmp2 tmp3 1000 0100 varV ie "and tmp3, tmp2, varp_v, asr #16" ie tmp3 = V
+		*gen_dst++ = 0xe0000840 | (tmp2<<16) | (tmp3<<12) | vars[VARP_V].rnum;
 		// load constp_du, possibly in tmp2
 		unsigned const constp_du = load_constp(CONSTP_DU, tmp2);	// TODO: out of loop ?
-		*gen_dst++ = 0xe0800000 | (vars[VARP_U].rnum<<16) | (vars[VARP_U].rnum<<12) | constp_du;	// 1110 0000 1000 varU varU 0000 0000 _DU_ ie "add varp_u, varp_u, constp_du"
-		*gen_dst++ = 0xe0800000 | (tmp1<<16) | (tmp1<<12) | (ctx.location.buffer_loc[gpuTxtBuffer].width_log<<7) | tmp3;	// 1110 0000 1000 tmp1 tmp1 txtw w000 tmp3 ie "add tmp1, tmp1, tmp3, lsl #txt_width" tmp1 = VU
+		// 1110 0000 1000 varU varU 0000 0000 _DU_ ie "add varp_u, varp_u, constp_du"
+		*gen_dst++ = 0xe0800000 | (vars[VARP_U].rnum<<16) | (vars[VARP_U].rnum<<12) | constp_du;
+		// 1110 0000 1000 tmp1 tmp1 txtw w000 tmp3 ie "add tmp1, tmp1, tmp3, lsl #txt_width" tmp1 = VU
+		*gen_dst++ = 0xe0800000 | (tmp1<<16) | (tmp1<<12) | (ctx.location.buffer_loc[gpuTxtBuffer].width_log<<7) | tmp3;
 		// load constp_txt, possibly in tmp2
 		unsigned const constp_txt = load_constp(CONSTP_TEXT, tmp2);	// TODO: out of loop ?
-		*gen_dst++ = 0xe7900100 | (constp_txt<<16) | (outcolor_rnum(p)<<12) | tmp1;	// 1110 0111 1001 rtxt outc 0001 0000 tmp1 ie "ldr outcolor, [constp_txt, tmp1, lsl #2]"
+		// 1110 0111 1001 rtxt outc 0001 0000 tmp1 ie "ldr outcolor, [constp_txt, tmp1, lsl #2]"
+		*gen_dst++ = 0xe7900100 | (constp_txt<<16) | (outcolor_rnum(p)<<12) | tmp1;
 		// load constp_dv, possibly in tmp2
 		unsigned const constp_dv = load_constp(CONSTP_DV, tmp2);
-		*gen_dst++ = 0xe0800000 | (vars[VARP_V].rnum<<16) | (vars[VARP_V].rnum<<12) | constp_dv;	// 1110 0000 1000 varV varV 0000 0000 _DV_ ie "add varp_v, varp_v, constp_dv"
+		// 1110 0000 1000 varV varV 0000 0000 _DV_ ie "add varp_v, varp_v, constp_dv"
+		*gen_dst++ = 0xe0800000 | (vars[VARP_V].rnum<<16) | (vars[VARP_V].rnum<<12) | constp_dv;
 	}
 }
 
@@ -453,25 +479,34 @@ static void peek_smooth(void)
 	// we omit the second 'R', giving B0GR
 	unsigned tmp1 = 0;
 	for (unsigned p=0; p<nb_pixels_per_loop; p++) {
-		*gen_dst++ = 0xe2000cff | (vars[VARP_G].rnum<<16) | (vars[VARP_OUTCOLOR].rnum<<12);	// 1110 0010 0000 varG rcol 1100 1111 1111 ie "and rcol, varG, #0xff00"
-		*gen_dst++ = 0xe1800420 | (vars[VARP_OUTCOLOR].rnum<<16) | (vars[VARP_OUTCOLOR].rnum<<12) | vars[VARP_R].rnum;	// 1110 0001 1000 rcol rcol 0100 0010 varR ie "orr rcol, rcol, varR, lsr #8"
-		*gen_dst++ = 0xe2000cff | (vars[VARP_B].rnum<<16) | (tmp1<<12);	// 1110 0010 0000 varG rcol 1100 1111 1111 ie "and tmp1, varB, #0xff00"
-		*gen_dst++ = 0xe1800800 | (vars[VARP_OUTCOLOR].rnum<<16) | (vars[VARP_OUTCOLOR].rnum<<12) | tmp1;	// 1110 0001 1000 rcol rcol 1000 0000 tmp1 ie "orr rcol, rcol, tmp1, lsl #16"
+		// 1110 0010 0000 varG rcol 1100 1111 1111 ie "and rcol, varG, #0xff00"
+		*gen_dst++ = 0xe2000cff | (vars[VARP_G].rnum<<16) | (vars[VARP_OUTCOLOR].rnum<<12);
+		// 1110 0001 1000 rcol rcol 0100 0010 varR ie "orr rcol, rcol, varR, lsr #8"
+		*gen_dst++ = 0xe1800420 | (vars[VARP_OUTCOLOR].rnum<<16) | (vars[VARP_OUTCOLOR].rnum<<12) | vars[VARP_R].rnum;
+		// 1110 0010 0000 varG rcol 1100 1111 1111 ie "and tmp1, varB, #0xff00"
+		*gen_dst++ = 0xe2000cff | (vars[VARP_B].rnum<<16) | (tmp1<<12);
+		// 1110 0001 1000 rcol rcol 1000 0000 tmp1 ie "orr rcol, rcol, tmp1, lsl #16"
+		*gen_dst++ = 0xe1800800 | (vars[VARP_OUTCOLOR].rnum<<16) | (vars[VARP_OUTCOLOR].rnum<<12) | tmp1;
 		unsigned const constp_dr = load_constp(CONSTP_DR, tmp1);
-		*gen_dst++ = 0xe0800000 | (vars[VARP_R].rnum<<16) | (vars[VARP_R].rnum<<12) | constp_dr;  // 1110 0000 1000 varV varV 0000 0000 _DV_ie "add varR, varR, constp_DR"
+		// 1110 0000 1000 varV varV 0000 0000 _DV_ ie "add varR, varR, constp_DR"
+		*gen_dst++ = 0xe0800000 | (vars[VARP_R].rnum<<16) | (vars[VARP_R].rnum<<12) | constp_dr;
 		unsigned const constp_dg = load_constp(CONSTP_DG, tmp1);
-		*gen_dst++ = 0xe0800000 | (vars[VARP_G].rnum<<16) | (vars[VARP_G].rnum<<12) | constp_dg;  // 1110 0000 1000 varV varV 0000 0000 _DV_ie "add varG, varG, constp_DG"
+		// 1110 0000 1000 varV varV 0000 0000 _DV_ ie "add varG, varG, constp_DG"
+		*gen_dst++ = 0xe0800000 | (vars[VARP_G].rnum<<16) | (vars[VARP_G].rnum<<12) | constp_dg;
 		unsigned const constp_db = load_constp(CONSTP_DB, tmp1);
-		*gen_dst++ = 0xe0800000 | (vars[VARP_B].rnum<<16) | (vars[VARP_B].rnum<<12) | constp_db;  // 1110 0000 1000 varV varV 0000 0000 _DV_ie "add varB, varB, constp_DB"
+		// 1110 0000 1000 varV varV 0000 0000 _DV_ ie "add varB, varB, constp_DB"
+		*gen_dst++ = 0xe0800000 | (vars[VARP_B].rnum<<16) | (vars[VARP_B].rnum<<12) | constp_db;
 	}
 }
 
 static void key_test(void)
 {
 	unsigned const constp_key = load_constp(CONSTP_KEY, -1);
-	*gen_dst++ = 0xe1500000 | (vars[VARP_OUTCOLOR].rnum<<16) | constp_key;	// 1110 0001 0101 rcol 0000 0000 0000 rkey ie "cmp rcol, rkey"
+	// 1110 0001 0101 rcol 0000 0000 0000 rkey ie "cmp rcol, rkey"
+	*gen_dst++ = 0xe1500000 | (vars[VARP_OUTCOLOR].rnum<<16) | constp_key;
 	add_patch(offset_24, next_pixel);
-	*gen_dst++ = 0x0a000000;	// 0000 1010 0000 0000 0000 0000 0000 0000 ie "beq XXX"
+	// 0000 1010 0000 0000 0000 0000 0000 0000 ie "beq XXX"
+	*gen_dst++ = 0x0a000000;
 }
 
 static void intens(void)
@@ -479,15 +514,23 @@ static void intens(void)
 	unsigned tmp1 = 0;
 	for (unsigned p=0; p<nb_pixels_per_loop; p++) {
 		unsigned rcol = outcolor_rnum(p);
-		*gen_dst++ = 0xe20000ff | (rcol<<16) | (tmp1<<12);	// 1110 0010 0000 rcol tmp1 0000 1111 1111 ie "and tmp1, rcol, #0xff" ie tmp1 = Y component
-		*gen_dst++ = 0xe0900b40 | (tmp1<<16) | (tmp1<<12) | vars[VARP_I].rnum; // 1110 0000 1001 tmp1 tmp1 1011 0100 varI ie "adds tmp1, tmp1, varI, asr #22"	// tmp1 = Y + intens
-		*gen_dst++ = 0x43a00000 | (tmp1<<12);	// 0100 0011 1010 0000 tmp1 0000 0000 0000 ie "movmi tmp1, #0" ie saturate
-		*gen_dst++ = 0xe3500c01 | (tmp1<<16);	// 1110 0011 0101 tmp1 0000 1100 0000 0001 ie "cmp tmp1, #0x100"
-		*gen_dst++ = 0x53a000ff | (tmp1<<12);	// 0101 0011 1010 0000 tmp1 0000 1111 1111 ie "movpl tmp1, #0xff"
-		*gen_dst++ = 0xe3c000ff | (rcol<<16) | (rcol<<12);	// 1110 0011 1100 rcol rcol 0000 1111 1111 ie "bic rcol, rcol, #0xff" ie put new Y into color
-		*gen_dst++ = 0xe1800000 | (rcol<<16) | (rcol<<12) | tmp1;	// 1110 0001 1000 rcol rcol 0000 0000 tmp1 ie "orr rcol, rcol, tmp1"
+		// 1110 0010 0000 rcol tmp1 0000 1111 1111 ie "and tmp1, rcol, #0xff" ie tmp1 = Y component
+		*gen_dst++ = 0xe20000ff | (rcol<<16) | (tmp1<<12);
+		// 1110 0000 1001 tmp1 tmp1 1011 0100 varI ie "adds tmp1, tmp1, varI, asr #22"	// tmp1 = Y + intens
+		*gen_dst++ = 0xe0900b40 | (tmp1<<16) | (tmp1<<12) | vars[VARP_I].rnum;
+		// 0100 0011 1010 0000 tmp1 0000 0000 0000 ie "movmi tmp1, #0" ie saturate
+		*gen_dst++ = 0x43a00000 | (tmp1<<12);
+		// 1110 0011 0101 tmp1 0000 1100 0000 0001 ie "cmp tmp1, #0x100"
+		*gen_dst++ = 0xe3500c01 | (tmp1<<16);
+		// 0101 0011 1010 0000 tmp1 0000 1111 1111 ie "movpl tmp1, #0xff"
+		*gen_dst++ = 0x53a000ff | (tmp1<<12);
+		// 1110 0011 1100 rcol rcol 0000 1111 1111 ie "bic rcol, rcol, #0xff" ie put new Y into color
+		*gen_dst++ = 0xe3c000ff | (rcol<<16) | (rcol<<12);
+		// 1110 0001 1000 rcol rcol 0000 0000 tmp1 ie "orr rcol, rcol, tmp1"
+		*gen_dst++ = 0xe1800000 | (rcol<<16) | (rcol<<12) | tmp1;
 		unsigned const constp_di = load_constp(CONSTP_DI, tmp1);	// TODO: if nb_pixels_per_loop>1, use another tmp and put this out of loop
-		*gen_dst++ = 0xe0800000 | (vars[VARP_I].rnum<<16) | (vars[VARP_I].rnum<<12) | constp_di;	// 1110 0000 1000 varI varI 0000 0000 _DI_ ie "add varI, varI, constDI"
+		// 1110 0000 1000 varI varI 0000 0000 _DI_ ie "add varI, varI, constDI"
+		*gen_dst++ = 0xe0800000 | (vars[VARP_I].rnum<<16) | (vars[VARP_I].rnum<<12) | constp_di;
 	}
 }
 
@@ -495,8 +538,23 @@ static void poke_persp(void)
 {
 	assert(nb_pixels_per_loop == 1);
 	unsigned const tmp1 = 0;
-	*gen_dst++ = 0xe1a00840 | (tmp1<<12) | vars[VARP_DECLIV].rnum;	// 1110 0001 1010 0000 tmp1 1000 0100 decliv ie "mov tmp1, decliv, asr #16" ie tmp1 = decliv>>16
-	*gen_dst++ = 0xe7800000 | (vars[VARP_W].rnum<<16) | (vars[VARP_OUTCOLOR].rnum<<12) | ((ctx.poly.nc_log+2)<<7) | tmp1;	// 1110 0111 1000 varW rcol nclo g000 tmp1 ie "str rcol, [varW, tmp1, lsl #(nc_log+2)]
+	// 1110 0001 1010 0000 tmp1 1000 0100 decliv ie "mov tmp1, decliv, asr #16" ie tmp1 = decliv>>16
+	*gen_dst++ = 0xe1a00840 | (tmp1<<12) | vars[VARP_DECLIV].rnum;
+	// 1110 0111 1000 varW rcol nclo g000 tmp1 ie "str rcol, [varW, tmp1, lsl #(nc_log+2)]
+	*gen_dst++ = 0xe7800000 | (vars[VARP_W].rnum<<16) | (vars[VARP_OUTCOLOR].rnum<<12) | ((ctx.poly.nc_log+2)<<7) | tmp1;
+}
+
+static void poke_z_persp(void)
+{
+	assert(nb_pixels_per_loop == 1);
+	unsigned const tmp1 = 0, tmp2 = 1;
+	// 1110 0001 1010 0000 tmp1 1000 0100 decliv ie "mov tmp1, decliv, asr #16" ie tmp1 = decliv>>16
+	*gen_dst++ = 0xe1a00840 | (tmp1<<12) | vars[VARP_DECLIV].rnum;
+	unsigned constp_out2zb = load_constp(CONSTP_OUT2ZB, tmp2);
+	// 1110 0000 1000 varW tmp2 0001 0000 out2zb ie "add tmp2, varW, constp_out2zb, lsl #2"
+	*gen_dst++ = 0xe0800100 | (vars[VARP_W].rnum<<16) | (tmp2<<12) | constp_out2zb;
+	// 1110 0111 1000 tmp2 _RZ_ nclo g000 tmp1 ie "str rz, [tmp2, tmp1, lsl #(nc_log+2)]
+	*gen_dst++ = 0xe7800000 | (tmp2<<16) | (vars[VARP_Z].rnum<<12) | ((ctx.poly.nc_log+2)<<7) | tmp1;
 }
 
 static void poke_nopersp(void)
@@ -504,13 +562,31 @@ static void poke_nopersp(void)
 	if (!ctx.poly.cmdFacet.use_key && !ctx.poly.cmdFacet.write_z) {
 		// we increment VARP_W in the go, so that we have nothing left for NEXT_NOPERSP
 		if (nb_pixels_per_loop == 1) {
-			*gen_dst++ = 0xe4800004 | (vars[VARP_W].rnum<<16) | (vars[VARP_OUTCOLOR].rnum<<12);	// 1110 0100 1000 varW rcol 0000 0000 0100 ie "str rcol, [rW], #0x4"
+			// 1110 0100 1000 varW rcol 0000 0000 0100 ie "str rcol, [rW], #0x4"
+			*gen_dst++ = 0xe4800004 | (vars[VARP_W].rnum<<16) | (vars[VARP_OUTCOLOR].rnum<<12);
 		} else {
-			*gen_dst++ = 0xe8a00000 | (vars[VARP_W].rnum<<16) | outcolors_mask;	// 1110 1000 1010 varW regi ster list 16bt ie "smtia rW!, {rcol1-rcolN}"
+			// 1110 1000 1010 varW regi ster list 16bt ie "smtia rW!, {rcol1-rcolN}"
+			*gen_dst++ = 0xe8a00000 | (vars[VARP_W].rnum<<16) | outcolors_mask;
 		}
 	} else {	// we must not inc VARP_W here
 		assert(nb_pixels_per_loop == 1);
-		*gen_dst++ = 0xe5800000 | (vars[VARP_W].rnum<<16) | (vars[VARP_OUTCOLOR].rnum<<12);	// 1110 0101 1000 varW rcol 0000 0000 0000 ie "str rcol, [rW]"
+		// 1110 0101 1000 varW rcol 0000 0000 0000 ie "str rcol, [rW]"
+		*gen_dst++ = 0xe5800000 | (vars[VARP_W].rnum<<16) | (vars[VARP_OUTCOLOR].rnum<<12);
+	}
+}
+
+static void poke_z_nopersp(void)
+{
+	unsigned tmp1 = 0;
+	unsigned const constp_out2dz = load_constp(CONSTP_OUT2ZB, tmp1);
+	if (nb_pixels_per_loop == 1) {
+		// 1110 0111 1000 varW _RZ_ 0001 0000 out2dz ie "str rz, [rW, out2dz, lsl #2]"
+		*gen_dst++ = 0xe7800100 | (vars[VARP_W].rnum<<16) | (vars[VARP_Z].rnum<<12) | constp_out2dz;
+	} else {
+		// 1110 0000 1000 _RW_ tmp1 0001 0000 out2dz ie "add tmp1, rW, out2dz, lsl #2"
+		*gen_dst++ = 0xe0800100 | (vars[VARP_W].rnum<<16) | (tmp1<<12) | constp_out2dz;
+		// 1110 1000 1000 tmp1 regi ster list 16bt ie "smtia tmp1, {rz1-rzN}"
+		*gen_dst++ = 0xe8800000 | (tmp1<<16) | outz_mask;
 	}
 }
 
@@ -518,42 +594,59 @@ static void write_combine(void)	// come here with previous color in r0
 {
 	unsigned const tmp1 = 0, tmp2 = 1, tmp3 = 2, tmp4 = 3;
 	write_mov_immediate(tmp3, 0x00ff00ff);
-	*gen_dst++ = 0xe0000000 | (tmp1<<16) | (tmp2<<12) | tmp3;	// 1110 0000 0000 tmp1 tmp2 0000 0000 tmp3 ie "and tmp2, tmp1, tmp3" ie tmp2 = tmp1 & 0x00ff00ff
-	*gen_dst++ = 0xe0000000 | (vars[VARP_OUTCOLOR].rnum<<16) | (tmp4<<12) | tmp3;	// ie "and tmp4, rcol, tmp3" ie tmp4 = rcol & 0x00ff00ff
-	*gen_dst++ = 0xe0000400 | (vars[VARP_OUTCOLOR].rnum<<16) | (vars[VARP_OUTCOLOR].rnum<<12) | tmp3;	// 1110 0000 0000 rcol rcol 0100 0000 tmp3 ie "and rcol, rcol, tmp3, lsl #8" ie rcol = rcol & 0xff00ff00
-	*gen_dst++ = 0xe0000400 | (tmp1<<16) | (tmp1<<12) | tmp3;	// 1110 0000 0000 rcol rcol 0100 0000 tmp3 ie "and tmp1, tmp1, tmp3 lsl #8" ie tmp1 = tmp1 & 0xff00ff00
+	// 1110 0000 0000 tmp1 tmp2 0000 0000 tmp3 ie "and tmp2, tmp1, tmp3" ie tmp2 = tmp1 & 0x00ff00ff
+	*gen_dst++ = 0xe0000000 | (tmp1<<16) | (tmp2<<12) | tmp3;
+	// ie "and tmp4, rcol, tmp3" ie tmp4 = rcol & 0x00ff00ff	
+	*gen_dst++ = 0xe0000000 | (vars[VARP_OUTCOLOR].rnum<<16) | (tmp4<<12) | tmp3;
+	// 1110 0000 0000 rcol rcol 0100 0000 tmp3 ie "and rcol, rcol, tmp3, lsl #8" ie rcol = rcol & 0xff00ff00
+	*gen_dst++ = 0xe0000400 | (vars[VARP_OUTCOLOR].rnum<<16) | (vars[VARP_OUTCOLOR].rnum<<12) | tmp3;
+	// 1110 0000 0000 rcol rcol 0100 0000 tmp3 ie "and tmp1, tmp1, tmp3 lsl #8" ie tmp1 = tmp1 & 0xff00ff00
+	*gen_dst++ = 0xe0000400 | (tmp1<<16) | (tmp1<<12) | tmp3;
 	if (ctx.poly.cmdFacet.blend_coef<=8) {
-		*gen_dst++ = 0xe0800020 | (tmp4<<16) | (tmp2<<12) | ((8-ctx.poly.cmdFacet.blend_coef)<<7) | tmp2;	// 1110 0000 1000 tmp4 tmp2 shif t010 tmp2 ie "add tmp2, tmp4, tmp2, lsr #(8-blend)" tmp2 = tmp2>>(8-blend_coef) + tmp4
-		*gen_dst++ = 0xe0800020 | (tmp1<<16) | (vars[VARP_OUTCOLOR].rnum<<12) | ((8-ctx.poly.cmdFacet.blend_coef)<<7) | vars[VARP_OUTCOLOR].rnum;	// 1110 0000 1000 tmp1 rcol shif t010 rcol ie "add rcol, tmp1, rcol, lsr #(8-blend)" rcol = rcol>>(8-blend_coef) + tmp1
+		// 1110 0000 1000 tmp4 tmp2 shif t010 tmp2 ie "add tmp2, tmp4, tmp2, lsr #(8-blend)" tmp2 = tmp2>>(8-blend_coef) + tmp4	
+		*gen_dst++ = 0xe0800020 | (tmp4<<16) | (tmp2<<12) | ((8-ctx.poly.cmdFacet.blend_coef)<<7) | tmp2;
+		// 1110 0000 1000 tmp1 rcol shif t010 rcol ie "add rcol, tmp1, rcol, lsr #(8-blend)" rcol = rcol>>(8-blend_coef) + tmp1
+		*gen_dst++ = 0xe0800020 | (tmp1<<16) | (vars[VARP_OUTCOLOR].rnum<<12) | ((8-ctx.poly.cmdFacet.blend_coef)<<7) | vars[VARP_OUTCOLOR].rnum;
 	} else {
-		*gen_dst++ = 0xe0800020 | (tmp2<<16) | (tmp2<<12) | ((ctx.poly.cmdFacet.blend_coef-8)<<7) | tmp4;	// 1110 0000 1000 tmp2 tmp2 shif t010 tmp4 ie "add tmp2, tmp2, tmp4, lsr #(blend-8)" tmp2 = tmp2 + tmp4>>(blend-8)
-		*gen_dst++ = 0xe0800020 | (vars[VARP_OUTCOLOR].rnum<<16) | (vars[VARP_OUTCOLOR].rnum<<12) | ((ctx.poly.cmdFacet.blend_coef-8)<<7) | tmp1;	// 1110 0000 1000 rcol rcol shif t010 tmp1 ie "add rcol, rcol, tmp1, lsr #(blend-8)" rcol = rcol + tmp1>>(blend-8)
+		// 1110 0000 1000 tmp2 tmp2 shif t010 tmp4 ie "add tmp2, tmp2, tmp4, lsr #(blend-8)" tmp2 = tmp2 + tmp4>>(blend-8)
+		*gen_dst++ = 0xe0800020 | (tmp2<<16) | (tmp2<<12) | ((ctx.poly.cmdFacet.blend_coef-8)<<7) | tmp4;
+		// 1110 0000 1000 rcol rcol shif t010 tmp1 ie "add rcol, rcol, tmp1, lsr #(blend-8)" rcol = rcol + tmp1>>(blend-8)
+		*gen_dst++ = 0xe0800020 | (vars[VARP_OUTCOLOR].rnum<<16) | (vars[VARP_OUTCOLOR].rnum<<12) | ((ctx.poly.cmdFacet.blend_coef-8)<<7) | tmp1;
 	}
-	*gen_dst++ = 0xe00000a0 | (tmp3<<16) | (tmp2<<12) | tmp2;	// 1110 0000 0000 tmp3 tmp2 0000 1010 tmp2 ie "and tmp2, tmp3, tmp2 lsr #1"
-	*gen_dst++ = 0xe0000480 | (vars[VARP_OUTCOLOR].rnum<<16) | (vars[VARP_OUTCOLOR].rnum<<12) | tmp3;	// 1110 0000 0000 rcol rcol 0100 1000 tmp3 ie "and rcol, rcol, tmp3 lsl #9"
-	*gen_dst++ = 0xe18000a0 | (tmp2<<16) | (vars[VARP_OUTCOLOR].rnum<<12) | vars[VARP_OUTCOLOR].rnum;	// 1110 0001 1000 tmp2 rcol 0000 1010 rcol ie "orr rcol, tmp2, rcol lsr #1"
+	// 1110 0000 0000 tmp3 tmp2 0000 1010 tmp2 ie "and tmp2, tmp3, tmp2 lsr #1"
+	*gen_dst++ = 0xe00000a0 | (tmp3<<16) | (tmp2<<12) | tmp2;
+	// 1110 0000 0000 rcol rcol 0100 1000 tmp3 ie "and rcol, rcol, tmp3 lsl #9"
+	*gen_dst++ = 0xe0000480 | (vars[VARP_OUTCOLOR].rnum<<16) | (vars[VARP_OUTCOLOR].rnum<<12) | tmp3;
+	// 1110 0001 1000 tmp2 rcol 0000 1010 rcol ie "orr rcol, tmp2, rcol lsr #1"
+	*gen_dst++ = 0xe18000a0 | (tmp2<<16) | (vars[VARP_OUTCOLOR].rnum<<12) | vars[VARP_OUTCOLOR].rnum;
 }
 
 static void combine_persp(void)
 {
 	assert(nb_pixels_per_loop == 1);
 	unsigned const tmp1 = 0, tmp5 = 4;
-	*gen_dst++ = 0xe1a00840 | (tmp5<<12) | vars[VARP_DECLIV].rnum;	// 1110 0001 1010 0000 tmp5 1000 0100 decliv ie "mov tmp5, decliv, asr #16" ie tmp5 = decliv>>16
-	*gen_dst++ = 0xe7900000 | (vars[VARP_W].rnum<<16) | (tmp1<<12) | ((ctx.poly.nc_log+2)<<7) | tmp5;	// 1110 0111 1001 varW rcol nclo g000 tmp5 ie "ldr tmp1, [varW, tmp5, lsl #(nc_log+2)]
+	// 1110 0001 1010 0000 tmp5 1000 0100 decliv ie "mov tmp5, decliv, asr #16" ie tmp5 = decliv>>16
+	*gen_dst++ = 0xe1a00840 | (tmp5<<12) | vars[VARP_DECLIV].rnum;
+	// 1110 0111 1001 varW rcol nclo g000 tmp5 ie "ldr tmp1, [varW, tmp5, lsl #(nc_log+2)]
+	*gen_dst++ = 0xe7900000 | (vars[VARP_W].rnum<<16) | (tmp1<<12) | ((ctx.poly.nc_log+2)<<7) | tmp5;
 	write_combine();
-	*gen_dst++ = 0xe7800000 | (vars[VARP_W].rnum<<16) | (vars[VARP_OUTCOLOR].rnum<<12) | ((ctx.poly.nc_log+2)<<7) | tmp5;	// 1110 0111 1000 varW rcol nclo g000 tmp5 ie "str rcol, [varW, tmp5, lsl #(nc_log+2)]
+	// 1110 0111 1000 varW rcol nclo g000 tmp5 ie "str rcol, [varW, tmp5, lsl #(nc_log+2)]
+	*gen_dst++ = 0xe7800000 | (vars[VARP_W].rnum<<16) | (vars[VARP_OUTCOLOR].rnum<<12) | ((ctx.poly.nc_log+2)<<7) | tmp5;
 }
 
 static void combine_nopersp(void)
 {
 	assert(nb_pixels_per_loop == 1);
 	unsigned const tmp1 = 0;
-	*gen_dst++ = 0xe5900000 | (vars[VARP_W].rnum<<16) | (tmp1<<12);	// 1110 0101 1001 varW tmp1 0000 0000 0000 ie "ldr tmp1, [varW]
+	// 1110 0101 1001 varW tmp1 0000 0000 0000 ie "ldr tmp1, [varW]
+	*gen_dst++ = 0xe5900000 | (vars[VARP_W].rnum<<16) | (tmp1<<12);
 	write_combine();
 	if (!ctx.poly.cmdFacet.use_key && !ctx.poly.cmdFacet.write_z) {
-		*gen_dst++ = 0xe4800004 | (vars[VARP_W].rnum<<16) | (vars[VARP_OUTCOLOR].rnum<<12);	// 1110 0100 1000 varW rcol 0000 0000 0100 ie "str rcol, [rW], #0x4"
+		// 1110 0100 1000 varW rcol 0000 0000 0100 ie "str rcol, [rW], #0x4"
+		*gen_dst++ = 0xe4800004 | (vars[VARP_W].rnum<<16) | (vars[VARP_OUTCOLOR].rnum<<12);
 	} else {
-		*gen_dst++ = 0xe5800000 | (vars[VARP_W].rnum<<16) | (vars[VARP_OUTCOLOR].rnum<<12);	// 1110 0101 1000 varW rcol 0000 0000 0000 ie "str rcol, [rW]"
+		// 1110 0101 1000 varW rcol 0000 0000 0000 ie "str rcol, [rW]"
+		*gen_dst++ = 0xe5800000 | (vars[VARP_W].rnum<<16) | (vars[VARP_OUTCOLOR].rnum<<12);
 	}
 }
 
@@ -561,17 +654,27 @@ static void next_persp(void)
 {
 	do_patch(next_pixel);
 	unsigned const constp_ddecliv = load_constp(CONSTP_DDECLIV, -1);
-	*gen_dst++ = 0xe0800000 | (vars[VARP_DECLIV].rnum<<16) | (vars[VARP_DECLIV].rnum<<12) | constp_ddecliv;	// 1110 000c0 1000 decliv decliv 0000 0000 ddecliv ie "add decliv, decliv, ddecliv"
+	// 1110 000c0 1000 decliv decliv 0000 0000 ddecliv ie "add decliv, decliv, ddecliv"
+	*gen_dst++ = 0xe0800000 | (vars[VARP_DECLIV].rnum<<16) | (vars[VARP_DECLIV].rnum<<12) | constp_ddecliv;
 	unsigned const constp_dw = load_constp(CONSTP_DW, -1);
-	*gen_dst++ = 0xe0800100 | (vars[VARP_W].rnum<<16) | (vars[VARP_W].rnum<<12) | constp_dw;	// 1110 0000 1000 varW varW 0001 0000 _DW_ ie "add varW, varW, constpDW lsl #2
+	// 1110 0000 1000 varW varW 0001 0000 _DW_ ie "add varW, varW, constpDW lsl #2
+	*gen_dst++ = 0xe0800100 | (vars[VARP_W].rnum<<16) | (vars[VARP_W].rnum<<12) | constp_dw;
 }
 
 static void next_nopersp(void)
 {
 	do_patch(next_pixel);
-	if (ctx.poly.cmdFacet.use_key) {	// we still have not incremented VARP_W
-		*gen_dst++ = 0xe2800004 | (vars[VARP_W].rnum<<16) | (vars[VARP_W].rnum<<12);	// 1110 0010 1000 varW varW 0000 0000 0100 ie "add varW, varW, #4"
+	if (ctx.poly.cmdFacet.use_key || ctx.poly.cmdFacet.write_z) {	// we still have not incremented VARP_W
+		// 1110 0010 1000 varW varW 0000 0000 0100 ie "add varW, varW, #4"
+		*gen_dst++ = 0xe2800004 | (vars[VARP_W].rnum<<16) | (vars[VARP_W].rnum<<12);
 	}
+}
+
+static void next_z(void)
+{
+	unsigned const constp_dz = load_constp(CONSTP_DZ, -1);
+	// 1110 0000 1000 varZ varZ 0000 0000 _DZ_ ie "add varZ, varZ, rDZ"
+	*gen_dst++ = 0xe0800000 | (vars[VARP_W].rnum<<16) | (vars[VARP_W].rnum<<12) | constp_dz;
 }
 
 static void bloc_def_func(void (*cb)(unsigned))
@@ -706,7 +809,8 @@ static void write_save(void)
 	if (used_set >= 13) {
 		uint32_t sp_save_offset = (uint8_t *)(gen_dst+2) - (uint8_t *)&ctx.code.sp_save;
 		assert(sp_save_offset < 1U<<12);
-		*gen_dst++ = 0xe50fd000 | sp_save_offset;	// 1110 0101 0000 1111 1101 0000 0000 0000 ie "str r13,[r15, #-sp_save_offset]"
+		// 1110 0101 0000 1111 1101 0000 0000 0000 ie "str r13,[r15, #-sp_save_offset]"
+		*gen_dst++ = 0xe50fd000 | sp_save_offset;
 	}
 }
 
@@ -715,10 +819,12 @@ static void write_restore(void)
 	if (used_set >= 13) {
 		uint32_t sp_save_offset = (uint8_t *)(gen_dst+2) - (uint8_t *)&ctx.code.sp_save;
 		assert(sp_save_offset < 1<<12);
-		*gen_dst++ = 0xe51fd000 | sp_save_offset;	// 1110 0101 0001 1111 1101 0000 0000 0000 "ldr r13,[r15, #-sp_save_offset]
+		// 1110 0101 0001 1111 1101 0000 0000 0000 ie "ldr r13,[r15, #-sp_save_offset]
+		*gen_dst++ = 0xe51fd000 | sp_save_offset;
 	}
 	if (used_set > 4) {
-		uint32_t const ldm = 0xe8bd0000;	// 1110 1000 1011 1101 0000 0000 0000 0000 ie "ldmia r13!,{...}"
+		// 1110 1000 1011 1101 0000 0000 0000 0000 ie "ldmia r13!,{...}"
+		uint32_t const ldm = 0xe8bd0000;
 		uint32_t reg_mask;
 		if (used_set > 14) {	// we pushed the back-link, restore it in pc
 			reg_mask = 0x9ff0;
@@ -728,7 +834,8 @@ static void write_restore(void)
 		*gen_dst++ = ldm | reg_mask;
 		if (used_set > 14) return;
 	}
-	*gen_dst++ = 0xe1a0f00e;	// 1110 0001 1010 0000 1111 0000 0000 1110 ie "mov r15, r14"
+	// 1110 0001 1010 0000 1111 0000 0000 1110 ie "mov r15, r14"
+	*gen_dst++ = 0xe1a0f00e;
 }
 
 static void write_reg_preload(void)
@@ -738,7 +845,8 @@ static void write_reg_preload(void)
 		if (vars[v].rnum != -1) {
 			if (v == VARP_OUTCOLOR) continue;
 			uint32_t offset = offset12(v);
-			*gen_dst++ = 0xe51f0000 | (vars[v].rnum<<12) | offset;	// 1110 0101 0001 1111 _Rd_ 0000 0000 0000 ie "ldr Rd,[r15, #-offset]"
+			// 1110 0101 0001 1111 _Rd_ 0000 0000 0000 ie "ldr Rd,[r15, #-offset]"
+			*gen_dst++ = 0xe51f0000 | (vars[v].rnum<<12) | offset;
 		}
 	}
 }
