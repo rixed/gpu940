@@ -14,7 +14,6 @@ gpu940_SOURCES = \
 	text.h \
 	raster.c \
 	raster.h \
-	draw_line.gp2x.S \
 	crt0.S \
 	mydiv.c \
 	codegen.c \
@@ -24,13 +23,6 @@ gpu940_LDADD = ../console/libconsole.a ../perftime/libperftime.a ../lib/fixmath.
 load940_SOURCES = load940.c
 
 if GP2X
-# Trick to use the context structure from within .S files
-writeoffs: writeoffs.c gpu940i.h ../include/gpu940.h
-#	$(CC) $(CFLAGS) $(AM_CFLAGS) $(LDFLAGS) $(AM_LDFLAGS) -std=c99 -Wall -W -o writeoffs writeoffs.c
-	@HOST_CC@ -std=c99 -Wall -W -o $@ $< -I$(top_srcdir)/include
-offsets.S: writeoffs $(top_srcdir)/include/gpu940.h $(top_srcdir)/bin/gpu940i.h
-	./$< > $@
-draw_line.gp2x.o: offsets.S
 
 OBJCOPY = $(GP2XDEVDIR)/bin/arm-linux-objcopy
 OBJDUMP = $(GP2XDEVDIR)/bin/arm-linux-objdump

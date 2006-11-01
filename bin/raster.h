@@ -19,6 +19,5 @@
 #define RASTER_H_060928
 
 void raster_gen(void);
-void draw_line_c(void);
 
 #endif

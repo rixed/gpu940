@@ -18,11 +18,11 @@
 #ifndef MYLIB_H_060323
 #define MYLIB_H_060323
 #include <stdlib.h>
+#include <stdint.h>
 #include "../config.h"
 
 void my_memset(void *dst, int value, size_t size);
+void my_memset_words(uint32_t *dst, uint32_t value, unsigned nb_words);
 void my_memcpy(void *restrict dst, void const *restrict src, size_t size);
-int32_t my_sqrt(int32_t n /* 16.16 */);
-void my_print(char const *str);
 
 #endif

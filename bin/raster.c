@@ -16,7 +16,6 @@
  * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
  */
 #include "gpu940i.h"
-#include "text.h"
 
 /*
  * Data Definitions
@@ -189,16 +188,4 @@ next_pixel:
 		}
 	} while (--count >= 0);
 }
-
-#ifndef GP2X
-void draw_line_c(void) {
-	uint32_t *restrict w = ctx.line.w;
-	int count = ctx.line.count;
-	do {
-//		if (start_poly) *w = ctx.poly.scan_dir ? 0x3e0 : 0xf800; else
-		*w = ctx.poly.cmdFacet.color;
-		w = (uint32_t *)((uint8_t *)w + ctx.line.dw);
-	} while (--count >= 0);
-}
-#endif
 

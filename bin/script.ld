@@ -7,7 +7,6 @@ SECTIONS {
 		clip.o(.text)
 		raster.o(.text)
 		poly.o(.text)
-		draw_line.gp2x.o(.text)
 		text.o(.text)
 		fixmath.o(.text)
 		mydiv.o(.text)

@@ -365,15 +365,12 @@ static void do_facet(void) {
 static void do_rect(void) {
 	read_from_cmdBuf(&allCmds.rect, sizeof(allCmds.rect));
 	// TODO: add clipping against winPos ?
-	ctx.line.count = allCmds.rect.width;
-	ctx.line.dw = 4;
-	ctx.poly.cmdFacet.color = allCmds.rect.value;
-	ctx.line.w = allCmds.rect.relative_to_window ?
+	uint32_t *dst = allCmds.rect.relative_to_window ?
 		location_winPos(allCmds.rect.type, allCmds.rect.pos[0], allCmds.rect.pos[1]) :
 		location_pos(allCmds.rect.type, allCmds.rect.pos[0], allCmds.rect.pos[1]);
 	for (unsigned h=allCmds.rect.height; h--; ) {
-		draw_line_c();	// TODO: replace with my_memset_long(dst, value, nb_words);
-		ctx.line.w += 1 << ctx.location.buffer_loc[allCmds.rect.type].width_log;
+		my_memset_words(dst, allCmds.rect.value, allCmds.rect.width);
+		dst += 1 << ctx.location.buffer_loc[allCmds.rect.type].width_log;
 	}
 }
 static void do_zmode(void) {

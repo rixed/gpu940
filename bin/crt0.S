@@ -1,12 +1,12 @@
    .text
 #ifdef GP2X
-#include "offsets.S"
 	.align
-	.global _start
+/*	.global _start
 	.global _icache_flush
 	.global _dcache_flush
 	.global _icache_prefetch
-	.global _dbuffer_drain
+	.global _dbuffer_drain*/
+	.global my_memset_words
 
 _start:
 	b _reset @ Reset
@@ -97,6 +97,32 @@ _dbuffer_drain:
 	mov r0, #0
 	mcr p15, 0, r0, c7, c10, 4	
 	bx lr
+
+my_memset_words:	// r0 = dst, r1 = value, r2 = count
+	cmp r2, #11
+	bls 1f
+	stmfd sp!, {r4-r12}
+	mov r3, r1
+	mov r4, r1
+	mov r5, r1
+	mov r6, r1
+	mov r7, r1
+	mov r8, r1
+	mov r9, r1
+	mov r10, r1
+	mov r11, r1
+	mov r12, r1
+0:
+	subs r2, r2, #11
+	stmhsia r0!, {r1,r3-r12}
+	bhi 0b
+	add r2, r2, #11
+	ldmfd sp!, {r4-r12}
+1:
+	subs r2, r2, #1
+	strhs r1, [r0], #4
+	bhi 1b
+	mov pc, lr
 
 	.pool
 #endif

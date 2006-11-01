@@ -21,7 +21,8 @@
 #	include <unistd.h>
 #endif
 
-void my_memset(void *dst, int value, size_t size) {
+void my_memset(void *dst, int value, size_t size)
+{
 	while (size >= sizeof(int)) {
 		int *restrict d = dst;
 		*d = value;
@@ -34,7 +35,18 @@ void my_memset(void *dst, int value, size_t size) {
 		dst = d+1;
 	}
 }
-void my_memcpy(void *restrict dst, void const *restrict src, size_t size) {
+
+#ifndef GP2X
+void my_memset_words(uint32_t *dst, uint32_t value, unsigned nb_words)
+{
+	while (nb_words--) {
+		*dst++ = value;
+	}
+}
+#endif
+
+void my_memcpy(void *restrict dst, void const *restrict src, size_t size)
+{
 	while (size >= sizeof(int)) {
 		int *restrict d = dst;
 		int const *restrict s = src;
@@ -50,23 +62,5 @@ void my_memcpy(void *restrict dst, void const *restrict src, size_t size) {
 		dst = d+1;
 		src = s+1;
 	}
-}
-
-void my_print(char const *str) {
-	int len = 0;
-	while ('\0' != str[len]) len++;
-#ifdef GP2X
-	__asm__ volatile (
-		"mov r0, #1\n"      // stdout
-		"mov r1, %0\n"      // the string
-		"mov r2, %1\n"      // the length
-		"swi #0x900004\n"   // write
-		:
-		: "r"(str), "r"(len)
-		: "r0", "r1", "r2"
-	);
-#else
-	(void)write(1, str, len);
-#endif
 }
 
