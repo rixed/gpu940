@@ -85,8 +85,11 @@ static void preload_flat(void);
 static void begin_write_loop(void);
 static void begin_pixel_loop(void);
 static void end_write_loop(void);
-static void zbuffer_persp(void);
+static void ztest_persp(void);
+static void ztest_nopersp(void);
+static void peek_flat(void);
 static void peek_text(void);
+static void peek_smooth(void);
 static void key_test(void);
 static void intens(void);
 static void poke_persp(void);
@@ -128,19 +131,19 @@ struct {
 		.write_code = end_write_loop,
 	}, {	// zbuffer test
 #		define ZBUFFER_PERSP 5
-		.working_set = 1,	// to read former z
+		.working_set = 2,
 		.needed_vars = CONSTP_Z_M|VARP_W_M|VARP_DECLIV_M|CONSTP_OUT2ZB_M,	// WHISH: we will need to compute w+decliv in the work_register. find a way to keep it for POKE?
-		.write_code = zbuffer_persp,
+		.write_code = ztest_persp,
 	}, {	// zbuffer test
 #		define ZBUFFER_NOPERSP 6
-		.working_set = 1,	// to read former z
+		.working_set = 1,
 		.needed_vars = VARP_Z_M,
-		.write_code = NULL,	// TODO
+		.write_code = ztest_nopersp,
 	}, {	// peek flat
 #		define PEEK_FLAT 7
 		.working_set = 0,
 		.needed_vars = CONSTP_COLOR_M,
-		.write_code = NULL,	// TODO (constp_color -> varp_outcolor)
+		.write_code = peek_flat,
 	}, {	// peek texel
 #		define PEEK_TEXT 8
 		.working_set = 3,
@@ -150,12 +153,12 @@ struct {
 #		define KEY_TEST 9
 		.working_set = 0,
 		.needed_vars = VARP_OUTCOLOR_M|CONSTP_KEY_M,
-		.write_code = key_test,	// TODO
+		.write_code = key_test,
 	}, {	// peek smooth
 #		define PEEK_SMOOTH 10
 		.working_set = 1,	// intermediate value
 		.needed_vars = VARP_OUTCOLOR_M|VARP_R_M|VARP_G_M|VARP_B_M|CONSTP_DR_M|CONSTP_DG_M|CONSTP_DB_M,
-		.write_code = NULL,	// TODO
+		.write_code = peek_smooth,
 	}, {	// intens
 #		define INTENS 11
 		.working_set = 1,	// intermediate value
@@ -347,19 +350,53 @@ static unsigned load_constp(unsigned v, int rtmp)
 	}
 }
 
-static void zbuffer_persp(void)
+static uint32_t z_mode_cond(void)
 {
-	// compute W+DECLIV
-	unsigned const rtmp1 = 0, rtmp2 = 1;
-	*gen_dst++ = 0xe1a00840 | (rtmp1<<12) | vars[VARP_DECLIV].rnum;	// 1110 0001 1010 0000 Tmp1 1000 0100 Decliv  ie "mov Rtmp1, Rdecliv, asr #16"
-	unsigned const rout2zb = load_constp(CONSTP_OUT2ZB, rtmp2);
-	*gen_dst++ = 0xe0800000 | (rout2zb<<16) | (rtmp2<<12) | vars[VARP_W].rnum;	// 1110 0000 1000 out2z tmp2 0000 0000 _Rw_ ie "add Rtmp2, Rout2zb, Rw" oubien "ldr Rtmp2, [r15, #-offset_out2zb]" d'abord et Rtmp2 a la place de Rout2zb
-	// read Z
-	*gen_dst++ = 0xe7900000 | (rtmp2<<16) | (rtmp1<<12) | ((ctx.poly.nc_log+2)<<7) | rtmp1;	// 1110 0111 1001 tmp2 tmp1 nclo g000 tmp1  ie "ldr Rtmp1, [Rtmp2, Rtmp1, lsl #(nc_log+2)]"
-	// TODO
-	// compare
-	// ie "cmp Rz, Rtmp1" oubien "ldr Rtmp2, [r15, #-offset_constp_z]" d'abord et Rtmp2 a la place de Rz
-	// ie "bZOP XXXXX" branch to next_pixel
+	switch (ctx.rendering.z_mode) {
+		case gpu_z_lt:
+			return 11<<28;
+		case gpu_z_eq:
+			return 0;
+		case gpu_z_ne:
+			return 1<<28;
+		case gpu_z_lte:
+			return 13<<28;
+		case gpu_z_gt:
+			return 12<<28;
+		case gpu_z_gte:
+			return 10<<28;
+		default:
+			assert(0);
+	}
+	return 0;
+}
+
+static void write_z_test(void)	// come here with zb in r0
+{
+	unsigned const tmp1 = 0;
+	*gen_dst++ = 0xe1500000 | (vars[VARP_Z].rnum<<16) | tmp1;	// 1110 0001 0101 _RZ_ 0000 0000 0000 tmp1 ie "cmp rz, tmp1"
+	add_patch(offset_24, next_pixel);
+	*gen_dst++ = 0x0a000000 | z_mode_cond();	// ie "bZOP XXXXX" branch to next_pixel
+}
+
+static void ztest_persp(void)
+{
+	assert(nb_pixels_per_loop == 1);
+	unsigned const tmp1 = 0, tmp2 = 1;
+	*gen_dst++ = 0xe1a00840 | (tmp1<<12) | vars[VARP_DECLIV].rnum;	// 1110 0001 1010 0000 tmp1 1000 0100 Decliv  ie "mov tmp1, decliv, asr #16"
+	unsigned const constp_out2zb = load_constp(CONSTP_OUT2ZB, tmp2);
+	*gen_dst++ = 0xe0800100 | (vars[VARP_W].rnum<<16) | (tmp2<<12) | constp_out2zb;	// 1110 0000 1000 _RW_ tmp2 0001 0000 out2zb ie "add tmp2, Rw, out2zb, lsl #2"
+	*gen_dst++ = 0xe7900000 | (tmp2<<16) | (tmp1<<12) | ((ctx.poly.nc_log+2)<<7) | tmp1;	// 1110 0111 1001 tmp2 tmp1 nclo g000 tmp1  ie "ldr tmp1, [tmp2, tmp1, lsl #(nc_log+2)]"
+	write_z_test();
+}
+
+static void ztest_nopersp(void)
+{
+	assert(nb_pixels_per_loop == 1);
+	unsigned const tmp1 = 0;
+	unsigned const constp_out2zb = load_constp(CONSTP_OUT2ZB, tmp1);
+	*gen_dst++ = 0xe7900100 | (vars[VARP_W].rnum<<16) | (tmp1<<12) | constp_out2zb;	// 1110 0111 1001 _RW_ tmp1 0001 0000 out2zb ie "ldr tmp1, [Rw, out2zb, lsl #2]"
+	write_z_test();
 }
 
 static void write_mov_immediate(unsigned r, uint32_t imm)
@@ -407,6 +444,25 @@ static void peek_text(void)
 		// load constp_dv, possibly in tmp2
 		unsigned const constp_dv = load_constp(CONSTP_DV, tmp2);
 		*gen_dst++ = 0xe0800000 | (vars[VARP_V].rnum<<16) | (vars[VARP_V].rnum<<12) | constp_dv;	// 1110 0000 1000 varV varV 0000 0000 _DV_ ie "add varp_v, varp_v, constp_dv"
+	}
+}
+
+static void peek_smooth(void)
+{
+	// For GP2X, r,g,b are y,u,v, and must be stored : VYUY (that is : BRGR)
+	// we omit the second 'R', giving B0GR
+	unsigned tmp1 = 0;
+	for (unsigned p=0; p<nb_pixels_per_loop; p++) {
+		*gen_dst++ = 0xe2000cff | (vars[VARP_G].rnum<<16) | (vars[VARP_OUTCOLOR].rnum<<12);	// 1110 0010 0000 varG rcol 1100 1111 1111 ie "and rcol, varG, #0xff00"
+		*gen_dst++ = 0xe1800420 | (vars[VARP_OUTCOLOR].rnum<<16) | (vars[VARP_OUTCOLOR].rnum<<12) | vars[VARP_R].rnum;	// 1110 0001 1000 rcol rcol 0100 0010 varR ie "orr rcol, rcol, varR, lsr #8"
+		*gen_dst++ = 0xe2000cff | (vars[VARP_B].rnum<<16) | (tmp1<<12);	// 1110 0010 0000 varG rcol 1100 1111 1111 ie "and tmp1, varB, #0xff00"
+		*gen_dst++ = 0xe1800800 | (vars[VARP_OUTCOLOR].rnum<<16) | (vars[VARP_OUTCOLOR].rnum<<12) | tmp1;	// 1110 0001 1000 rcol rcol 1000 0000 tmp1 ie "orr rcol, rcol, tmp1, lsl #16"
+		unsigned const constp_dr = load_constp(CONSTP_DR, tmp1);
+		*gen_dst++ = 0xe0800000 | (vars[VARP_R].rnum<<16) | (vars[VARP_R].rnum<<12) | constp_dr;  // 1110 0000 1000 varV varV 0000 0000 _DV_ie "add varR, varR, constp_DR"
+		unsigned const constp_dg = load_constp(CONSTP_DG, tmp1);
+		*gen_dst++ = 0xe0800000 | (vars[VARP_G].rnum<<16) | (vars[VARP_G].rnum<<12) | constp_dg;  // 1110 0000 1000 varV varV 0000 0000 _DV_ie "add varG, varG, constp_DG"
+		unsigned const constp_db = load_constp(CONSTP_DB, tmp1);
+		*gen_dst++ = 0xe0800000 | (vars[VARP_B].rnum<<16) | (vars[VARP_B].rnum<<12) | constp_db;  // 1110 0000 1000 varV varV 0000 0000 _DV_ie "add varB, varB, constp_DB"
 	}
 }
 
@@ -687,6 +743,11 @@ static void write_reg_preload(void)
 	}
 }
 
+static void peek_flat(void)
+{
+	load_constp(CONSTP_COLOR, vars[VARP_OUTCOLOR].rnum);
+}
+
 static void write_block(unsigned block)
 {
 	if (NULL != code_bloc_defs[block].write_code) {
@@ -752,9 +813,9 @@ void build_code(unsigned cache)
 	bloc_def_func(look_regs);
 	alloc_regs();
 	write_all();
+#	if defined(TEST_RASTERIZER) && !defined(GP2X)
 	unsigned nb_words = gen_dst - ctx.code.caches[cache].buf;
 	assert(nb_words < sizeof_array(ctx.code.caches[cache].buf));
-#	if defined(TEST_RASTERIZER) && !defined(GP2X)
 	static char fname[PATH_MAX];
 	snprintf(fname, sizeof(fname), "/tmp/codegen_%"PRIu64, ctx.code.caches[cache].rendering_key);
 	int fd = open(fname, O_WRONLY|O_CREAT, 0644);

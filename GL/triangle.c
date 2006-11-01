@@ -149,6 +149,7 @@ int gli_triangle_begin(void)
 	cmdFacet.size = 3;
 	cmdFacet.use_key = 0;
 	cmdFacet.use_intens = 0;
+	cmdFacet.blend_coef = 0;
 	cmdFacet.perspective = 0;
 	cmdFacet.write_out = 1;
 	cmdFacet.write_z = 0;

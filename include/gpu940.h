@@ -210,7 +210,11 @@ uint32_t gpuReadErr(void);
 gpuErr gpuLoadImg(struct buffer_loc const *loc, uint8_t (*rgb)[3], unsigned lod);
 static inline int32_t Fix_gpuColor1(int32_t r, int32_t g, int32_t b) {
 #ifdef GP2X
-	return Fix_mul(16843, r) + Fix_mul(33030, g) + Fix_mul(6423, b) + (16<<16);
+	unsigned r_ = r & 0xff00;
+	unsigned g_ = g & 0xff00;
+	unsigned b_ = b & 0xff00;
+	uint32_t y = ((r_<<1)+g_+b_+(r_<<6)+(g_<<7)+(b_<<3)+(b_<<4)+0x108000U)&0xFF0000U;
+	return y >> 8;
 #else
 	(void)g;
 	(void)b;
@@ -219,7 +223,11 @@ static inline int32_t Fix_gpuColor1(int32_t r, int32_t g, int32_t b) {
 }
 static inline int32_t Fix_gpuColor2(int32_t r, int32_t g, int32_t b) {
 #ifdef GP2X
-	return -Fix_mul(9699, r) - Fix_mul(19071, g) + Fix_mul(28770, b) + (128<<16);
+	unsigned r_ = r & 0xff00;
+	unsigned g_ = g & 0xff00;
+	unsigned b_ = b & 0xff00;
+	uint32_t u = ((b_>>1)-(b_>>4)-(r_>>3)-(r_>>6)-(r_>>7)-(g_>>2)-(g_>>5)-(g_>>7)+0x8080U)&0xFF00U;
+	return u;
 #else
 	(void)r;
 	(void)b;
@@ -228,7 +236,11 @@ static inline int32_t Fix_gpuColor2(int32_t r, int32_t g, int32_t b) {
 }
 static inline int32_t Fix_gpuColor3(int32_t r, int32_t g, int32_t b) {
 #ifdef GP2X
-	return Fix_mul(28770, r) - Fix_mul(24117, g) - Fix_mul(4653, b) + (128<<16);
+	unsigned r_ = r & 0xff00;
+	unsigned g_ = g & 0xff00;
+	unsigned b_ = b & 0xff00;
+	uint32_t v = ((r_<<15)-(r_<<12)-(g_<<13)-(g_<<14)+(g_<<9)-(b_<<12)-(b_<<9)+0x80800000U)&0xFF000000U;
+	return v >> 16;
 #else
 	(void)r;
 	(void)g;
