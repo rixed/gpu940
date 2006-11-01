@@ -80,6 +80,7 @@ int main(void) {
 		.use_intens = 1,
 		.perspective = 1,
 		.use_key = 0,
+		.blend_coef = 0,
 		.write_out = 1,
 		.write_z = 0,
 		.cull_mode = GPU_CCW,

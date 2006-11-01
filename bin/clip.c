@@ -180,8 +180,6 @@ int clip_poly(void)
 	switch (ctx.poly.cmdFacet.rendering_type) {
 		case rendering_flat:
 			break;
-		case rendering_shadow:
-			if (! ctx.poly.cmdFacet.use_key) break;
 		case rendering_text:
 			ctx.poly.nb_params = 2;
 			break;

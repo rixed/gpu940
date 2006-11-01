@@ -145,6 +145,7 @@ static void send_facet(unsigned v0) {
 		.rendering_type = rendering_text,
 		.use_key = 0,
 		.use_intens = 1,
+		.blend_coef = 0,
 		.perspective = 1,
 		.cull_mode = 0,
 		.write_out = 1,

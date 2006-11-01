@@ -101,7 +101,7 @@ typedef enum {
 
 struct buffer_loc {
 	uint32_t address;	// in words, from shared->buffers
-	uint32_t width_log;	// width in pixels ; must be <= 10 (for a max of 2^10=1024 pixels)
+	uint32_t width_log;	// width in pixels ; must be <= 18
 	uint32_t height;
 };
 
@@ -144,18 +144,17 @@ enum gpuRenderingType {
 	rendering_flat,	// use facet color for flat rendering
 	rendering_text,	// use u,v for textured rendering
 	rendering_smooth,	// use vectors r,g,b and interpolate
-	rendering_shadow,	// use facet shadow for changing ilum
 	GPU_NB_RENDERING_TYPES
 };
 typedef struct {
 	gpuOpcode opcode;
 	uint32_t size;	// >=3
 	uint32_t color;	// used for flat rendering or keyed textures
-	int32_t shadow;	// used for shadow rendering
 	uint32_t rendering_type:2;
 	uint32_t use_key:1;
 	uint32_t use_intens:1;
 	uint32_t perspective:1;
+	uint32_t blend_coef:4;	// if 0, opaque. If 15, much blend (16 would mean keep current value)
 #	define GPU_CW 1
 #	define GPU_CCW 2
 	uint32_t cull_mode:2;	// bit 0 for direct (counter clock-wise), bit 1 for indirect (clock-wise)

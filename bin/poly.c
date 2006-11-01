@@ -74,53 +74,6 @@ static void draw_line(void) {
 		ctx.line.w = location_winPos(gpuOutBuffer, ctx.poly.nc_declived>>16, c_start);
 		ctx.line.dw <<= ctx.location.buffer_loc[gpuOutBuffer].width_log;
 	}
-#if 0
-	static draw_line_t const draw_lines[2][GPU_NB_RENDERING_TYPES] = {
-		{ draw_line_c, draw_line_ci, draw_line_uv, draw_line_uvi_lin, draw_line_uvk, draw_line_cs, draw_line_shadow, draw_line_uvk_shadow },	// no perspective
-		{ draw_line_c, draw_line_ci, draw_line_uv, draw_line_uvi, draw_line_uvk, draw_line_cs, draw_line_shadow, draw_line_uvk_shadow }	// perspective
-	};
-#ifdef GP2X
-	{	// patch code
-		bool patched = false;
-		// nc_log
-		extern uint16_t patch_uv_nc_log, patch_ci_nc_log, patch_uvi_nc_log;
-		static uint32_t nc_log = ~0;
-		if (ctx.poly.nc_log != nc_log) {
-			patched = true;
-			nc_log = ctx.poly.nc_log;
-			patch_uv_nc_log = patch_ci_nc_log = patch_uvi_nc_log = 0x2001 | (nc_log<<7);
-		}
-		extern uint32_t patch_uv_dw, patch_ci_dw, patch_uvi_dw;
-		static int32_t dw = ~0;
-		if (ctx.line.dw != dw) {
-			patched = true;
-			dw = ctx.line.dw;
-			int sign = 0x80;
-			int dw_imm = dw;
-			int dw_rot = 0;
-			if (dw < 0) {
-				sign = 0x40;
-				dw_imm = -dw_imm;
-			}
-			while (dw_imm > 256) {
-				dw_imm >>= 2;
-				dw_rot ++;
-			}
-			if (dw_rot) dw_rot = 16-dw_rot;	// rotate right
-			patch_uv_dw = patch_ci_dw = patch_uvi_dw = 0xe2000000 | (sign<<16) | (dw_rot<<8) | dw_imm;
-		}
-		if (patched) {
-			__asm__ volatile (	// Drain write buffer then fush ICache
-				"mov r0, #0\n"
-				"mcr p15, 0, r0, c7, c10, 4\n"
-				"mcr p15, 0, r0, c7, c5, 0\n"
-				:::"r0"
-			);
-		}
-	}
-#endif
-	draw_lines[ctx.poly.cmdFacet.perspective][ctx.poly.cmdFacet.rendering_type]();
-#endif
 	// if GP2x, call code_cached routine
 #ifdef GP2X
 	jit_exec();

@@ -318,7 +318,7 @@ static void do_setBuf(void) {
 		return;
 	}
 	my_memcpy(&ctx.location.buffer_loc[allCmds.setBuf.type], &allCmds.setBuf.loc, sizeof(*ctx.location.buffer_loc));
-	if (ctx.location.buffer_loc[allCmds.setBuf.type].width_log > 10) {
+	if (ctx.location.buffer_loc[allCmds.setBuf.type].width_log > 18) {
 		set_error_flag(gpuEPARAM);
 		return;
 	}

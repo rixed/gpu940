@@ -53,32 +53,30 @@
 #define CONSTP_OUT_M (1<<CONSTP_OUT)
 #define CONSTP_TEXT 14
 #define CONSTP_TEXT_M (1<<CONSTP_TEXT)
-#define CONSTP_SHADOW 15
-#define CONSTP_SHADOW_M (1<<CONSTP_SHADOW)
-#define MAX_CONSTP CONSTP_SHADOW
+#define MAX_CONSTP CONSTP_TEXT
 #define MIN_CONSTP CONSTP_DW
 
-#define VARP_W 16
+#define VARP_W 15
 #define VARP_W_M (1<<VARP_W)
-#define VARP_DECLIV 17
+#define VARP_DECLIV 16
 #define VARP_DECLIV_M (1<<VARP_DECLIV)
-#define VARP_Z 18
+#define VARP_Z 17
 #define VARP_Z_M (1<<VARP_Z)
-#define VARP_U 19
+#define VARP_U 18
 #define VARP_U_M (1<<VARP_U)
-#define VARP_V 20
+#define VARP_V 19
 #define VARP_V_M (1<<VARP_V)
-#define VARP_R 21
+#define VARP_R 20
 #define VARP_R_M (1<<VARP_R)
-#define VARP_G 22
+#define VARP_G 21
 #define VARP_G_M (1<<VARP_G)
-#define VARP_B 23
+#define VARP_B 22
 #define VARP_B_M (1<<VARP_B)
-#define VARP_I 24
+#define VARP_I 23
 #define VARP_I_M (1<<VARP_I)
-#define VARP_COUNT 25
+#define VARP_COUNT 24
 #define VARP_COUNT_M (1<<VARP_COUNT)
-#define VARP_OUTCOLOR 26
+#define VARP_OUTCOLOR 25
 #define VARP_OUTCOLOR_M (1<<VARP_OUTCOLOR)
 #define MAX_VARP VARP_OUTCOLOR
 #define MIN_VARP VARP_W
@@ -89,10 +87,14 @@ static void begin_pixel_loop(void);
 static void end_write_loop(void);
 static void zbuffer_persp(void);
 static void peek_text(void);
+static void key_test(void);
 static void intens(void);
 static void poke_persp(void);
+static void combine_persp(void);
+static void combine_nopersp(void);
 static void poke_nopersp(void);
 static void next_persp(void);
+static void next_nopersp(void);
 
 struct {
 	unsigned working_set;	// how many regs are required for internal computations
@@ -139,16 +141,16 @@ struct {
 		.working_set = 0,
 		.needed_vars = CONSTP_COLOR_M,
 		.write_code = NULL,	// TODO (constp_color -> varp_outcolor)
-	}, {	// peek text without key
+	}, {	// peek texel
 #		define PEEK_TEXT 8
 		.working_set = 3,
 		.needed_vars = VARP_OUTCOLOR_M|VARP_U_M|VARP_V_M|CONSTP_DU_M|CONSTP_DV_M|CONSTP_TEXT_M,
 		.write_code = peek_text,
-	}, {	// peed text with key
+	}, {	// test against key color
 #		define KEY_TEST 9
 		.working_set = 0,
-		.needed_vars = CONSTP_KEY_M,
-		.write_code = NULL,	// TODO
+		.needed_vars = VARP_OUTCOLOR_M|CONSTP_KEY_M,
+		.write_code = key_test,	// TODO
 	}, {	// peek smooth
 #		define PEEK_SMOOTH 10
 		.working_set = 1,	// intermediate value
@@ -159,43 +161,48 @@ struct {
 		.working_set = 1,	// intermediate value
 		.needed_vars = VARP_OUTCOLOR_M|VARP_I_M|CONSTP_DI_M,
 		.write_code = intens,
-	}, {	// shadow
-#		define SHADOW 12
-		.working_set = 2,	// former color + intermediate value
-		.needed_vars = VARP_OUTCOLOR_M|CONSTP_SHADOW_M,
-		.write_code = NULL,	// TODO
+	}, {	// combine
+#		define COMBINE_PERSP 12
+		.working_set = 5,
+		.needed_vars = VARP_OUTCOLOR_M|VARP_W_M|VARP_DECLIV_M,
+		.write_code = combine_persp,
 	}, {
-#		define POKE_OUT_PERSP 13
+#		define COMBINE_NOPERSP 13
+		.working_set = 4,
+		.needed_vars = VARP_OUTCOLOR_M|VARP_W_M,
+		.write_code = combine_nopersp,
+	}, {
+#		define POKE_OUT_PERSP 14
 		.working_set = 1,
-		.needed_vars = VARP_W_M|VARP_DECLIV_M,
+		.needed_vars = VARP_OUTCOLOR_M|VARP_W_M|VARP_DECLIV_M,
 		.write_code = poke_persp,
 	}, {
-#		define POKE_OUT_NOPERSP 14
+#		define POKE_OUT_NOPERSP 15
 		.working_set = 0,
-		.needed_vars = VARP_W_M,
+		.needed_vars = VARP_OUTCOLOR_M|VARP_W_M,
 		.write_code = poke_nopersp,
 	}, {
-#		define POKE_Z_PERSP 15
+#		define POKE_Z_PERSP 16
 		.working_set = 0,
 		.needed_vars = VARP_W_M|CONSTP_Z_M|VARP_DECLIV_M,
 		.write_code = NULL,	// TODO
 	}, {
-#		define POKE_Z_NOPERSP 16
+#		define POKE_Z_NOPERSP 17
 		.working_set = 0,
 		.needed_vars = VARP_W_M|VARP_Z_M|VARP_DECLIV_M,
 		.write_code = NULL,	// TODO
 	}, {
-#		define NEXT_PERSP 17
+#		define NEXT_PERSP 18
 		.working_set = 0,
 		.needed_vars = VARP_W_M|VARP_DECLIV_M|CONSTP_DW_M|CONSTP_DDECLIV_M,
 		.write_code = next_persp,
 	}, {
-#		define NEXT_NOPERSP 18
+#		define NEXT_NOPERSP 19
 		.working_set = 0,
 		.needed_vars = VARP_W_M,
-		.write_code = NULL,
+		.write_code = next_nopersp,
 	}, {
-#		define NEXT_Z 19
+#		define NEXT_Z 20
 		.working_set = 0,
 		.needed_vars = VARP_Z_M|CONSTP_DZ_M,
 		.write_code = NULL,	// TODO
@@ -229,7 +236,6 @@ static struct {
 	{ .offset = offsetof(struct ctx, code.out2zb), },
 	{ .offset = offsetof(struct ctx, code.buff_addr[gpuOutBuffer]), },
 	{ .offset = offsetof(struct ctx, code.buff_addr[gpuTxtBuffer]), },
-	{ .offset = offsetof(struct ctx, poly.cmdFacet.shadow), },
 	{ .offset = offsetof(struct ctx, line.w), },
 	{ .offset = offsetof(struct ctx, line.decliv), },
 	{ .offset = 0 },	// VARP_Z = 18
@@ -243,11 +249,39 @@ static struct {
 	{ .offset = 0 },	// VARP_OUTCOLOR, no offset
 };
 static uint32_t *gen_dst, *write_loop_begin, *pixel_loop_begin;
-static uint32_t *patch_bh;
+static unsigned nb_patches;
+struct patches {
+	uint32_t *addr;
+	enum patch_type { offset_24 } type;
+	enum patch_target { next_pixel } target;
+} patches[5];
 
 /*
  * Private Functions
  */
+
+static void add_patch(enum patch_type type, enum patch_target target)
+{
+	assert(nb_patches < sizeof_array(patches));
+	patches[nb_patches].addr = gen_dst;
+	patches[nb_patches].type = type;
+	patches[nb_patches].target = target;
+	nb_patches++;
+}
+
+static void do_patch(enum patch_target target)
+{
+	for (unsigned p=0; p<nb_patches; p++) {
+		if (patches[p].target == target) {
+			int32_t offset = gen_dst - patches[p].addr;	// in words!
+			switch (patches[p].type) {
+				case offset_24:
+					*patches[p].addr |= (offset-2) & 0xffffff;
+					break;
+			}
+		}
+	}
+}
 
 static void preload_flat(void)
 {
@@ -334,7 +368,10 @@ static void write_mov_immediate(unsigned r, uint32_t imm)
 	imm >>= 8;
 	int rot = -8;
 	while (imm) {
-		*gen_dst++ = 0xe3800000 | (r<<16) | (r<<12) | (((32+rot)/2)<<8) | (imm&0xff);	// 1110 0011 1000 RegR RegR rotI mask mask ie "orr r, r, mask<<8"
+		uint8_t b = imm&0xff;
+		if (b) {
+			*gen_dst++ = 0xe3800000 | (r<<16) | (r<<12) | (((32+rot)/2)<<8) | b;	// 1110 0011 1000 RegR RegR rotI mask mask ie "orr r, r, mask<<8"
+		}
 		imm >>= 8;
 		rot -= 8;
 	}
@@ -373,13 +410,21 @@ static void peek_text(void)
 	}
 }
 
+static void key_test(void)
+{
+	unsigned const constp_key = load_constp(CONSTP_KEY, -1);
+	*gen_dst++ = 0xe1500000 | (vars[VARP_OUTCOLOR].rnum<<16) | constp_key;	// 1110 0001 0101 rcol 0000 0000 0000 rkey ie "cmp rcol, rkey"
+	add_patch(offset_24, next_pixel);
+	*gen_dst++ = 0x0a000000;	// 0000 1010 0000 0000 0000 0000 0000 0000 ie "beq XXX"
+}
+
 static void intens(void)
 {
 	unsigned tmp1 = 0;
 	for (unsigned p=0; p<nb_pixels_per_loop; p++) {
 		unsigned rcol = outcolor_rnum(p);
 		*gen_dst++ = 0xe20000ff | (rcol<<16) | (tmp1<<12);	// 1110 0010 0000 rcol tmp1 0000 1111 1111 ie "and tmp1, rcol, #0xff" ie tmp1 = Y component
-		*gen_dst++ = 0xe0900b40 | (tmp1<<16) | (tmp1<<12) | vars[VARP_I].rnum; // 1110 0000 1001 tmp1 tmp1 1011 0100 varI ie "adds tmp1, tmp1, varI, asr #22"	// r2 = Y + intens
+		*gen_dst++ = 0xe0900b40 | (tmp1<<16) | (tmp1<<12) | vars[VARP_I].rnum; // 1110 0000 1001 tmp1 tmp1 1011 0100 varI ie "adds tmp1, tmp1, varI, asr #22"	// tmp1 = Y + intens
 		*gen_dst++ = 0x43a00000 | (tmp1<<12);	// 0100 0011 1010 0000 tmp1 0000 0000 0000 ie "movmi tmp1, #0" ie saturate
 		*gen_dst++ = 0xe3500c01 | (tmp1<<16);	// 1110 0011 0101 tmp1 0000 1100 0000 0001 ie "cmp tmp1, #0x100"
 		*gen_dst++ = 0x53a000ff | (tmp1<<12);	// 0101 0011 1010 0000 tmp1 0000 1111 1111 ie "movpl tmp1, #0xff"
@@ -393,27 +438,84 @@ static void intens(void)
 static void poke_persp(void)
 {
 	assert(nb_pixels_per_loop == 1);
-	unsigned tmp1 = 0;
+	unsigned const tmp1 = 0;
 	*gen_dst++ = 0xe1a00840 | (tmp1<<12) | vars[VARP_DECLIV].rnum;	// 1110 0001 1010 0000 tmp1 1000 0100 decliv ie "mov tmp1, decliv, asr #16" ie tmp1 = decliv>>16
 	*gen_dst++ = 0xe7800000 | (vars[VARP_W].rnum<<16) | (vars[VARP_OUTCOLOR].rnum<<12) | ((ctx.poly.nc_log+2)<<7) | tmp1;	// 1110 0111 1000 varW rcol nclo g000 tmp1 ie "str rcol, [varW, tmp1, lsl #(nc_log+2)]
 }
 
 static void poke_nopersp(void)
 {
-	// we increment VARP_W in the go, so that we have nothing left for NEXT_NOPERSP
-	if (nb_pixels_per_loop == 1) {
+	if (!ctx.poly.cmdFacet.use_key && !ctx.poly.cmdFacet.write_z) {
+		// we increment VARP_W in the go, so that we have nothing left for NEXT_NOPERSP
+		if (nb_pixels_per_loop == 1) {
+			*gen_dst++ = 0xe4800004 | (vars[VARP_W].rnum<<16) | (vars[VARP_OUTCOLOR].rnum<<12);	// 1110 0100 1000 varW rcol 0000 0000 0100 ie "str rcol, [rW], #0x4"
+		} else {
+			*gen_dst++ = 0xe8a00000 | (vars[VARP_W].rnum<<16) | outcolors_mask;	// 1110 1000 1010 varW regi ster list 16bt ie "smtia rW!, {rcol1-rcolN}"
+		}
+	} else {	// we must not inc VARP_W here
+		assert(nb_pixels_per_loop == 1);
+		*gen_dst++ = 0xe5800000 | (vars[VARP_W].rnum<<16) | (vars[VARP_OUTCOLOR].rnum<<12);	// 1110 0101 1000 varW rcol 0000 0000 0000 ie "str rcol, [rW]"
+	}
+}
+
+static void write_combine(void)	// come here with previous color in r0
+{
+	unsigned const tmp1 = 0, tmp2 = 1, tmp3 = 2, tmp4 = 3;
+	write_mov_immediate(tmp3, 0x00ff00ff);
+	*gen_dst++ = 0xe0000000 | (tmp1<<16) | (tmp2<<12) | tmp3;	// 1110 0000 0000 tmp1 tmp2 0000 0000 tmp3 ie "and tmp2, tmp1, tmp3" ie tmp2 = tmp1 & 0x00ff00ff
+	*gen_dst++ = 0xe0000000 | (vars[VARP_OUTCOLOR].rnum<<16) | (tmp4<<12) | tmp3;	// ie "and tmp4, rcol, tmp3" ie tmp4 = rcol & 0x00ff00ff
+	*gen_dst++ = 0xe0000400 | (vars[VARP_OUTCOLOR].rnum<<16) | (vars[VARP_OUTCOLOR].rnum<<12) | tmp3;	// 1110 0000 0000 rcol rcol 0100 0000 tmp3 ie "and rcol, rcol, tmp3, lsl #8" ie rcol = rcol & 0xff00ff00
+	*gen_dst++ = 0xe0000400 | (tmp1<<16) | (tmp1<<12) | tmp3;	// 1110 0000 0000 rcol rcol 0100 0000 tmp3 ie "and tmp1, tmp1, tmp3 lsl #8" ie tmp1 = tmp1 & 0xff00ff00
+	if (ctx.poly.cmdFacet.blend_coef<=8) {
+		*gen_dst++ = 0xe0800020 | (tmp4<<16) | (tmp2<<12) | ((8-ctx.poly.cmdFacet.blend_coef)<<7) | tmp2;	// 1110 0000 1000 tmp4 tmp2 shif t010 tmp2 ie "add tmp2, tmp4, tmp2, lsr #(8-blend)" tmp2 = tmp2>>(8-blend_coef) + tmp4
+		*gen_dst++ = 0xe0800020 | (tmp1<<16) | (vars[VARP_OUTCOLOR].rnum<<12) | ((8-ctx.poly.cmdFacet.blend_coef)<<7) | vars[VARP_OUTCOLOR].rnum;	// 1110 0000 1000 tmp1 rcol shif t010 rcol ie "add rcol, tmp1, rcol, lsr #(8-blend)" rcol = rcol>>(8-blend_coef) + tmp1
+	} else {
+		*gen_dst++ = 0xe0800020 | (tmp2<<16) | (tmp2<<12) | ((ctx.poly.cmdFacet.blend_coef-8)<<7) | tmp4;	// 1110 0000 1000 tmp2 tmp2 shif t010 tmp4 ie "add tmp2, tmp2, tmp4, lsr #(blend-8)" tmp2 = tmp2 + tmp4>>(blend-8)
+		*gen_dst++ = 0xe0800020 | (vars[VARP_OUTCOLOR].rnum<<16) | (vars[VARP_OUTCOLOR].rnum<<12) | ((ctx.poly.cmdFacet.blend_coef-8)<<7) | tmp1;	// 1110 0000 1000 rcol rcol shif t010 tmp1 ie "add rcol, rcol, tmp1, lsr #(blend-8)" rcol = rcol + tmp1>>(blend-8)
+	}
+	*gen_dst++ = 0xe00000a0 | (tmp3<<16) | (tmp2<<12) | tmp2;	// 1110 0000 0000 tmp3 tmp2 0000 1010 tmp2 ie "and tmp2, tmp3, tmp2 lsr #1"
+	*gen_dst++ = 0xe0000480 | (vars[VARP_OUTCOLOR].rnum<<16) | (vars[VARP_OUTCOLOR].rnum<<12) | tmp3;	// 1110 0000 0000 rcol rcol 0100 1000 tmp3 ie "and rcol, rcol, tmp3 lsl #9"
+	*gen_dst++ = 0xe18000a0 | (tmp2<<16) | (vars[VARP_OUTCOLOR].rnum<<12) | vars[VARP_OUTCOLOR].rnum;	// 1110 0001 1000 tmp2 rcol 0000 1010 rcol ie "orr rcol, tmp2, rcol lsr #1"
+}
+
+static void combine_persp(void)
+{
+	assert(nb_pixels_per_loop == 1);
+	unsigned const tmp1 = 0, tmp5 = 4;
+	*gen_dst++ = 0xe1a00840 | (tmp5<<12) | vars[VARP_DECLIV].rnum;	// 1110 0001 1010 0000 tmp5 1000 0100 decliv ie "mov tmp5, decliv, asr #16" ie tmp5 = decliv>>16
+	*gen_dst++ = 0xe7900000 | (vars[VARP_W].rnum<<16) | (tmp1<<12) | ((ctx.poly.nc_log+2)<<7) | tmp5;	// 1110 0111 1001 varW rcol nclo g000 tmp5 ie "ldr tmp1, [varW, tmp5, lsl #(nc_log+2)]
+	write_combine();
+	*gen_dst++ = 0xe7800000 | (vars[VARP_W].rnum<<16) | (vars[VARP_OUTCOLOR].rnum<<12) | ((ctx.poly.nc_log+2)<<7) | tmp5;	// 1110 0111 1000 varW rcol nclo g000 tmp5 ie "str rcol, [varW, tmp5, lsl #(nc_log+2)]
+}
+
+static void combine_nopersp(void)
+{
+	assert(nb_pixels_per_loop == 1);
+	unsigned const tmp1 = 0;
+	*gen_dst++ = 0xe5900000 | (vars[VARP_W].rnum<<16) | (tmp1<<12);	// 1110 0101 1001 varW tmp1 0000 0000 0000 ie "ldr tmp1, [varW]
+	write_combine();
+	if (!ctx.poly.cmdFacet.use_key && !ctx.poly.cmdFacet.write_z) {
 		*gen_dst++ = 0xe4800004 | (vars[VARP_W].rnum<<16) | (vars[VARP_OUTCOLOR].rnum<<12);	// 1110 0100 1000 varW rcol 0000 0000 0100 ie "str rcol, [rW], #0x4"
 	} else {
-		*gen_dst++ = 0xe8a00000 | (vars[VARP_W].rnum<<16) | outcolors_mask;	// 1110 1000 1010 varW regi ster list 16bt ie "smtia rW!, {rcol1-rcolN}"
+		*gen_dst++ = 0xe5800000 | (vars[VARP_W].rnum<<16) | (vars[VARP_OUTCOLOR].rnum<<12);	// 1110 0101 1000 varW rcol 0000 0000 0000 ie "str rcol, [rW]"
 	}
 }
 
 static void next_persp(void)
 {
+	do_patch(next_pixel);
 	unsigned const constp_ddecliv = load_constp(CONSTP_DDECLIV, -1);
 	*gen_dst++ = 0xe0800000 | (vars[VARP_DECLIV].rnum<<16) | (vars[VARP_DECLIV].rnum<<12) | constp_ddecliv;	// 1110 000c0 1000 decliv decliv 0000 0000 ddecliv ie "add decliv, decliv, ddecliv"
 	unsigned const constp_dw = load_constp(CONSTP_DW, -1);
 	*gen_dst++ = 0xe0800100 | (vars[VARP_W].rnum<<16) | (vars[VARP_W].rnum<<12) | constp_dw;	// 1110 0000 1000 varW varW 0001 0000 _DW_ ie "add varW, varW, constpDW lsl #2
+}
+
+static void next_nopersp(void)
+{
+	do_patch(next_pixel);
+	if (ctx.poly.cmdFacet.use_key) {	// we still have not incremented VARP_W
+		*gen_dst++ = 0xe2800004 | (vars[VARP_W].rnum<<16) | (vars[VARP_W].rnum<<12);	// 1110 0010 1000 varW varW 0000 0000 0100 ie "add varW, varW, #4"
+	}
 }
 
 static void bloc_def_func(void (*cb)(unsigned))
@@ -437,8 +539,6 @@ static void bloc_def_func(void (*cb)(unsigned))
 		case rendering_flat:
 			if (ctx.poly.cmdFacet.write_out && ctx.poly.cmdFacet.use_intens) cb(PEEK_FLAT);
 			break;
-		case rendering_shadow:
-			if (! ctx.poly.cmdFacet.use_key) break;
 		case rendering_text:
 			if (ctx.poly.cmdFacet.write_out || ctx.poly.cmdFacet.use_key) cb(PEEK_TEXT);
 			if (ctx.poly.cmdFacet.use_key) cb(KEY_TEST);
@@ -449,13 +549,22 @@ static void bloc_def_func(void (*cb)(unsigned))
 	}
 	// Intens
 	if (ctx.poly.cmdFacet.use_intens && ctx.poly.cmdFacet.write_out) cb(INTENS);
-	// Shadow
-	if (ctx.poly.cmdFacet.rendering_type == rendering_shadow && ctx.poly.cmdFacet.write_out) cb(SHADOW);
 	cb(END_PIXEL_LOOP);
 	// Poke
 	if (ctx.poly.cmdFacet.write_out) {
-		if (ctx.poly.cmdFacet.perspective) cb(POKE_OUT_PERSP);
-		else cb(POKE_OUT_NOPERSP);
+		if (ctx.poly.cmdFacet.perspective) {
+			if (ctx.poly.cmdFacet.blend_coef) {
+				cb(COMBINE_PERSP);
+			} else {
+				cb(POKE_OUT_PERSP);
+			}
+		} else {
+			if (ctx.poly.cmdFacet.blend_coef) {
+				cb(COMBINE_NOPERSP);
+			} else {
+				cb(POKE_OUT_NOPERSP);
+			}
+		}
 	}
 	if (ctx.poly.cmdFacet.write_z) {
 		if (ctx.poly.cmdFacet.perspective) cb(POKE_Z_PERSP);
@@ -507,7 +616,7 @@ static void alloc_regs(void)
 	outz_mask = vars[VARP_Z].rnum != -1 ? 1U<<vars[VARP_Z].rnum:0;
 	if (0 && r < sizeof_array(regs)) {	// TODO
 		// use remaining regs to write several pixels in the loop
-		if (!ctx.poly.cmdFacet.perspective && !ctx.poly.cmdFacet.use_key && ctx.rendering.z_mode == gpu_z_off) {
+		if (!ctx.poly.cmdFacet.perspective && !ctx.poly.cmdFacet.use_key && ctx.rendering.z_mode == gpu_z_off && !ctx.poly.cmdFacet.blend_coef) {
 			// we can read several values and poke them all at once
 			// notice : that z_mode is off does not mean that we do not want to write Z !
 			while (r + ctx.poly.cmdFacet.write_out + ctx.poly.cmdFacet.write_z <= sizeof_array(regs)) {
@@ -593,24 +702,18 @@ static void write_all(void)
 	write_restore();
 }
 
-static bool use_texture(void)
+static uint64_t get_rendering_key(void)
 {
-	return ctx.poly.cmdFacet.rendering_type == rendering_text ||
-		(ctx.poly.cmdFacet.rendering_type == rendering_shadow && ctx.poly.cmdFacet.use_key);
-}
-
-static uint32_t get_rendering_key(void)
-{
-	uint32_t key = 1;	// meaning : key is set
-	key |= ctx.poly.cmdFacet.rendering_type << 1;
-	key |= ctx.poly.cmdFacet.use_key << 3;
-	key |= ctx.poly.cmdFacet.use_intens << 4;
-	key |= ctx.poly.cmdFacet.perspective << 5;
-	key |= ctx.poly.cmdFacet.write_out << 6;
-	key |= ctx.poly.cmdFacet.write_z << 7;
-	key |= ctx.rendering.z_mode << 8;	// need 3 bits
-	if (ctx.poly.cmdFacet.perspective) key |= ctx.poly.nc_log << 11;	// need 10 bits
-	if (use_texture()) key |= ctx.location.txt_mask << 21;	// need 10 bits
+	uint64_t key = ctx.poly.cmdFacet.rendering_type + 1;	// so a used key is never 0
+	key |= ctx.poly.cmdFacet.blend_coef << 2;	// need 4 bits
+	key |= ctx.poly.cmdFacet.use_key << 6;
+	key |= ctx.poly.cmdFacet.use_intens << 7;
+	key |= ctx.poly.cmdFacet.perspective << 8;
+	key |= ctx.poly.cmdFacet.write_out << 9;
+	key |= ctx.poly.cmdFacet.write_z << 10;
+	key |= ctx.rendering.z_mode << 11;	// need 3 bits
+	if (ctx.poly.cmdFacet.perspective) key |= (uint64_t)ctx.poly.nc_log << 14;	// need 18 bits
+	if (ctx.poly.cmdFacet.rendering_type == rendering_text) key |= (uint64_t)ctx.location.txt_mask << 32;	// need 18 bits
 	return key;
 }
 
@@ -645,7 +748,7 @@ void build_code(unsigned cache)
 	// init other global vars
 	gen_dst = ctx.code.caches[cache].buf;
 	write_loop_begin = pixel_loop_begin = NULL;
-	patch_bh = NULL;
+	nb_patches = 0;
 	bloc_def_func(look_regs);
 	alloc_regs();
 	write_all();
@@ -653,7 +756,7 @@ void build_code(unsigned cache)
 	assert(nb_words < sizeof_array(ctx.code.caches[cache].buf));
 #	if defined(TEST_RASTERIZER) && !defined(GP2X)
 	static char fname[PATH_MAX];
-	snprintf(fname, sizeof(fname), "/tmp/codegen_%"PRIu32, ctx.code.caches[cache].rendering_key);
+	snprintf(fname, sizeof(fname), "/tmp/codegen_%"PRIu64, ctx.code.caches[cache].rendering_key);
 	int fd = open(fname, O_WRONLY|O_CREAT, 0644);
 	if (fd == -1) {
 		fprintf(stderr, "Cannot open %s : %s\n", fname, strerror(errno));
@@ -696,7 +799,7 @@ void flush_cache(void)
 
 unsigned jit_prepare_rasterizer(void)
 {
-	uint32_t key = get_rendering_key();
+	uint64_t key = get_rendering_key();
 	int r_dest = -1;
 	for (unsigned r=0; r<sizeof_array(ctx.code.caches); r++) {
 		if (ctx.code.caches[r].rendering_key == key) {

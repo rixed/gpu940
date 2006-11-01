@@ -227,6 +227,7 @@ static gpuCmdFacet cube_cmdFacet = {
 	.rendering_type = rendering_text,
 	.use_key = 0,
 	.use_intens = 1,
+	.blend_coef = 0,
 	.perspective = 1,
 	.cull_mode = 0,
 	.write_out = 1,
@@ -746,9 +747,10 @@ static void transf_draw_pic(struct gpuBuf *pic_txt, FixVec *pic_vec, enum draw_w
 	static gpuCmdFacet pic_facet = {
 		.opcode = gpuFACET,
 		.size = 4,
-		.shadow = -30,
+		.rendering_type = rendering_text,
 		.use_key = 1,
 		.use_intens = 0,
+		.blend_coef = 0,
 		.cull_mode = 0,
 		.write_out = 1,
 		.write_z = 0,
@@ -771,8 +773,8 @@ static void transf_draw_pic(struct gpuBuf *pic_txt, FixVec *pic_vec, enum draw_w
 		assert(0);
 	}
 	if (draw_what == PIC) {	// Simply rotate and draw
-		pic_facet.rendering_type = rendering_text;
 		pic_facet.perspective = 1;
+		pic_facet.blend_coef = 0;
 		for (unsigned v=4; v--; ) {
 		//	FixMat_x_Vec(vecs[v].geom.c3d, &camera.transf, pic_vec+v, true);
 			for (unsigned c=0; c<3; c++)
@@ -781,7 +783,7 @@ static void transf_draw_pic(struct gpuBuf *pic_txt, FixVec *pic_vec, enum draw_w
 		gpuErr err = gpuWritev(cmdvec, sizeof_array(cmdvec), true);
 		assert(gpuOK == err);
 	} else {	// SHADOWS
-		pic_facet.rendering_type = rendering_shadow;
+		pic_facet.blend_coef = 8;
 		pic_facet.perspective = 0;
 		int32_t L[3] = {
 			camera.pos[0] + camera.transf.rot[0][2] + camera.transf.rot[0][1],

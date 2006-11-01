@@ -130,7 +130,7 @@ extern struct ctx {
 #			define MAX_CODE_SIZE 56
 			uint32_t buf[MAX_CODE_SIZE];
 			uint32_t use_count;
-			uint32_t rendering_key;
+			uint64_t rendering_key;
 		} caches[NB_CODE_CACHE];
 		// cache handling goes here
 	} code;
