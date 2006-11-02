@@ -70,7 +70,8 @@ static inline unsigned avail_cmd_space(void) {
 static void flush_writes(void) {
 	// we must ensure that our writes are seen by the other peer in that order, that is data first, then pointer update
 #ifdef GP2X
-	// on th eGP2X, this mean drain the write buffer (reading uncached memory is enought)
+	// on the GP2X, this mean drain the write buffer (reading uncached memory is enought)
+	// (note: shared is uncached on the 920T)
 	volatile uint32_t GCCunused dummy = shared->error_flags;
 #endif
 }
@@ -111,10 +112,13 @@ void gpuClose(void) {
 gpuErr gpuWrite(void *cmd/* must be word aligned*/, size_t size, bool can_wait) {
 	assert(!(size&3));
 	size >>= 2;
-	while (avail_cmd_space() < size) {
+	if (! can_make_room(size, can_wait)) {
+		return gpuENOSPC;
+	}
+/*	while (avail_cmd_space() < size) {
 		if (! can_wait) return gpuENOSPC;
 		(void)sched_yield();
-	}
+	}*/
 	shared->cmds_end = append_to_cmdbuf(shared->cmds_end, cmd, size);
 	flush_writes();
 	return gpuOK;
@@ -122,12 +126,18 @@ gpuErr gpuWrite(void *cmd/* must be word aligned*/, size_t size, bool can_wait) 
 
 gpuErr gpuWritev(const struct iovec *cmdvec, size_t count, bool can_wait) {
 	size_t size = 0;
-	for (unsigned c=0; c<count; c++) size += cmdvec[c].iov_len;
+	for (unsigned c=0; c<count; c++) {
+		size += cmdvec[c].iov_len;
+	}
 	assert(!(size&3));
-	while (avail_cmd_space() < size>>2) {
+	size >>= 2;
+	if (! can_make_room(size, can_wait)) {
+		return gpuENOSPC;
+	}
+/*	while (avail_cmd_space() < size) {
 		if (! can_wait) return gpuENOSPC;
 		(void)sched_yield();
-	}
+	}*/
 	int end = shared->cmds_end;
 	for (unsigned c=0; c<count; c++) {
 		end = append_to_cmdbuf(end, cmdvec[c].iov_base, cmdvec[c].iov_len>>2);

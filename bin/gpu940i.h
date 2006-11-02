@@ -37,12 +37,14 @@ extern volatile uint32_t *gp2x_regs;	// 32-bit version of the MMSP2 registers, f
 
 enum {
 	PERF_DISPLAY = 1,
-	PERF_POLY,
-	PERF_POLY_DRAW,
-	PERF_DIV,
-	PERF_CLIP,
 	PERF_WAITCMD,
 	PERF_CMD,
+	PERF_CLIP,
+	PERF_CULL,
+	PERF_POLY,
+	PERF_POLY_DRAW,
+	PERF_RECTANGLE,
+	PERF_DIV,
 };
 
 typedef struct {
@@ -76,6 +78,7 @@ extern struct ctx {
 	struct {
 		struct buffer_loc buffer_loc[GPU_NB_BUFFER_TYPES];
 		uint32_t txt_mask;
+		uint32_t *out_start;	// addres (in words) of the first pixel of the window.
 	} location;
 	// Current Polygon
 	struct {
@@ -116,7 +119,6 @@ extern struct ctx {
 		uint32_t *restrict w;
 		int32_t dw;
 		int32_t decliv;
-		int32_t ddecliv;
 		int32_t param[GPU_NB_PARAMS];
 		int32_t dparam[GPU_NB_PARAMS];
 	} line;

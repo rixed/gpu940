@@ -61,7 +61,7 @@ static unsigned displist_begin = 0, displist_end = 0;	// same convention than fo
 
 static void display(struct buffer_loc const *loc) {
 	// display current workingBuffer
-	int in_target = perftime_target();
+	int previous_target = perftime_target();
 	perftime_enter(PERF_DISPLAY, "display");
 #ifdef GP2X
 	static unsigned previous_width = 0;
@@ -94,7 +94,7 @@ static void display(struct buffer_loc const *loc) {
 	SDL_BlitSurface(sdl_console, NULL, sdl_screen, NULL);
 	SDL_UpdateRect(sdl_screen, 0, 0, SCREEN_WIDTH, SCREEN_HEIGHT);
 #endif
-	perftime_enter(in_target, NULL);
+	perftime_enter(previous_target, NULL);
 }
 
 static void console_setup(void) {
@@ -134,14 +134,16 @@ static void update_console(void) {
 	console_write_uint(9, 1, 5, shared->frame_count);
 	console_write_uint(29, 1, 5, shared->frame_miss);
 	console_write_uint(9, 2, 5, proj_cache_ratio());
-	console_stat(5, PERF_DISPLAY);
-	console_stat(6, PERF_CLIP);
-	console_stat(7, PERF_POLY);
-	console_stat(8, PERF_POLY_DRAW);
-	console_stat(9, PERF_DIV);
-	console_stat(10, PERF_WAITCMD);
-	console_stat(11, PERF_CMD);
-	console_stat(12, PERF_OTHER);
+	console_stat(5, PERF_WAITCMD);
+	console_stat(6, PERF_CMD);
+	console_stat(7, PERF_CLIP);
+	console_stat(8, PERF_CULL);
+	console_stat(9, PERF_POLY);
+	console_stat(10, PERF_POLY_DRAW);
+	console_stat(11, PERF_RECTANGLE);
+	console_stat(12, PERF_DISPLAY);
+	console_stat(13, PERF_DIV);
+	console_stat(14, PERF_OTHER);
 }
 
 
@@ -254,97 +256,106 @@ static void flush_shared(void) {
 #endif
 }
 
-static void read_from_cmdBuf(void *dest, size_t size_) {
+static void *read_from_cmdBuf(void *dest, size_t size_) {
+	static union {
+		gpuCmdReset reset;
+		gpuCmdSetView setView;
+		gpuCmdSetUserClipPlanes setCP;
+		gpuCmdSetBuf setBuf;
+		gpuCmdShowBuf showBuf;
+		gpuCmdRect rect;
+		gpuCmdZMode z_mode;
+	} allCmds;
 	unsigned size = size_/sizeof(uint32_t);
 	int overrun = (shared->cmds_begin+size) - sizeof_array(shared->cmds);
 	if (overrun < 0) {
-		copy32(dest, shared->cmds+shared->cmds_begin, size);
+		if (dest) {
+			copy32(dest, shared->cmds+shared->cmds_begin, size);
+		} else {
+			dest = shared->cmds+shared->cmds_begin;
+		}
 		shared->cmds_begin += size;
 	} else {
 		size_t chunk = size - overrun;
+		if (! dest) dest = &allCmds;
 		copy32(dest, shared->cmds+shared->cmds_begin, chunk);
 		copy32((uint32_t*)dest+chunk, shared->cmds, overrun);
 		shared->cmds_begin = overrun;
 	}
 	flush_shared();
+	return dest;
 }
 
 /*
  * Command processing
  */
 
-static union {
-	gpuCmdReset reset;
-	gpuCmdSetView setView;
-	gpuCmdSetUserClipPlanes setCP;
-	gpuCmdSetBuf setBuf;
-	gpuCmdShowBuf showBuf;
-	gpuCmdRect rect;
-	gpuCmdZMode z_mode;
-} allCmds;
-
-static void do_setView(void) {
-	read_from_cmdBuf(&allCmds.setView, sizeof(allCmds.setView));
-	ctx.view.dproj = allCmds.setView.dproj;
-	ctx.view.clipMin[0] = allCmds.setView.clipMin[0];
-	ctx.view.clipMin[1] = allCmds.setView.clipMin[1];
-	ctx.view.clipMax[0] = allCmds.setView.clipMax[0];
-	ctx.view.clipMax[1] = allCmds.setView.clipMax[1];
-	ctx.view.winPos[0] = allCmds.setView.winPos[0];
-	ctx.view.winPos[1] = allCmds.setView.winPos[1];
+static void do_setView(void)
+{
+	gpuCmdSetView const *setView = (gpuCmdSetView *)read_from_cmdBuf(NULL, sizeof(*setView));
+	ctx.view.dproj = setView->dproj;
+	ctx.view.clipMin[0] = setView->clipMin[0];
+	ctx.view.clipMin[1] = setView->clipMin[1];
+	ctx.view.clipMax[0] = setView->clipMax[0];
+	ctx.view.clipMax[1] = setView->clipMax[1];
+	ctx.view.winPos[0] = setView->winPos[0];
+	ctx.view.winPos[1] = setView->winPos[1];
 	ctx.view.winWidth = ctx.view.clipMax[0] - ctx.view.clipMin[0];
 	ctx.view.winHeight = ctx.view.clipMax[1] - ctx.view.clipMin[1];
 	reset_clipPlanes();
 }
-static void do_setUsrClipPlanes(void) {
-	read_from_cmdBuf(&allCmds.setCP, sizeof(allCmds.setCP));
-	ctx.view.nb_clipPlanes = 5 + allCmds.setCP.nb_planes;
-	for (unsigned cp=0; cp<allCmds.setCP.nb_planes; cp++) {
-		my_memcpy(ctx.view.clipPlanes+5+cp, allCmds.setCP.planes+cp, sizeof(ctx.view.clipPlanes[0]));
+static void do_setUsrClipPlanes(void)
+{
+	gpuCmdSetUserClipPlanes const *setCP = (gpuCmdSetUserClipPlanes *)read_from_cmdBuf(NULL, sizeof(*setCP));
+	ctx.view.nb_clipPlanes = 5 + setCP->nb_planes;
+	for (unsigned cp=0; cp<setCP->nb_planes; cp++) {
+		my_memcpy(ctx.view.clipPlanes+5+cp, setCP->planes+cp, sizeof(ctx.view.clipPlanes[0]));
 	}
 }
-static void do_setTxtBuf(void) {
-	if ((1U<<allCmds.setBuf.loc.width_log) != allCmds.setBuf.loc.height) {
+static void do_setBuf(void)
+{
+	gpuCmdSetBuf const *setBuf = (gpuCmdSetBuf *)read_from_cmdBuf(NULL, sizeof(*setBuf));
+	if (setBuf->type >= GPU_NB_BUFFER_TYPES) {
 		set_error_flag(gpuEPARAM);
 		return;
 	}
-	ctx.location.txt_mask = (1<<ctx.location.buffer_loc[gpuTxtBuffer].width_log)-1;
-}
-static void do_setBuf(void) {
-	read_from_cmdBuf(&allCmds.setBuf, sizeof(allCmds.setBuf));
-	if (allCmds.setBuf.type >= GPU_NB_BUFFER_TYPES) {
+	my_memcpy(&ctx.location.buffer_loc[setBuf->type], &setBuf->loc, sizeof(*ctx.location.buffer_loc));
+	if (ctx.location.buffer_loc[setBuf->type].width_log > 18) {
 		set_error_flag(gpuEPARAM);
 		return;
 	}
-	my_memcpy(&ctx.location.buffer_loc[allCmds.setBuf.type], &allCmds.setBuf.loc, sizeof(*ctx.location.buffer_loc));
-	if (ctx.location.buffer_loc[allCmds.setBuf.type].width_log > 18) {
-		set_error_flag(gpuEPARAM);
-		return;
-	}
-	if (allCmds.setBuf.type == gpuTxtBuffer) {
-		do_setTxtBuf();
+	if (setBuf->type == gpuTxtBuffer) {
+		if ((1U<<setBuf->loc.width_log) != setBuf->loc.height) {
+			set_error_flag(gpuEPARAM);
+			return;
+		}
+		ctx.location.txt_mask = (1<<ctx.location.buffer_loc[gpuTxtBuffer].width_log)-1;
+	} else if (setBuf->type == gpuOutBuffer) {
+		ctx.location.out_start = location_winPos(gpuOutBuffer, 0, 0);
 	}
 	ctx_code_buf_reset();
 }
-static void do_showBuf(void) {
-	read_from_cmdBuf(&allCmds.showBuf, sizeof(allCmds.showBuf));
+static void do_showBuf(void)
+{
+	gpuCmdShowBuf const *showBuf = (gpuCmdShowBuf *)read_from_cmdBuf(NULL, sizeof(*showBuf));
 	unsigned next_displist_end = displist_end + 1;
 	if (next_displist_end >= sizeof_array(displist)) next_displist_end = 0;
 	if (next_displist_end == displist_begin) {
 		set_error_flag(gpuEDLIST);
 		return;
 	}
-	displist[displist_end] = allCmds.showBuf.loc;
+	displist[displist_end] = showBuf->loc;
 	displist_end = next_displist_end;
 #ifndef GP2X
-	vertical_interrupt();
+	//	vertical_interrupt();
 #endif
 }
 static void do_point(void) {}
 static void do_line(void) {}
-static void do_facet(void) {
+static void do_facet(void)
+{
 	// Warning: don't skip any vector here (without positionning err_flag) or future same_as hints will be wrong.
-	read_from_cmdBuf(&ctx.poly.cmdFacet, sizeof(ctx.poly.cmdFacet));
+	(void)read_from_cmdBuf(&ctx.poly.cmdFacet, sizeof(ctx.poly.cmdFacet));
 	// sanity checks
 	if (ctx.poly.cmdFacet.size > sizeof_array(ctx.poly.vectors)) {
 		set_error_flag(gpuEINT);
@@ -356,42 +367,55 @@ static void do_facet(void) {
 	}
 	// fetch vectors informations
 	for (unsigned v=0; v<ctx.poly.cmdFacet.size; v++) {
-		read_from_cmdBuf(&ctx.poly.vectors[v].cmdVector, sizeof(gpuCmdVector));
+		(void)read_from_cmdBuf(&ctx.poly.vectors[v].cmdVector, sizeof(gpuCmdVector));
 	}
 	if (clip_poly() && cull_poly()) {
 		draw_poly();
 	}
 }
-static void do_rect(void) {
-	read_from_cmdBuf(&allCmds.rect, sizeof(allCmds.rect));
+static void do_rect(void)
+{
+	int previous_target = perftime_target();
+	perftime_enter(PERF_RECTANGLE, "rectangle");
+	gpuCmdRect const *rect = (gpuCmdRect *)read_from_cmdBuf(NULL, sizeof(*rect));
 	// TODO: add clipping against winPos ?
-	uint32_t *dst = allCmds.rect.relative_to_window ?
-		location_winPos(allCmds.rect.type, allCmds.rect.pos[0], allCmds.rect.pos[1]) :
-		location_pos(allCmds.rect.type, allCmds.rect.pos[0], allCmds.rect.pos[1]);
-	for (unsigned h=allCmds.rect.height; h--; ) {
-		my_memset_words(dst, allCmds.rect.value, allCmds.rect.width);
-		dst += 1 << ctx.location.buffer_loc[allCmds.rect.type].width_log;
+	uint32_t *dst = rect->relative_to_window ?
+		location_winPos(rect->type, rect->pos[0], rect->pos[1]) :
+			location_pos(rect->type, rect->pos[0], rect->pos[1]);
+	for (unsigned h=rect->height; h--; ) {
+		my_memset_words(dst, rect->value, rect->width);
+		dst += 1 << ctx.location.buffer_loc[rect->type].width_log;
 	}
+	perftime_enter(previous_target, NULL);
 }
-static void do_zmode(void) {
-	read_from_cmdBuf(&allCmds.z_mode, sizeof(allCmds.z_mode));
-	ctx.rendering.z_mode = allCmds.z_mode.mode;
+static void do_zmode(void)
+{
+	gpuCmdZMode const *z_mode = (gpuCmdZMode *)read_from_cmdBuf(NULL, sizeof(*z_mode));
+	ctx.rendering.z_mode = z_mode->mode;
 }
-static void do_reset(void) {
-	read_from_cmdBuf(&allCmds.reset, sizeof(allCmds.reset));
+static void do_reset(void)
+{
+	(void)read_from_cmdBuf(NULL, sizeof(gpuCmdReset));
 	perftime_reset();
 	perftime_enter(PERF_WAITCMD, "idle");
 	proj_cache_reset();
 	ctx_reset();
 	shared_soft_reset();
 }
+static void do_rewind(void)
+{
+	shared->cmds_begin = 0;
+	flush_shared();
+}
 
-static void fetch_command(void) {
+static void fetch_command(void)
+{
 	unsigned previous_target = perftime_target();
 	perftime_enter(PERF_CMD, "cmd");
-	uint32_t first_word;
-	copy32(&first_word, shared->cmds+shared->cmds_begin, 1);
-	switch ((gpuOpcode)first_word) {
+	switch ((gpuOpcode)shared->cmds[shared->cmds_begin]) {
+		case gpuREWIND:
+			do_rewind();
+			break;
 		case gpuRESET:
 			do_reset();
 			break;
@@ -428,29 +452,6 @@ static void fetch_command(void) {
 	perftime_enter(previous_target, NULL);
 }
 
-static void GCCunused play_nodiv_anim(void) {
-	int x = ctx.view.clipMin[0], y = ctx.view.clipMin[1];
-	int dx = 1, dy = 1;
-	while (1) {
-		uint32_t *w = location_winPos(gpuOutBuffer, x, y);
-		*w = 0xffff;
-		display(&ctx.location.buffer_loc[gpuOutBuffer]);
-		x += dx;
-		y += dy;
-		if (x >= ctx.view.clipMax[0] || x <= ctx.view.clipMin[0]) dx = -dx;
-		if (y >= ctx.view.clipMax[1] || y <= ctx.view.clipMin[1]) dy = -dy;
-	}
-}
-
-static void GCCunused play_div_anim(void) {
-	for (int64_t x = ctx.view.clipMin[0]; x<ctx.view.clipMax[0]; x++) {
-		int64_t y = x? ctx.view.clipMax[1]/x : 0;
-		uint32_t *w = location_winPos(gpuOutBuffer, x+ctx.view.winWidth/2, y+ctx.view.winHeight/2);
-		*w = 0xffff;
-		display(&ctx.location.buffer_loc[gpuOutBuffer]);
-	}
-}
-
 #define FULL_THROTTLE   8
 #define VERY_FAST       7
 #define REASONABLY_FAST 6
@@ -460,7 +461,8 @@ static void GCCunused play_div_anim(void) {
 #define QUITE_SLOW      2
 #define BLOATED         1
 #define SLOW_AS_HELL    0
-void set_speed(unsigned s) {
+void set_speed(unsigned s)
+{
 #ifdef GP2X
 	static unsigned previous_speed = ~0U;
 	static struct {
@@ -486,9 +488,8 @@ void set_speed(unsigned s) {
 	(void)s;
 #endif
 }
-static void run(void) {
-	//play_nodiv_anim();
-	//play_div_anim();
+static void run(void)
+{
 #ifdef GP2X
 	unsigned wait = 0;
 #endif
@@ -527,7 +528,8 @@ extern inline uint32_t *location_pos(gpuBufferType type, int32_t x, int32_t y);
 extern inline uint32_t *location_winPos(gpuBufferType type, int32_t x, int32_t y);
 
 #ifdef GP2X
-void enable_irqs(void) {
+void enable_irqs(void)
+{
 	__asm__ volatile (
 		"mrs r0, cpsr\n"
 		"bic r0, r0, #0x80\n"
@@ -536,7 +538,8 @@ void enable_irqs(void) {
 		:::"r0"
 	);
 }
-void disable_irqs(void) {
+void disable_irqs(void)
+{
 	__asm__ volatile (
 		"mrs r0, cpsr\n"
 		"orr r0, r0, #0x80\n"
@@ -551,7 +554,8 @@ void prefetch_abrt(void) { }
 void data_abrt(void) { }
 void reserved(void) { }
 void fiq(void) { }
-void irq_handler(void) {
+void irq_handler(void)
+{
 	int irq;
 	for (irq=0; 0 == (gp2x_regs32[0x4510>>2]&(1U<<irq)) && irq < 32; irq++) ;
 	if (irq == 32) {
@@ -566,7 +570,8 @@ void irq_handler(void) {
 	gp2x_regs32[0x4510>>2] = 1U<<irq;
 }
 
-void mymain(void) {
+void mymain(void)
+{
 	if (-1 == perftime_begin()) goto quit;
 	// MLC_OVLAY_CNTR
 	uint16_t v = gp2x_regs16[0x2880>>1];
@@ -621,11 +626,14 @@ quit:;
 	// TODO halt the 940
 }
 #else
-static void alrm_handler(int dummy) {
+static void alrm_handler(int dummy)
+{
 	(void)dummy;
 	vertical_interrupt();
 }
-int main(void) {
+
+int main(void)
+{
 	if (-1 == perftime_begin()) return EXIT_FAILURE;
 	int fd = open(CMDFILE, O_RDWR|O_CREAT|O_TRUNC, 0644);
 	if (-1 == fd ||
@@ -661,10 +669,10 @@ int main(void) {
 			.tv_usec = 20000,
 		},
 	};
-//	if (0 != setitimer(ITIMER_REAL, &itimer, NULL)) {
-//		perror("setitimer");
-//		return EXIT_FAILURE;
-//	}
+	if (0 != setitimer(ITIMER_REAL, &itimer, NULL)) {
+		perror("setitimer");
+		return EXIT_FAILURE;
+	}
 	console_begin();
 	console_setup();
 	run();

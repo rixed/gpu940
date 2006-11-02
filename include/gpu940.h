@@ -87,6 +87,7 @@ extern struct gpuShared {
 // there must be enought room after this for the video console, and 64Kb before for code+stack
 
 typedef enum {
+	gpuREWIND,
 	gpuRESET,
 	gpuSETVIEW,
 	gpuSETUSRCLIPPLANES,
@@ -104,6 +105,10 @@ struct buffer_loc {
 	uint32_t width_log;	// width in pixels ; must be <= 18
 	uint32_t height;
 };
+
+typedef struct {
+	gpuOpcode opcode;
+} gpuCmdRewind;
 
 typedef struct {
 	gpuOpcode opcode;
@@ -203,6 +208,9 @@ typedef struct {
 gpuErr gpuOpen(void);
 void gpuClose(void);
 
+// TODO: add function to alloc space on cmd buffer so that we do not copy commands (another command commit the commands).
+// Notice: when we are at the end of buffer and want to reserve a bigger amount of space that what's left, fill with a
+// 'Rewind Cmd' that make the GPU return to the begining of cmd buffer.
 gpuErr gpuWrite(void *cmd, size_t size, bool can_wait);
 gpuErr gpuWritev(const struct iovec *cmdvec, size_t count, bool can_wait);
 

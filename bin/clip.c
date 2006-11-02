@@ -244,8 +244,16 @@ ret:
 // returns true if something is left to draw
 int cull_poly(void)
 {
-	if (ctx.poly.cmdFacet.cull_mode == 3) return 0;
-	if (ctx.poly.cmdFacet.cull_mode == 0) return 1;
+	unsigned previous_target = perftime_target();
+	perftime_enter(PERF_CULL, "culling");
+	int ret = 1;
+	if (ctx.poly.cmdFacet.cull_mode == 3) {
+		ret = 0;
+		goto cull_end;
+	}
+	if (ctx.poly.cmdFacet.cull_mode == 0) {
+		goto cull_end;
+	}
 	unsigned v = ctx.poly.first_vector;
 	unsigned nb_v = 0;
 	int32_t a = 0;
@@ -256,8 +264,13 @@ int cull_poly(void)
 		v = v_next;
 		nb_v ++;
 	} while (nb_v < 3);	
-	if (a == 0) return 1;
-	return (a > 0 && ctx.poly.cmdFacet.cull_mode == 2) || (a < 0 && ctx.poly.cmdFacet.cull_mode == 1);
+	if (a == 0) {
+		goto cull_end;
+	}
+	ret = (a > 0 && ctx.poly.cmdFacet.cull_mode == 2) || (a < 0 && ctx.poly.cmdFacet.cull_mode == 1);
+cull_end:
+	perftime_enter(previous_target, NULL);
+	return ret;
 }
 
 unsigned proj_cache_ratio(void)

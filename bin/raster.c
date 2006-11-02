@@ -21,8 +21,6 @@
  * Data Definitions
  */
 
-extern int start_poly;
-
 /*
  * Private Functions
  */
@@ -58,31 +56,21 @@ void raster_gen(void)
 {
 	// 'Registers'
 	uint32_t *restrict w = ctx.line.w;	// at most 4 registers (2 if not perspective)
-	int32_t dw = ctx.line.dw;
-	int32_t decliv, ddecliv;
-	if (ctx.poly.cmdFacet.perspective) {
-		decliv = ctx.line.decliv;
-		ddecliv = ctx.line.ddecliv;
-	}
+	int32_t decliv = ctx.line.decliv;
 	int nbp = 0;
-	int32_t u,du,v,dv,r,dr,g,dg,b,db,i,di,z,dz;	// at most 8 registers (7 if perspective)
+	int32_t u,v,r,g,b,i,di,z,dz;	// at most 8 registers (7 if perspective)
 	switch (ctx.poly.cmdFacet.rendering_type) {
 		case rendering_flat:
 			break;
 		case rendering_text:
 			u = ctx.line.param[0];
-			du = ctx.line.dparam[0];
 			v = ctx.line.param[1];
-			dv = ctx.line.dparam[1];
 			nbp += 2;
 			break;
 		case rendering_smooth:
 			r = ctx.line.param[0];
-			dr = ctx.line.dparam[0];
 			g = ctx.line.param[1];
-			dg = ctx.line.dparam[1];
 			b = ctx.line.param[2];
-			db = ctx.line.dparam[2];
 			nbp += 3;
 			break;
 	}
@@ -120,8 +108,8 @@ void raster_gen(void)
 				break;
 			case rendering_text:
 				color = texture_color(&ctx.location.buffer_loc[gpuTxtBuffer], u, v);
-				u += du;
-				v += dv;;
+				u += ctx.line.dparam[0];
+				v += ctx.line.dparam[1];
 				if (ctx.poly.cmdFacet.use_key) {
 					if (color == ctx.poly.cmdFacet.color) goto next_pixel;
 				}
@@ -133,12 +121,11 @@ void raster_gen(void)
 #				else
 					((r&0xFF00)<<8)|(g&0xFF00)|((b&0xFF00)>>8);
 #				endif
-				r += dr;
-				g += dg;
-				b += db;
+				r += ctx.line.dparam[0];
+				g += ctx.line.dparam[1];
+				b += ctx.line.dparam[2];
 				break;
 		}
-		//if (start_poly) color = ctx.poly.scan_dir ? 0x3e0 : 0xf800;
 		// Intens
 		if (ctx.poly.cmdFacet.use_intens) {
 #		ifdef GP2X	// gp2x uses YUV
@@ -177,8 +164,8 @@ void raster_gen(void)
 		// Next pixel
 next_pixel:
 		if (ctx.poly.cmdFacet.perspective) {
-			w += dw;
-			decliv += ddecliv;
+			w += ctx.line.dw;
+			decliv += ctx.poly.decliveness;
 		} else {
 			w ++;
 			if (ctx.rendering.z_mode != gpu_z_off) {

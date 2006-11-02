@@ -21,8 +21,6 @@
  * Data Definitions
  */
 
-int start_poly = 0;	// DEBUG
-
 #define SWAP(type,a,b) do { \
 	type dummy = a; \
 	a = b; \
@@ -36,24 +34,21 @@ int start_poly = 0;	// DEBUG
 typedef void (*draw_line_t)(void);
 
 // buffers are so lower coords have lower addresses. direct coord system was just a convention, right ?
-#define min(a,b) ((a)<=(b) ? (a):(b))
-#define max(a,b) ((a)>(b) ? (a):(b))
 static void draw_line(void) {
-	unsigned previous_target = perftime_target();
-	perftime_enter(PERF_POLY_DRAW, "line");
-	int32_t c_start, c_stop;
-	c_start = ctx.trap.side[ctx.trap.left_side].c>>16;
-	c_stop = ctx.trap.side[!ctx.trap.left_side].c>>16;	// TODO: +1 if fractionnal
-	ctx.line.dw = 1;
-	ctx.line.ddecliv = ctx.poly.decliveness;
-	if ( c_stop < c_start ) {	// may happen on some pathological cases ?
-		goto quit_dl;
+	int32_t const c_start = ctx.trap.side[ctx.trap.left_side].c >> 16;
+	ctx.line.count = ((ctx.trap.side[!ctx.trap.left_side].c + 0xffff) >> 16) - c_start;
+	if (unlikely(ctx.line.count < 0)) return;	// may happen on some pathological cases ?
+	ctx.line.w = ctx.location.out_start + c_start + ((ctx.poly.nc_declived>>16)<<ctx.location.buffer_loc[gpuOutBuffer].width_log);
+	if (ctx.poly.cmdFacet.perspective) {
+		ctx.line.decliv = ctx.poly.decliveness * c_start;	// 16.16
+		if (ctx.poly.scan_dir != 0) {
+			ctx.line.w = ctx.location.out_start + (ctx.poly.nc_declived>>16) + (c_start<<ctx.location.buffer_loc[gpuOutBuffer].width_log);
+		}
 	}
-	ctx.line.count = c_stop - c_start;
 	if (ctx.poly.nb_params > 0) {
-		if (ctx.poly.cmdFacet.perspective || !ctx.trap.is_triangle) {	// We need to compute 
+		if (ctx.poly.cmdFacet.perspective || unlikely(!ctx.trap.is_triangle)) {	// We need to compute 
 			int32_t inv_dc = 0;
-			if (ctx.line.count) {
+			if (likely(ctx.line.count)) {
 				inv_dc = Fix_inv(ctx.line.count<<16);
 			}
 			for (unsigned p=ctx.poly.nb_params; p--; ) {
@@ -67,20 +62,13 @@ static void draw_line(void) {
 			}
 		}
 	}
-	ctx.line.decliv = ctx.poly.decliveness*c_start;	// 16.16
-	if (ctx.poly.scan_dir == 0) {
-		ctx.line.w = location_winPos(gpuOutBuffer, c_start, ctx.poly.nc_declived>>16);
-	} else {
-		ctx.line.w = location_winPos(gpuOutBuffer, ctx.poly.nc_declived>>16, c_start);
-		ctx.line.dw <<= ctx.location.buffer_loc[gpuOutBuffer].width_log;
-	}
+	unsigned const previous_target = perftime_target();
+	perftime_enter(PERF_POLY_DRAW, "raster");
 #ifdef GP2X
 	jit_exec();
 #else
 	raster_gen();
 #endif
-	if (start_poly) start_poly --;
-quit_dl:
 	perftime_enter(previous_target, NULL);
 }
 
@@ -108,19 +96,13 @@ static void draw_trapeze_frac(void) {
 		if (ctx.poly.z_den) ctx.poly.z_alpha = ctx.poly.z_num/(ctx.poly.z_den>>16);	// FIXME: use Fix_div
 	}
 	// now compute some next c and params
-	for (unsigned side=2; side--; ) {
-		if (ctx.trap.side[side].is_growing) {
-			next_params_frac(side, dnc);
-		}
-	}
+	if (ctx.trap.side[0].is_growing) next_params_frac(0, dnc);
+	if (ctx.trap.side[1].is_growing) next_params_frac(1, dnc);
 	// draw 'scanline'
 	draw_line();	// will do another DIV
 	// compute others next c and params
-	for (unsigned side=2; side--; ) {
-		if (! ctx.trap.side[side].is_growing) {
-			next_params_frac(side, dnc);
-		}
-	}
+	if (! ctx.trap.side[0].is_growing) next_params_frac(0, dnc);
+	if (! ctx.trap.side[1].is_growing) next_params_frac(1, dnc);
 	ctx.poly.nc_declived = ctx.poly.nc_declived_next;
 }
 
@@ -146,19 +128,13 @@ static void draw_trapeze_int(void) {
 		if (ctx.poly.z_den) ctx.poly.z_alpha = ctx.poly.z_num/(ctx.poly.z_den>>16);
 	}
 	// now compute some next c and params
-	for (unsigned side=2; side--; ) {
-		if (ctx.trap.side[side].is_growing) {
-			next_params_int(side);
-		}
-	}
+	if (ctx.trap.side[0].is_growing) next_params_int(0);
+	if (ctx.trap.side[1].is_growing) next_params_int(1);
 	// draw 'scanline'
 	draw_line();	// will do another DIV
 	// now compute others c and params
-	for (unsigned side=2; side--; ) {
-		if (! ctx.trap.side[side].is_growing) {
-			next_params_int(side);
-		}
-	}
+	if (! ctx.trap.side[0].is_growing) next_params_int(0);
+	if (! ctx.trap.side[1].is_growing) next_params_int(1);
 	ctx.poly.nc_declived = ctx.poly.nc_declived_next;
 }
 
@@ -255,10 +231,10 @@ void draw_poly(void) {
 	unsigned previous_target = perftime_target();
 	// TODO: disable use_intens if rendering_smooth
 	perftime_enter(PERF_POLY, "poly");
-	start_poly = 6;
 	// compute decliveness related parameters
 	ctx.poly.decliveness = 0;
 	ctx.poly.scan_dir = 0;
+	ctx.line.dw = 1;
 	ctx.poly.nc_log = ctx.location.buffer_loc[gpuOutBuffer].width_log;
 	if (0 == ctx.poly.nb_params) ctx.poly.cmdFacet.perspective = 0;
 	// bounding box
@@ -300,6 +276,7 @@ void draw_poly(void) {
 			ctx.poly.scan_dir = 1;
 			ctx.poly.nc_log = 0;
 			SWAP(int32_t, m[0], m[1]);
+			ctx.line.dw <<= ctx.location.buffer_loc[gpuOutBuffer].width_log;
 		}
 		if (m[0]) ctx.poly.decliveness = (((int64_t)m[1])<<16)/m[0];
 	}
@@ -395,7 +372,6 @@ void draw_poly(void) {
 						ctx.trap.side[side].param_alpha[p] = Fix_mul(PN-P0, inv_dalpha);
 					}
 				}
-				start_poly += 2;
 			}
 		}
 		// render trapeze (and advance nc_declived, c, and all params)

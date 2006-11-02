@@ -228,7 +228,7 @@ static struct {
 	// several registers can be affected to the same var ; we only need to know one.
 } vars[MAX_VARP+1] = {
 	{ .offset = offsetof(struct ctx, line.dw), },
-	{ .offset = offsetof(struct ctx, line.ddecliv), },
+	{ .offset = offsetof(struct ctx, poly.decliveness), },
 	{ .offset = 0 },
 	{ .offset = 0 },
 	{ .offset = offsetof(struct ctx, line.dparam[0]), },

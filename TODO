@@ -3,3 +3,34 @@ buffer distinct, avec un type de rendu distinct, _z).
 * Ajouter à libgpu des fonctionnalités de tri.
 * Optimiser.
 * Optimiser encore.
+* Dans glxgears, pourtant exigeant en terme de rendu, on voit que :
+
+ - 33% du temps est dans poly (pas raster, poly) (dont environ 3% dans la fonction draw_poly)
+ - seulement 10% dans raster
+ - 20% dans clip&proj (les divisions ne sont pas comptabilisées)
+ - 15% dans div
+ - 15% a copier les commandes de facet et vector dans ctx
+ - le reste négligeable (notamment, 2% a effacer out buffer et zbuffer).
+
+et ceci sans accélerer la RAM.
+
+conclusion : le débit vers la RAM n'est pas le problème. Il ne sert à rien pour ce
+genre de programme (beaucoup de petits polygones) d'optimiser encore le tracé.
+
+ce que l'on peut facilement faire :
+
+-> éviter la recopie des commandes vers ctx (au début, on envisageait
+d'avoir shared non caché, ce n'est plus le cas). Donc dans ctx ne mettre que des pointeurs
+vers cmdFacet et cmdVectors. Par ailleurs, interdire dans la lib de découper une commande
+à la fin du cmdBuffer : s'il n'y a plus de place, on écrit une commande-terminateur et on
+repart au début du buffer. Comme ça des deux cotés il n'y a plus de recopie inutiles.
+Par contre il y a un soucis : dans le JIT il ne faut _jamais_ écrire l'adresse d'une constp
+de cmdFacet (la seule utilisée est cmdFacet.color -> à recopier dans ctx.code).
+
+-> pour poly, des mesures sur PC montrent que l'essentiel du temps est passé dans les
+fonctions draw_line, draw_trapeze_int, etc (bref celles qui sont appelées pour chaque scanline).
+On pourrait peut être utiliser directement les coordonnées c et les params qui sont stoquées
+dans les vecteurs plutot que de recopier dans side (ne garder que les dparams et dc).
+
+-> autoriser GL à utiliser des QUADS pour limiter le nombre de polygones.
+
