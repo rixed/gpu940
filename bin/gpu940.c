@@ -197,7 +197,7 @@ static void ctx_code_buf_reset(void)
 	for (unsigned b=0; b<sizeof_array(ctx.location.buffer_loc); b++) {
 		ctx.code.buff_addr[b] = (uint32_t)&shared->buffers[ctx.location.buffer_loc[b].address];
 	}
-	ctx.code.out2zb = ctx.code.buff_addr[gpuZBuffer] - ctx.code.buff_addr[gpuOutBuffer];
+	ctx.code.out2zb = ctx.location.buffer_loc[gpuZBuffer].address - ctx.location.buffer_loc[gpuOutBuffer].address;
 }
 
 static void ctx_code_reset(void)
@@ -308,7 +308,6 @@ static void do_setTxtBuf(void) {
 		set_error_flag(gpuEPARAM);
 		return;
 	}
-	ctx_code_buf_reset();
 	ctx.location.txt_mask = (1<<ctx.location.buffer_loc[gpuTxtBuffer].width_log)-1;
 }
 static void do_setBuf(void) {
@@ -325,6 +324,7 @@ static void do_setBuf(void) {
 	if (allCmds.setBuf.type == gpuTxtBuffer) {
 		do_setTxtBuf();
 	}
+	ctx_code_buf_reset();
 }
 static void do_showBuf(void) {
 	read_from_cmdBuf(&allCmds.showBuf, sizeof(allCmds.showBuf));

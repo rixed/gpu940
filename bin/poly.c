@@ -74,7 +74,6 @@ static void draw_line(void) {
 		ctx.line.w = location_winPos(gpuOutBuffer, ctx.poly.nc_declived>>16, c_start);
 		ctx.line.dw <<= ctx.location.buffer_loc[gpuOutBuffer].width_log;
 	}
-	// if GP2x, call code_cached routine
 #ifdef GP2X
 	jit_exec();
 #else

@@ -77,7 +77,7 @@ int main(void) {
 		.size = sizeof_array(vectors),
 		.color = gpuColor(20, 30, 180),
 		.rendering_type = rendering_text,
-		.use_intens = 1,
+		.use_intens = 0,
 		.perspective = 1,
 		.use_key = 0,
 		.blend_coef = 0,

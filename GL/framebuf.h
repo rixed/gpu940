@@ -18,6 +18,20 @@
 #ifndef GL_FRAMEBUF_H_061010
 #define GL_FRAMEBUF_H_061010
 
+extern GLint gli_scissor_x, gli_scissor_y;
+extern GLsizei gli_scissor_width, gli_scissor_height;
+extern enum gli_Func gli_alpha_func, gli_stencil_func, gli_depth_func;
+extern GLclampx gli_alpha_ref;
+extern GLint gli_stencil_ref;
+extern GLuint gli_stencil_mask;
+extern struct gli_stencil_ops {
+	enum gli_StencilOp fail, zfail, zpass;
+} gli_stencil_ops;
+extern GLclampx gli_clear_colors[4];
+extern GLclampx gli_clear_depth;
+extern GLint gli_clear_stencil;
+extern GLboolean gli_color_mask[4], gli_color_mask_all, gli_depth_mask;
+
 int gli_framebuf_begin(void);
 static inline void gli_framebuf_end(void) {}
 

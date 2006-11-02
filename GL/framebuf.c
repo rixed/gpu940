@@ -15,25 +15,24 @@
  * along with gpu940; if not, write to the Free Software
  * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
  */
+#include <limits.h>
 #include "gli.h"
 
 /*
  * Data Definitions
  */
 
-static GLint scissor_x, scissor_y;
-static GLsizei scissor_width, scissor_height;
-static enum gli_Func alpha_func, stencil_func, depth_func;
-static GLclampx alpha_ref;
-static GLint stencil_ref;
-static GLuint stencil_mask;
-static struct {
-	enum gli_StencilOp fail, zfail, zpass;
-} stencil_ops;
-static GLclampx clear_colors[4];
-static GLclampx clear_depth;
-static GLint clear_stencil;
-static GLboolean color_mask[4], depth_mask;
+GLint gli_scissor_x, gli_scissor_y;
+GLsizei gli_scissor_width, gli_scissor_height;
+enum gli_Func gli_alpha_func, gli_stencil_func, gli_depth_func;
+GLclampx gli_alpha_ref;
+GLint gli_stencil_ref;
+GLuint gli_stencil_mask;
+struct gli_stencil_ops gli_stencil_ops;
+GLclampx gli_clear_colors[4];
+GLclampx gli_clear_depth;
+GLint gli_clear_stencil;
+GLboolean gli_color_mask[4], gli_color_mask_all, gli_depth_mask;
 
 /*
  * Private Functions
@@ -50,19 +49,19 @@ static bool valid_stencil_op(GLenum op)
 
 int gli_framebuf_begin(void)
 {
-	scissor_x = scissor_y = 0;
-	scissor_width = SCREEN_WIDTH;
-	scissor_height = SCREEN_HEIGHT;
-	alpha_func = stencil_func = GL_ALWAYS;
-	depth_func = GL_LESS;
-	alpha_ref = stencil_ref = 0;
-	stencil_mask = ~0;
-	stencil_ops.fail = stencil_ops.zfail = stencil_ops.zpass = GL_KEEP;
-	clear_colors[0] = clear_colors[1] = clear_colors[2] = clear_colors[3] = 0;
-	clear_depth = 0x10000;
-	clear_stencil = 0;
-	color_mask[0] = color_mask[1] = color_mask[2] = color_mask[3] = GL_TRUE;
-	depth_mask = GL_TRUE;
+	gli_scissor_x = gli_scissor_y = 0;
+	gli_scissor_width = SCREEN_WIDTH;
+	gli_scissor_height = SCREEN_HEIGHT;
+	gli_alpha_func = gli_stencil_func = GL_ALWAYS;
+	gli_depth_func = GL_LESS;
+	gli_alpha_ref = gli_stencil_ref = 0;
+	gli_stencil_mask = ~0;
+	gli_stencil_ops.fail = gli_stencil_ops.zfail = gli_stencil_ops.zpass = GL_KEEP;
+	gli_clear_colors[0] = gli_clear_colors[1] = gli_clear_colors[2] = gli_clear_colors[3] = 0;
+	gli_clear_depth = INT32_MAX;//0x10000;
+	gli_clear_stencil = 0;
+	gli_color_mask[0] = gli_color_mask[1] = gli_color_mask[2] = gli_color_mask[3] = gli_color_mask_all = GL_TRUE;
+	gli_depth_mask = GL_TRUE;
 	return 0;
 }
 
@@ -73,10 +72,10 @@ void glScissor(GLint x, GLint y, GLsizei width, GLsizei height)
 	if (width < 0 || height < 0) {
 		return gli_set_error(GL_INVALID_VALUE);
 	}
-	scissor_x = x;
-	scissor_y = y;
-	scissor_width = width;
-	scissor_height = height;
+	gli_scissor_x = x;
+	gli_scissor_y = y;
+	gli_scissor_width = width;
+	gli_scissor_height = height;
 }
 
 void glAlphaFuncx(GLenum func, GLclampx ref)
@@ -85,8 +84,8 @@ void glAlphaFuncx(GLenum func, GLclampx ref)
 		return gli_set_error(GL_INVALID_ENUM);
 	}
 	CLAMP(ref, 0, 0xFFFF);
-	alpha_func = func;
-	alpha_ref = ref;
+	gli_alpha_func = func;
+	gli_alpha_ref = ref;
 }
 
 void glStencilFunc(GLenum func, GLint ref, GLuint mask)
@@ -99,9 +98,9 @@ void glStencilFunc(GLenum func, GLint ref, GLuint mask)
 #	else
 	ref = 0;
 #	endif
-	stencil_func = func;
-	stencil_ref = ref;
-	stencil_mask = mask;
+	gli_stencil_func = func;
+	gli_stencil_ref = ref;
+	gli_stencil_mask = mask;
 }
 
 void glStencilOp(GLenum fail, GLenum zfail, GLenum zpass)
@@ -109,9 +108,9 @@ void glStencilOp(GLenum fail, GLenum zfail, GLenum zpass)
 	if (!valid_stencil_op(fail) || !valid_stencil_op(zfail) || !valid_stencil_op(zpass)) {
 		return gli_set_error(GL_INVALID_ENUM);
 	}
-	stencil_ops.fail = fail;
-	stencil_ops.zfail = zfail;
-	stencil_ops.zpass = zpass;
+	gli_stencil_ops.fail = fail;
+	gli_stencil_ops.zfail = zfail;
+	gli_stencil_ops.zpass = zpass;
 }
 
 void glDepthFunc(GLenum func)
@@ -119,7 +118,7 @@ void glDepthFunc(GLenum func)
 	if (/*func < GL_NEVER ||*/ func > GL_ALWAYS) {
 		return gli_set_error(GL_INVALID_ENUM);
 	}
-	depth_func = func;
+	gli_depth_func = func;
 }
 
 void glBlendFunc(GLenum sfactor, GLenum dfactor)
@@ -141,10 +140,10 @@ void glClear(GLbitfield mask)
 		return gli_set_error(GL_INVALID_VALUE);
 	}
 	if (mask & GL_COLOR_BUFFER_BIT) {
-		gli_clear(gpuOutBuffer, clear_colors);
+		gli_clear(gpuOutBuffer, gli_clear_colors);
 	}
-	if (mask & GL_DEPTH_BUFFER_BIT) {	// && zbuffer was set
-//		gli_clear(gpuZBuffer, &clear_depth);
+	if (mask & GL_DEPTH_BUFFER_BIT) {
+		gli_clear(gpuZBuffer, &gli_clear_depth);
 	}
 }
 
@@ -154,22 +153,22 @@ void glClearColorx(GLclampx red, GLclampx green, GLclampx blue, GLclampx alpha)
 	CLAMP(green, 0, 0xFFFF);
 	CLAMP(blue, 0, 0xFFFF);
 	CLAMP(alpha, 0, 0xFFFF);
-	clear_colors[0] = red;
-	clear_colors[1] = green;
-	clear_colors[2] = blue;
-	clear_colors[3] = alpha;
+	gli_clear_colors[0] = red;
+	gli_clear_colors[1] = green;
+	gli_clear_colors[2] = blue;
+	gli_clear_colors[3] = alpha;
 }
 
 void glClearDepthx(GLclampx depth)
 {
 	CLAMP(depth, 0, 0xFFFF);
-	clear_depth = depth;	// TODO: normalize
+	gli_clear_depth = depth;	// TODO: normalize
 }
 
 void glClearStencil(GLint s)
 {
 #  if GLI_STENCIL_BITS > 0
-	clear_stencil = s & ((1<<GLI_STENCIL_BITS)-1);
+	gli_clear_stencil = s & ((1<<GLI_STENCIL_BITS)-1);
 #	else
 	(void)s;
 #	endif
@@ -177,20 +176,21 @@ void glClearStencil(GLint s)
 
 void glColorMask(GLboolean red, GLboolean green, GLboolean blue, GLboolean alpha)
 {
-	color_mask[0] = red;
-	color_mask[1] = green;
-	color_mask[2] = blue;
-	color_mask[3] = alpha;
+	gli_color_mask[0] = red;
+	gli_color_mask[1] = green;
+	gli_color_mask[2] = blue;
+	gli_color_mask[3] = alpha;
+	gli_color_mask_all = red || green || blue;
 }
 
 void glDepthMask(GLboolean flag)
 {
-	depth_mask = flag;
+	gli_depth_mask = flag;
 }
 
 void glStencilMask(GLuint mask)
 {
-	stencil_mask = mask;
+	gli_stencil_mask = mask;
 }
 
 void glSampleCoveragex(GLclampx value, GLboolean invert)

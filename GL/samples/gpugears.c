@@ -259,7 +259,7 @@ static void init(void)
  */
 static void make_window(void)
 {
-	if (GL_TRUE != glOpen()) {
+	if (GL_TRUE != glOpen(DEPTH_BUFFER)) {
 		printf("Error: couldn't init GPU\n");
 		exit(1);
 	}

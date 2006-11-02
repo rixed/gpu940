@@ -17,9 +17,6 @@
  */
 #include <math.h>
 #include "mylib.h"
-#ifndef GP2X
-#	include <unistd.h>
-#endif
 
 void my_memset(void *dst, int value, size_t size)
 {

@@ -18,6 +18,7 @@
 #ifndef GLI_H_061009
 #define GLI_H_061009
 
+#include <stdbool.h>
 #include "GL/gl.h"
 #include "gpu940.h"
 
@@ -40,5 +41,7 @@
 #include "framebuf.h"
 #include "texture.h"
 #include "triangle.h"
+
+extern bool gli_with_depth_buffer;
 
 #endif

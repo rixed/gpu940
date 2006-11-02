@@ -99,7 +99,6 @@ void raster_gen(void)
 		z = ctx.line.param[nbp];
 		dz = ctx.line.dparam[nbp++];
 	}
-	int32_t out2zb = ctx.location.buffer_loc[gpuZBuffer].address - ctx.location.buffer_loc[gpuOutBuffer].address;	// in words
 	int count = ctx.line.count;
 	do {
 		uint32_t *w_;
@@ -110,7 +109,7 @@ void raster_gen(void)
 		}
 		// ZBuffer
 		if (ctx.rendering.z_mode != gpu_z_off) {
-			int32_t zb = *(w_+out2zb);
+			int32_t zb = *(w_ + ctx.code.out2zb);
 			if (! zpass(z, ctx.rendering.z_mode, zb)) goto next_pixel;
 		}
 		// Peek color
@@ -173,7 +172,7 @@ void raster_gen(void)
 			*w_ = color;
 		}
 		if (ctx.poly.cmdFacet.write_z) {
-			*(w_+out2zb) = z;
+			*(w_ + ctx.code.out2zb) = z;
 		}
 		// Next pixel
 next_pixel:

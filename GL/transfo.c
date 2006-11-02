@@ -316,12 +316,13 @@ void glOrthox(GLfixed left, GLfixed right, GLfixed bottom, GLfixed top, GLfixed 
 
 void glDepthRangex(GLclampx near, GLclampx far)
 {
-	if (near <= 0) near = 0;
-	else if (near >= 0x10000) near = 0x10000;
-	if (far <= 0) far = 0;
-	else if (far >= 0x10000) far = 0x10000;
+	CLAMP(near, 0, 0x10000);
+	CLAMP(far, 0, 0x10000);
 	depth_range_near = near;
 	depth_range_far = far;
+	// we don't rescale Z coords, which should work allright as long as :
+	// - near < far
+	// - user don't read depth buffer. If it does, it's not too late to convert the values.
 }
 
 void glViewport(GLint x, GLint y, GLsizei width, GLsizei height)

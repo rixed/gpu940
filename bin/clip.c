@@ -18,8 +18,6 @@
 #include <limits.h>
 #include "gpu940i.h"
 
-// TODO : a c2d cache ?
-
 /*
  * Data Definitions
  */

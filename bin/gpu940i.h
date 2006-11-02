@@ -123,7 +123,7 @@ extern struct ctx {
 	// generated code
 	struct {
 		uint32_t buff_addr[GPU_NB_BUFFER_TYPES];	// address of the buffers
-		int32_t out2zb;	// maybe useless
+		int32_t out2zb;	// in words
 		uint32_t sp_save;
 #		define NB_CODE_CACHE 5
 		struct {

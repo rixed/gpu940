@@ -21,8 +21,12 @@
  * Data Definitions
  */
 
-static struct gpuBuf *out_buffer[3];
-static unsigned active_out_buffer;
+static struct {
+	struct gpuBuf *out;
+	struct gpuBuf *depth;
+} buffers[3];
+static unsigned active_buffer;
+bool gli_with_depth_buffer;
 
 /*
  * Private Functions
@@ -32,9 +36,10 @@ static unsigned active_out_buffer;
  * Public Functions
  */
 
-GLboolean glOpen(void)
+GLboolean glOpen(unsigned attribs)
 {
 	typedef int (*begin_func)(void);
+	gli_with_depth_buffer = attribs & DEPTH_BUFFER;
 	static begin_func const begins[] = {
 		gli_state_begin,
 		gli_arrays_begin,
@@ -54,10 +59,15 @@ GLboolean glOpen(void)
 	if (gpuOK != gpuOpen()) {
 		return GL_FALSE;
 	}
-	for (unsigned i=0; i<sizeof_array(out_buffer); i++) {
-		out_buffer[i] = gpuAlloc(9, 250, true);
+	for (unsigned i=0; i<sizeof_array(buffers); i++) {
+		buffers[i].out = gpuAlloc(9, 250, true);
+		if (gli_with_depth_buffer) {
+			buffers[i].depth = gpuAlloc(9, 250, true);
+		} else {
+			buffers[i].depth = NULL;
+		}
 	}
-	active_out_buffer = ~0U;
+	active_buffer = ~0U;
 	return glSwapBuffers();
 }
 
@@ -72,27 +82,31 @@ void glClose(void)
 	(void)gli_framebuf_end();
 	(void)gli_texture_end();
 	(void)gli_triangle_end();
-	for (unsigned i=0; i<sizeof_array(out_buffer); i++) {
-		gpuFree(out_buffer[i]);
+	for (unsigned i=0; i<sizeof_array(buffers); i++) {
+		gpuFree(buffers[i].out);
+		if (buffers[i].depth) gpuFree(buffers[i].depth);
 	}
 	gpuClose();
 }
 
 GLboolean glSwapBuffers(void)
 {
-	if (active_out_buffer == ~0U) {
-		active_out_buffer = 0;
+	if (active_buffer == ~0U) {
+		active_buffer = 0;
 	} else {
-		if (gpuOK != gpuShowBuf(out_buffer[active_out_buffer], true)) {
+		if (gpuOK != gpuShowBuf(buffers[active_buffer].out, true)) {
 			return GL_FALSE;
 		}
 		// wait until this buffer is actually on display
 		gpuWaitDisplay();
-		if (++ active_out_buffer >= sizeof_array(out_buffer)) {
-			active_out_buffer = 0;
+		if (++ active_buffer >= sizeof_array(buffers)) {
+			active_buffer = 0;
 		}
 	}
-	if (gpuOK != gpuSetBuf(gpuOutBuffer, out_buffer[active_out_buffer], true)) {
+	if (gpuOK != gpuSetBuf(gpuOutBuffer, buffers[active_buffer].out, true)) {
+		return GL_FALSE;
+	}
+	if (buffers[active_buffer].depth && gpuOK != gpuSetBuf(gpuZBuffer, buffers[active_buffer].depth, true)) {
 		return GL_FALSE;
 	}
 	return GL_TRUE;

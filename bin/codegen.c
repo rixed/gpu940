@@ -140,7 +140,7 @@ struct {
 	}, {	// zbuffer test
 #		define ZBUFFER_NOPERSP 6
 		.working_set = 1,
-		.needed_vars = VARP_Z_M,
+		.needed_vars = VARP_Z_M|CONSTP_OUT2ZB_M,
 		.write_code = ztest_nopersp,
 	}, {	// peek flat
 #		define PEEK_FLAT 7
@@ -350,6 +350,7 @@ static uint32_t offset12(unsigned v)
 static unsigned load_constp(unsigned v, int rtmp)
 {
 	if (vars[v].rnum != -1) {
+		assert(regs[vars[v].rnum].var == (int)v);
 		// we have a dedicated reg
 		return vars[v].rnum;
 	} else {
@@ -364,33 +365,24 @@ static unsigned load_constp(unsigned v, int rtmp)
 
 static uint32_t z_mode_cond(void)
 {
+	// we want to branch when the test _fails_
 	switch (ctx.rendering.z_mode) {
-		case gpu_z_lt:
-			return 11<<28;
-		case gpu_z_eq:
-			return 0;
-		case gpu_z_ne:
-			return 1<<28;
-		case gpu_z_lte:
-			return 13<<28;
-		case gpu_z_gt:
-			return 12<<28;
 		case gpu_z_gte:
+			return 11<<28;
+		case gpu_z_ne:
+			return 0;
+		case gpu_z_eq:
+			return 1<<28;
+		case gpu_z_gt:
+			return 13<<28;
+		case gpu_z_lte:
+			return 12<<28;
+		case gpu_z_lt:
 			return 10<<28;
 		default:
 			assert(0);
 	}
 	return 0;
-}
-
-static void write_z_test(void)	// come here with zb in r0
-{
-	unsigned const tmp1 = 0;
-	// 1110 0001 0101 _RZ_ 0000 0000 0000 tmp1 ie "cmp rz, tmp1"
-	*gen_dst++ = 0xe1500000 | (vars[VARP_Z].rnum<<16) | tmp1;
-	add_patch(offset_24, next_pixel);
-	// ie "bZOP XXXXX" branch to next_pixel
-	*gen_dst++ = 0x0a000000 | z_mode_cond();
 }
 
 static void ztest_persp(void)
@@ -404,7 +396,12 @@ static void ztest_persp(void)
 	*gen_dst++ = 0xe0800100 | (vars[VARP_W].rnum<<16) | (tmp2<<12) | constp_out2zb;
 	// 1110 0111 1001 tmp2 tmp1 nclo g000 tmp1  ie "ldr tmp1, [tmp2, tmp1, lsl #(nc_log+2)]"
 	*gen_dst++ = 0xe7900000 | (tmp2<<16) | (tmp1<<12) | ((ctx.poly.nc_log+2)<<7) | tmp1;
-	write_z_test();
+	unsigned const constp_z = load_constp(CONSTP_Z, tmp1);
+	// 1110 0001 0101 _rZ_ 0000 0000 0000 tmp1 ie "cmp constz, tmp1"
+	*gen_dst++ = 0xe1500000 | (constp_z<<16) | tmp1;
+	add_patch(offset_24, next_pixel);
+	// ie "bZOP XXXXX" branch to next_pixel
+	*gen_dst++ = 0x0a000000 | z_mode_cond();
 }
 
 static void ztest_nopersp(void)
@@ -414,7 +411,11 @@ static void ztest_nopersp(void)
 	unsigned const constp_out2zb = load_constp(CONSTP_OUT2ZB, tmp1);
 	// 1110 0111 1001 _RW_ tmp1 0001 0000 out2zb ie "ldr tmp1, [Rw, out2zb, lsl #2]"
 	*gen_dst++ = 0xe7900100 | (vars[VARP_W].rnum<<16) | (tmp1<<12) | constp_out2zb;
-	write_z_test();
+	// 1110 0001 0101 _RZ_ 0000 0000 0000 tmp1 ie "cmp rz, tmp1"
+	*gen_dst++ = 0xe1500000 | (vars[VARP_Z].rnum<<16) | tmp1;
+	add_patch(offset_24, next_pixel);
+	// ie "bZOP XXXXX" branch to next_pixel
+	*gen_dst++ = 0x0a000000 | z_mode_cond();
 }
 
 static void write_mov_immediate(unsigned r, uint32_t imm)
@@ -559,8 +560,8 @@ static void poke_z_persp(void)
 
 static void poke_nopersp(void)
 {
-	if (!ctx.poly.cmdFacet.use_key && !ctx.poly.cmdFacet.write_z) {
-		// we increment VARP_W in the go, so that we have nothing left for NEXT_NOPERSP
+	if (!ctx.poly.cmdFacet.use_key && ctx.rendering.z_mode == gpu_z_off) {
+		// we increment VARP_W on the go, so that we have nothing left for NEXT_NOPERSP
 		if (nb_pixels_per_loop == 1) {
 			// 1110 0100 1000 varW rcol 0000 0000 0100 ie "str rcol, [rW], #0x4"
 			*gen_dst++ = 0xe4800004 | (vars[VARP_W].rnum<<16) | (vars[VARP_OUTCOLOR].rnum<<12);
@@ -580,10 +581,10 @@ static void poke_z_nopersp(void)
 	unsigned tmp1 = 0;
 	unsigned const constp_out2dz = load_constp(CONSTP_OUT2ZB, tmp1);
 	if (nb_pixels_per_loop == 1) {
-		// 1110 0111 1000 varW _RZ_ 0001 0000 out2dz ie "str rz, [rW, out2dz, lsl #2]"
+		// 1110 0111 1000 varW _RZ_ 0001 0000 out2zb ie "str rz, [rW, out2zb, lsl #2]"
 		*gen_dst++ = 0xe7800100 | (vars[VARP_W].rnum<<16) | (vars[VARP_Z].rnum<<12) | constp_out2dz;
 	} else {
-		// 1110 0000 1000 _RW_ tmp1 0001 0000 out2dz ie "add tmp1, rW, out2dz, lsl #2"
+		// 1110 0000 1000 _RW_ tmp1 0001 0000 out2zb ie "add tmp1, rW, out2zb, lsl #2"
 		*gen_dst++ = 0xe0800100 | (vars[VARP_W].rnum<<16) | (tmp1<<12) | constp_out2dz;
 		// 1110 1000 1000 tmp1 regi ster list 16bt ie "smtia tmp1, {rz1-rzN}"
 		*gen_dst++ = 0xe8800000 | (tmp1<<16) | outz_mask;
@@ -664,7 +665,7 @@ static void next_persp(void)
 static void next_nopersp(void)
 {
 	do_patch(next_pixel);
-	if (ctx.poly.cmdFacet.use_key || ctx.poly.cmdFacet.write_z) {	// we still have not incremented VARP_W
+	if (ctx.poly.cmdFacet.use_key || ctx.rendering.z_mode != gpu_z_off) {	// we still have not incremented VARP_W
 		// 1110 0010 1000 varW varW 0000 0000 0100 ie "add varW, varW, #4"
 		*gen_dst++ = 0xe2800004 | (vars[VARP_W].rnum<<16) | (vars[VARP_W].rnum<<12);
 	}
@@ -674,7 +675,7 @@ static void next_z(void)
 {
 	unsigned const constp_dz = load_constp(CONSTP_DZ, -1);
 	// 1110 0000 1000 varZ varZ 0000 0000 _DZ_ ie "add varZ, varZ, rDZ"
-	*gen_dst++ = 0xe0800000 | (vars[VARP_W].rnum<<16) | (vars[VARP_W].rnum<<12) | constp_dz;
+	*gen_dst++ = 0xe0800000 | (vars[VARP_Z].rnum<<16) | (vars[VARP_Z].rnum<<12) | constp_dz;
 }
 
 static void bloc_def_func(void (*cb)(unsigned))
@@ -710,6 +711,10 @@ static void bloc_def_func(void (*cb)(unsigned))
 	if (ctx.poly.cmdFacet.use_intens && ctx.poly.cmdFacet.write_out) cb(INTENS);
 	cb(END_PIXEL_LOOP);
 	// Poke
+	if (ctx.poly.cmdFacet.write_z) {
+		if (ctx.poly.cmdFacet.perspective) cb(POKE_Z_PERSP);
+		else cb(POKE_Z_NOPERSP);
+	}
 	if (ctx.poly.cmdFacet.write_out) {
 		if (ctx.poly.cmdFacet.perspective) {
 			if (ctx.poly.cmdFacet.blend_coef) {
@@ -724,10 +729,6 @@ static void bloc_def_func(void (*cb)(unsigned))
 				cb(POKE_OUT_NOPERSP);
 			}
 		}
-	}
-	if (ctx.poly.cmdFacet.write_z) {
-		if (ctx.poly.cmdFacet.perspective) cb(POKE_Z_PERSP);
-		else cb(POKE_Z_NOPERSP);
 	}
 	// Next pixel
 	if (ctx.poly.cmdFacet.perspective) {
@@ -905,10 +906,10 @@ void build_code(unsigned cache)
 		vars[v].rnum = -1;
 	}
 	// adjust offsets
-	unsigned i_idx = ctx.poly.nb_params;
+	unsigned z_idx = ctx.poly.nb_params - 1;
+	if (ctx.rendering.z_mode == gpu_z_off) z_idx ++;
+	unsigned i_idx = z_idx;
 	if (ctx.poly.cmdFacet.use_intens) i_idx --;
-	unsigned z_idx = i_idx;
-	if (ctx.rendering.z_mode != gpu_z_off) i_idx --;
 	vars[CONSTP_Z].offset = offsetof(struct ctx, line.param[z_idx]);
 	vars[CONSTP_DZ].offset = offsetof(struct ctx, line.dparam[z_idx]);
 	vars[CONSTP_DI].offset = offsetof(struct ctx, line.dparam[i_idx]);

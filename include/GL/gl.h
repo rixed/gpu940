@@ -37,7 +37,8 @@ typedef unsigned GLbitfield;
 typedef unsigned GLuint;
 
 // Replaces GLX, EGL, ...
-GLboolean glOpen(void);
+enum glOpen_attribs { DEPTH_BUFFER = 1 };
+GLboolean glOpen(unsigned mask);
 void glClose(void);
 GLboolean glSwapBuffers(void);
 

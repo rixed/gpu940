@@ -36,7 +36,7 @@ static struct iovec const iov_triangle[] = {
  * Private Functions
  */
 
-static void prepare_vertex(GLfixed dest[4], GLint arr_idx)
+static void rotate_vertex(GLfixed dest[4], GLint arr_idx)
 {
 	int32_t c[4];
 	gli_vertex_get(arr_idx, c);
@@ -89,6 +89,16 @@ static GLfixed const *get_vertex_color(int32_t v[4], unsigned vec_idx)
 	return &cpri[0];
 }
 
+static int32_t get_vertex_depth(int32_t v[4])
+{
+	return -v[2];	// we don't use depth range here, so for us depth = -z
+}
+
+static bool depth_test(void)
+{
+	return gli_with_depth_buffer && gli_enabled(GL_DEPTH_TEST);
+}
+
 static uint32_t color_GL2gpu(GLfixed const *c)
 {
 	unsigned r = c[0]>>8;
@@ -98,6 +108,47 @@ static uint32_t color_GL2gpu(GLfixed const *c)
 	CLAMP(g, 0, 0xFF);
 	CLAMP(b, 0, 0xFF);	
 	return gpuColor(r, g, b);
+}
+
+// Send a ZMode command if needed
+static void set_depth_mode(void)
+{
+	static gpuCmdZMode cmd = {
+		.opcode = gpuZMODE,
+		.mode = gpu_z_off,
+	};
+	gpuZMode needed = gpu_z_off;
+	if (depth_test()) {
+		switch (gli_depth_func) {
+			case GL_NEVER:
+			case GL_ALWAYS:
+				needed = gpu_z_off;
+				break;
+			case GL_LESS:
+				needed = gpu_z_lt;
+				break;
+			case GL_EQUAL:
+				needed = gpu_z_eq;
+				break;
+			case GL_LEQUAL:
+				needed = gpu_z_lte;
+				break;
+			case GL_GREATER:
+				needed = gpu_z_gt;
+				break;
+			case GL_NOTEQUAL:
+				needed = gpu_z_ne;
+				break;
+			case GL_GEQUAL:
+				needed = gpu_z_gte;
+				break;
+		}
+	}
+	if (needed != cmd.mode) {
+		cmd.mode = needed;
+		gpuErr const err = gpuWrite(&cmd, sizeof(cmd), true);
+		assert(gpuOK == err);
+	}
 }
 
 static void send_triangle(int32_t vi[4], GLint ci, bool facet_is_inverted)
@@ -117,8 +168,12 @@ static void send_triangle(int32_t vi[4], GLint ci, bool facet_is_inverted)
 		cmdFacet.color = color_GL2gpu(c);
 		cmdFacet.rendering_type = rendering_flat;
 	}
+	// Optionnaly ask for z-buffer
+	set_depth_mode();
+	cmdFacet.write_out = gli_color_mask_all && (!depth_test() || gli_depth_func != GL_NEVER);
+	cmdFacet.write_z = depth_test() && gli_depth_mask;
 	// Send to GPU
-	gpuErr err = gpuWritev(iov_triangle, sizeof_array(iov_triangle), true);
+	gpuErr const err = gpuWritev(iov_triangle, sizeof_array(iov_triangle), true);
 	assert(gpuOK == err);
 }
 
@@ -128,6 +183,7 @@ static void write_vertex(GLfixed v[4], unsigned vec_idx, GLint arr_idx)
 	cmdVec[vec_idx].u.geom.c3d[0] = v[0];
 	cmdVec[vec_idx].u.geom.c3d[1] = v[1];
 	cmdVec[vec_idx].u.geom.c3d[2] = v[2];
+	unsigned z_param = 0;	// we don't use i or now
 	if (gli_smooth()) {
 		GLfixed const *c = get_vertex_color(v, arr_idx);
 		cmdVec[vec_idx].u.smooth_params.r = Fix_gpuColor1(c[0], c[1], c[2]);
@@ -136,6 +192,11 @@ static void write_vertex(GLfixed v[4], unsigned vec_idx, GLint arr_idx)
 		CLAMP(cmdVec[vec_idx].u.smooth_params.r, 0, 0xFFFF);
 		CLAMP(cmdVec[vec_idx].u.smooth_params.g, 0, 0xFFFF);
 		CLAMP(cmdVec[vec_idx].u.smooth_params.b, 0, 0xFFFF);
+		z_param += 3;
+	}
+	// Add zb parameter if needed
+	if (depth_test()) {
+		cmdVec[vec_idx].u.geom.param[z_param] = get_vertex_depth(v);
 	}
 }
 
@@ -151,8 +212,6 @@ int gli_triangle_begin(void)
 	cmdFacet.use_intens = 0;
 	cmdFacet.blend_coef = 0;
 	cmdFacet.perspective = 0;
-	cmdFacet.write_out = 1;
-	cmdFacet.write_z = 0;
 	return 0;
 }
 
@@ -165,11 +224,11 @@ void gli_triangle_array(enum gli_DrawMode mode, GLint first, unsigned count)
 	bool facet_is_inverted = false;
 	GLfixed v[4], first_v[4];
 	do {
-		prepare_vertex(first_v, first);
+		rotate_vertex(first_v, first);
 		write_vertex(first_v, 0, first++);
-		prepare_vertex(v, first);
+		rotate_vertex(v, first);
 		write_vertex(v, 1, first++);
-		prepare_vertex(v, first);
+		rotate_vertex(v, first);
 		write_vertex(v, 2, first++);
 		send_triangle(mode == GL_TRIANGLES ? first_v:v, first - (mode == GL_TRIANGLES ? 3:1), facet_is_inverted);
 	} while (mode == GL_TRIANGLES && first < last);
@@ -179,7 +238,7 @@ void gli_triangle_array(enum gli_DrawMode mode, GLint first, unsigned count)
 		facet_is_inverted = !facet_is_inverted;
 		for (unsigned i=0; i<3; i++) {
 			if (i == repl_idx) {
-				prepare_vertex(v, first);
+				rotate_vertex(v, first);
 				write_vertex(v, repl_idx, first++);
 			} else {
 				cmdVec[i].same_as = 3;
@@ -203,10 +262,11 @@ void gli_clear(gpuBufferType type, GLclampx *val)
 	};
 	rect.type = type;
 	if (type == gpuZBuffer) {
+		if (! gli_with_depth_buffer) return;
 		rect.value = *val;
 	} else {	// color
 		rect.value = gpuColor((val[0]>>8)&0xFF, (val[1]>>8)&0xFF, (val[2]>>8)&0xFF);
 	}
-	gpuErr err = gpuWrite(&rect, sizeof(rect), true);
+	gpuErr const err = gpuWrite(&rect, sizeof(rect), true);
 	assert(gpuOK == err);
 }
