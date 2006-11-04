@@ -39,14 +39,14 @@ static void draw_line(void) {
 	ctx.line.count = ((ctx.trap.side[!ctx.trap.left_side].c + 0xffff) >> 16) - c_start;
 	if (unlikely(ctx.line.count < 0)) return;	// may happen on some pathological cases ?
 	ctx.line.w = ctx.location.out_start + c_start + ((ctx.poly.nc_declived>>16)<<ctx.location.buffer_loc[gpuOutBuffer].width_log);
-	if (ctx.poly.cmdFacet.perspective) {
+	if (ctx.poly.cmd->perspective) {
 		ctx.line.decliv = ctx.poly.decliveness * c_start;	// 16.16
 		if (ctx.poly.scan_dir != 0) {
 			ctx.line.w = ctx.location.out_start + (ctx.poly.nc_declived>>16) + (c_start<<ctx.location.buffer_loc[gpuOutBuffer].width_log);
 		}
 	}
 	if (ctx.poly.nb_params > 0) {
-		if (ctx.poly.cmdFacet.perspective || unlikely(!ctx.trap.is_triangle)) {	// We need to compute 
+		if (ctx.poly.cmd->perspective || unlikely(!ctx.trap.is_triangle)) {	// We need to compute 
 			int32_t inv_dc = 0;
 			if (likely(ctx.line.count)) {
 				inv_dc = Fix_inv(ctx.line.count<<16);
@@ -74,10 +74,10 @@ static void draw_line(void) {
 
 static void next_params_frac(unsigned side, int32_t dnc) {
 	ctx.trap.side[side].c += Fix_mul(dnc, ctx.trap.side[side].dc);
-	if (ctx.poly.cmdFacet.perspective) {
+	if (ctx.poly.cmd->perspective) {
 		int32_t dalpha = ctx.poly.z_alpha - ctx.trap.side[side].z_alpha_start;
 		for (unsigned p=ctx.poly.nb_params; p--; ) {
-			ctx.trap.side[side].param[p] = Fix_mul(ctx.trap.side[side].param_alpha[p], dalpha) + ctx.poly.vectors[ ctx.trap.side[side].start_v ].cmdVector.u.geom.param[p];
+			ctx.trap.side[side].param[p] = Fix_mul(ctx.trap.side[side].param_alpha[p], dalpha) + ctx.poly.vectors[ ctx.trap.side[side].start_v ].cmd->u.geom.param[p];
 		}
 	} else {
 		for (unsigned p=ctx.poly.nb_params; p--; ) {
@@ -90,7 +90,7 @@ static void draw_trapeze_frac(void) {
 	int32_t dnc = ctx.poly.nc_declived_next - ctx.poly.nc_declived;
 	dnc = Fix_abs(dnc);
 	// compute next z_alpha
-	if (ctx.poly.cmdFacet.perspective) {
+	if (ctx.poly.cmd->perspective) {
 		ctx.poly.z_den += (int64_t)dnc*ctx.poly.z_dden;
 		ctx.poly.z_num += (int64_t)dnc*ctx.poly.z_dnum;
 		if (ctx.poly.z_den) ctx.poly.z_alpha = ctx.poly.z_num/(ctx.poly.z_den>>16);	// FIXME: use Fix_div
@@ -108,10 +108,10 @@ static void draw_trapeze_frac(void) {
 
 static void next_params_int(unsigned side) {
 	ctx.trap.side[side].c += ctx.trap.side[side].dc;
-	if (ctx.poly.cmdFacet.perspective) {
+	if (ctx.poly.cmd->perspective) {
 		int32_t dalpha = ctx.poly.z_alpha - ctx.trap.side[side].z_alpha_start;
 		for (unsigned p=ctx.poly.nb_params; p--; ) {
-			ctx.trap.side[side].param[p] = Fix_mul(ctx.trap.side[side].param_alpha[p], dalpha) + ctx.poly.vectors[ ctx.trap.side[side].start_v ].cmdVector.u.geom.param[p];
+			ctx.trap.side[side].param[p] = Fix_mul(ctx.trap.side[side].param_alpha[p], dalpha) + ctx.poly.vectors[ ctx.trap.side[side].start_v ].cmd->u.geom.param[p];
 		}
 	} else {
 		for (unsigned p=ctx.poly.nb_params; p--; ) {
@@ -122,7 +122,7 @@ static void next_params_int(unsigned side) {
 
 static void draw_trapeze_int(void) {
 	// compute next z_alpha
-	if (ctx.poly.cmdFacet.perspective) {
+	if (ctx.poly.cmd->perspective) {
 		ctx.poly.z_den += (int64_t)ctx.poly.z_dden<<16;	// wrong if !complete_scan_line
 		ctx.poly.z_num += (int64_t)ctx.poly.z_dnum<<16;
 		if (ctx.poly.z_den) ctx.poly.z_alpha = ctx.poly.z_num/(ctx.poly.z_den>>16);
@@ -151,7 +151,7 @@ static void draw_trapeze(void) {
 	ctx.trap.side[ctx.trap.left_side].is_growing = ctx.trap.side[ctx.trap.left_side].dc < 0;
 	ctx.trap.side[!ctx.trap.left_side].is_growing = ctx.trap.side[!ctx.trap.left_side].dc > 0;
 	// Compute constant linear coefs for non-perspective mode if possible
-	if (!ctx.poly.cmdFacet.perspective) {
+	if (!ctx.poly.cmd->perspective) {
 		// We can use the same dparam for all the trapeze if the trapeze is in fact a triangle
 		ctx.trap.is_triangle = ctx.trap.side[0].start_v == ctx.trap.side[1].start_v ||
 			ctx.trap.side[0].end_v == ctx.trap.side[1].end_v;
@@ -236,20 +236,20 @@ void draw_poly(void) {
 	ctx.poly.scan_dir = 0;
 	ctx.line.dw = 1;
 	ctx.poly.nc_log = ctx.location.buffer_loc[gpuOutBuffer].width_log;
-	if (0 == ctx.poly.nb_params) ctx.poly.cmdFacet.perspective = 0;
+	if (0 == ctx.poly.nb_params) ctx.poly.cmd->perspective = 0;
 	// bounding box
 	unsigned b_vec, c_vec;
 	c_vec = b_vec = ctx.poly.first_vector;
-	if (ctx.poly.cmdFacet.perspective) {
+	if (ctx.poly.cmd->perspective) {
 		// compute decliveness (2 DIVs)
 		// FIXME: with clipping, A can get very close from B or C.
 		// we want b = zmin, c = zmax (closer)
 		unsigned v = ctx.poly.first_vector;
 		do {
-			if (ctx.poly.vectors[v].cmdVector.u.geom.c3d[2] < ctx.poly.vectors[b_vec].cmdVector.u.geom.c3d[2]) {
+			if (ctx.poly.vectors[v].cmd->u.geom.c3d[2] < ctx.poly.vectors[b_vec].cmd->u.geom.c3d[2]) {
 				b_vec = v;
 			}
-			if (ctx.poly.vectors[v].cmdVector.u.geom.c3d[2] >= ctx.poly.vectors[c_vec].cmdVector.u.geom.c3d[2]) {
+			if (ctx.poly.vectors[v].cmd->u.geom.c3d[2] >= ctx.poly.vectors[c_vec].cmd->u.geom.c3d[2]) {
 				c_vec = v;
 			}
 			v = ctx.poly.vectors[v].next;
@@ -263,13 +263,13 @@ void draw_poly(void) {
 			}
 			v = ctx.poly.vectors[v].next;
 		} while (1);
-		if (ctx.poly.vectors[b_vec].cmdVector.u.geom.c3d[2] == ctx.poly.vectors[c_vec].cmdVector.u.geom.c3d[2]) {	// BC is Z-const
+		if (ctx.poly.vectors[b_vec].cmd->u.geom.c3d[2] == ctx.poly.vectors[c_vec].cmd->u.geom.c3d[2]) {	// BC is Z-const
 			m[0] = ctx.poly.vectors[c_vec].c2d[0]-ctx.poly.vectors[b_vec].c2d[0];
 			m[1] = ctx.poly.vectors[c_vec].c2d[1]-ctx.poly.vectors[b_vec].c2d[1];
 		} else {
-			int64_t alpha = ((int64_t)(ctx.poly.vectors[a_vec].cmdVector.u.geom.c3d[2]-ctx.poly.vectors[b_vec].cmdVector.u.geom.c3d[2])<<31)/(ctx.poly.vectors[c_vec].cmdVector.u.geom.c3d[2]-ctx.poly.vectors[b_vec].cmdVector.u.geom.c3d[2]);
+			int64_t alpha = ((int64_t)(ctx.poly.vectors[a_vec].cmd->u.geom.c3d[2]-ctx.poly.vectors[b_vec].cmd->u.geom.c3d[2])<<31)/(ctx.poly.vectors[c_vec].cmd->u.geom.c3d[2]-ctx.poly.vectors[b_vec].cmd->u.geom.c3d[2]);
 			for (unsigned c=2; c--; ) {
-				m[c] = ctx.poly.vectors[b_vec].cmdVector.u.geom.c3d[c]-ctx.poly.vectors[a_vec].cmdVector.u.geom.c3d[c]+(alpha*(ctx.poly.vectors[c_vec].cmdVector.u.geom.c3d[c]-ctx.poly.vectors[b_vec].cmdVector.u.geom.c3d[c])>>31);
+				m[c] = ctx.poly.vectors[b_vec].cmd->u.geom.c3d[c]-ctx.poly.vectors[a_vec].cmd->u.geom.c3d[c]+(alpha*(ctx.poly.vectors[c_vec].cmd->u.geom.c3d[c]-ctx.poly.vectors[b_vec].cmd->u.geom.c3d[c])>>31);
 			}
 		}
 		if (Fix_abs(m[0]) < Fix_abs(m[1])) {
@@ -292,7 +292,7 @@ void draw_poly(void) {
 	{
 		ctx.poly.z_num = 0;
 		ctx.poly.nc_dir = 1;
-		int32_t dz = ctx.poly.vectors[b_vec].cmdVector.u.geom.c3d[2] - ctx.poly.vectors[c_vec].cmdVector.u.geom.c3d[2];
+		int32_t dz = ctx.poly.vectors[b_vec].cmd->u.geom.c3d[2] - ctx.poly.vectors[c_vec].cmd->u.geom.c3d[2];
 		if (0 == dz) {	// if dz is 0, b_vec and c_vec are random or not set yet, and so would be dnc
 			unsigned v = ctx.poly.first_vector;
 			do {
@@ -304,7 +304,7 @@ void draw_poly(void) {
 				}
 				v = ctx.poly.vectors[v].next;
 			} while (v != ctx.poly.first_vector);		
-			if (ctx.poly.vectors[b_vec].cmdVector.u.geom.c3d[2] > ctx.poly.vectors[c_vec].cmdVector.u.geom.c3d[2]) {
+			if (ctx.poly.vectors[b_vec].cmd->u.geom.c3d[2] > ctx.poly.vectors[c_vec].cmd->u.geom.c3d[2]) {
 				SWAP(unsigned, b_vec, c_vec);
 			}
 		}
@@ -316,9 +316,9 @@ void draw_poly(void) {
 			dnc = -dnc_;
 			ctx.poly.nc_dir = -1;
 		}
-		if (ctx.poly.cmdFacet.perspective) {
-			ctx.poly.z_den = ((int64_t)ctx.poly.vectors[b_vec].cmdVector.u.geom.c3d[2]*dnc_);
-			ctx.poly.z_dnum = ctx.poly.nc_dir == 1 ? ctx.poly.vectors[c_vec].cmdVector.u.geom.c3d[2]:-ctx.poly.vectors[c_vec].cmdVector.u.geom.c3d[2];
+		if (ctx.poly.cmd->perspective) {
+			ctx.poly.z_den = ((int64_t)ctx.poly.vectors[b_vec].cmd->u.geom.c3d[2]*dnc_);
+			ctx.poly.z_dnum = ctx.poly.nc_dir == 1 ? ctx.poly.vectors[c_vec].cmd->u.geom.c3d[2]:-ctx.poly.vectors[c_vec].cmd->u.geom.c3d[2];
 			ctx.poly.z_dden = ctx.poly.nc_dir == 1 ? -dz:dz;
 			ctx.poly.z_alpha = 0;
 		}
@@ -340,7 +340,7 @@ void draw_poly(void) {
 						(ctx.poly.nc_dir > 0 && dnc > DNC_MIN) ||
 						(ctx.poly.nc_dir < 0 && dnc < -DNC_MIN)
 					) break;	// not flat
-				if (0 == ctx.poly.cmdFacet.size--) goto end_poly;
+				if (0 == ctx.poly.cmd->size--) goto end_poly;
 				ctx.trap.side[side].start_v = ctx.trap.side[side].end_v;
 				ctx.trap.side[side].end_v = 0==side ? ctx.poly.vectors[ctx.trap.side[side].end_v].prev:ctx.poly.vectors[ctx.trap.side[side].end_v].next;
 				ctx.trap.side[side].c = ctx.poly.vectors[ ctx.trap.side[side].start_v ].c2d[ctx.poly.scan_dir];
@@ -353,7 +353,7 @@ void draw_poly(void) {
 				// compute alpha_params used for vector parameters
 				if (ctx.poly.nb_params > 0) {
 					int32_t inv_dalpha = 0;
-					if (ctx.poly.cmdFacet.perspective) {
+					if (ctx.poly.cmd->perspective) {
 						// first, compute the z_alpha of end_v
 						int64_t n = ctx.poly.z_num + (((int64_t)ctx.poly.z_dnum*dnc));	// 32.32
 						int64_t d = ctx.poly.z_den + (((int64_t)ctx.poly.z_dden*dnc));	// 32.32
@@ -366,8 +366,8 @@ void draw_poly(void) {
 						inv_dalpha = Fix_inv(dnc);
 					}
 					for (unsigned p=ctx.poly.nb_params; p--; ) {
-						int32_t const P0 = ctx.poly.vectors[ ctx.trap.side[side].start_v ].cmdVector.u.geom.param[p];
-						int32_t const PN = ctx.poly.vectors[ ctx.trap.side[side].end_v ].cmdVector.u.geom.param[p];
+						int32_t const P0 = ctx.poly.vectors[ ctx.trap.side[side].start_v ].cmd->u.geom.param[p];
+						int32_t const PN = ctx.poly.vectors[ ctx.trap.side[side].end_v ].cmd->u.geom.param[p];
 						ctx.trap.side[side].param[p] = P0;
 						ctx.trap.side[side].param_alpha[p] = Fix_mul(PN-P0, inv_dalpha);
 					}

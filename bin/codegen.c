@@ -237,8 +237,8 @@ static struct {
 	{ .offset = offsetof(struct ctx, line.dparam[1]), },
 	{ .offset = offsetof(struct ctx, line.dparam[2]), },
 	{ .offset = 0 },	// CONST_DI = 9
-	{ .offset = offsetof(struct ctx, poly.cmdFacet.color), },
-	{ .offset = offsetof(struct ctx, poly.cmdFacet.color), },
+	{ .offset = offsetof(struct ctx, code.color), },
+	{ .offset = offsetof(struct ctx, code.color), },
 	{ .offset = offsetof(struct ctx, code.out2zb), },
 	{ .offset = offsetof(struct ctx, code.buff_addr[gpuOutBuffer]), },
 	{ .offset = offsetof(struct ctx, code.buff_addr[gpuTxtBuffer]), },
@@ -560,7 +560,7 @@ static void poke_z_persp(void)
 
 static void poke_nopersp(void)
 {
-	if (!ctx.poly.cmdFacet.use_key && ctx.rendering.z_mode == gpu_z_off) {
+	if (!ctx.poly.cmd->use_key && ctx.rendering.z_mode == gpu_z_off) {
 		// we increment VARP_W on the go, so that we have nothing left for NEXT_NOPERSP
 		if (nb_pixels_per_loop == 1) {
 			// 1110 0100 1000 varW rcol 0000 0000 0100 ie "str rcol, [rW], #0x4"
@@ -603,16 +603,16 @@ static void write_combine(void)	// come here with previous color in r0
 	*gen_dst++ = 0xe0000400 | (vars[VARP_OUTCOLOR].rnum<<16) | (vars[VARP_OUTCOLOR].rnum<<12) | tmp3;
 	// 1110 0000 0000 rcol rcol 0100 0000 tmp3 ie "and tmp1, tmp1, tmp3 lsl #8" ie tmp1 = tmp1 & 0xff00ff00
 	*gen_dst++ = 0xe0000400 | (tmp1<<16) | (tmp1<<12) | tmp3;
-	if (ctx.poly.cmdFacet.blend_coef<=8) {
+	if (ctx.poly.cmd->blend_coef<=8) {
 		// 1110 0000 1000 tmp4 tmp2 shif t010 tmp2 ie "add tmp2, tmp4, tmp2, lsr #(8-blend)" tmp2 = tmp2>>(8-blend_coef) + tmp4	
-		*gen_dst++ = 0xe0800020 | (tmp4<<16) | (tmp2<<12) | ((8-ctx.poly.cmdFacet.blend_coef)<<7) | tmp2;
+		*gen_dst++ = 0xe0800020 | (tmp4<<16) | (tmp2<<12) | ((8-ctx.poly.cmd->blend_coef)<<7) | tmp2;
 		// 1110 0000 1000 tmp1 rcol shif t010 rcol ie "add rcol, tmp1, rcol, lsr #(8-blend)" rcol = rcol>>(8-blend_coef) + tmp1
-		*gen_dst++ = 0xe0800020 | (tmp1<<16) | (vars[VARP_OUTCOLOR].rnum<<12) | ((8-ctx.poly.cmdFacet.blend_coef)<<7) | vars[VARP_OUTCOLOR].rnum;
+		*gen_dst++ = 0xe0800020 | (tmp1<<16) | (vars[VARP_OUTCOLOR].rnum<<12) | ((8-ctx.poly.cmd->blend_coef)<<7) | vars[VARP_OUTCOLOR].rnum;
 	} else {
 		// 1110 0000 1000 tmp2 tmp2 shif t010 tmp4 ie "add tmp2, tmp2, tmp4, lsr #(blend-8)" tmp2 = tmp2 + tmp4>>(blend-8)
-		*gen_dst++ = 0xe0800020 | (tmp2<<16) | (tmp2<<12) | ((ctx.poly.cmdFacet.blend_coef-8)<<7) | tmp4;
+		*gen_dst++ = 0xe0800020 | (tmp2<<16) | (tmp2<<12) | ((ctx.poly.cmd->blend_coef-8)<<7) | tmp4;
 		// 1110 0000 1000 rcol rcol shif t010 tmp1 ie "add rcol, rcol, tmp1, lsr #(blend-8)" rcol = rcol + tmp1>>(blend-8)
-		*gen_dst++ = 0xe0800020 | (vars[VARP_OUTCOLOR].rnum<<16) | (vars[VARP_OUTCOLOR].rnum<<12) | ((ctx.poly.cmdFacet.blend_coef-8)<<7) | tmp1;
+		*gen_dst++ = 0xe0800020 | (vars[VARP_OUTCOLOR].rnum<<16) | (vars[VARP_OUTCOLOR].rnum<<12) | ((ctx.poly.cmd->blend_coef-8)<<7) | tmp1;
 	}
 	// 1110 0000 0000 tmp3 tmp2 0000 1010 tmp2 ie "and tmp2, tmp3, tmp2 lsr #1"
 	*gen_dst++ = 0xe00000a0 | (tmp3<<16) | (tmp2<<12) | tmp2;
@@ -642,7 +642,7 @@ static void combine_nopersp(void)
 	// 1110 0101 1001 varW tmp1 0000 0000 0000 ie "ldr tmp1, [varW]
 	*gen_dst++ = 0xe5900000 | (vars[VARP_W].rnum<<16) | (tmp1<<12);
 	write_combine();
-	if (!ctx.poly.cmdFacet.use_key && !ctx.poly.cmdFacet.write_z) {
+	if (!ctx.poly.cmd->use_key && !ctx.poly.cmd->write_z) {
 		// 1110 0100 1000 varW rcol 0000 0000 0100 ie "str rcol, [rW], #0x4"
 		*gen_dst++ = 0xe4800004 | (vars[VARP_W].rnum<<16) | (vars[VARP_OUTCOLOR].rnum<<12);
 	} else {
@@ -665,7 +665,7 @@ static void next_persp(void)
 static void next_nopersp(void)
 {
 	do_patch(next_pixel);
-	if (ctx.poly.cmdFacet.use_key || ctx.rendering.z_mode != gpu_z_off) {	// we still have not incremented VARP_W
+	if (ctx.poly.cmd->use_key || ctx.rendering.z_mode != gpu_z_off) {	// we still have not incremented VARP_W
 		// 1110 0010 1000 varW varW 0000 0000 0100 ie "add varW, varW, #4"
 		*gen_dst++ = 0xe2800004 | (vars[VARP_W].rnum<<16) | (vars[VARP_W].rnum<<12);
 	}
@@ -681,9 +681,9 @@ static void next_z(void)
 static void bloc_def_func(void (*cb)(unsigned))
 {	
 	if (
-		ctx.poly.cmdFacet.rendering_type == rendering_flat &&
-		!ctx.poly.cmdFacet.use_intens &&
-		ctx.poly.cmdFacet.write_out
+		ctx.poly.cmd->rendering_type == rendering_flat &&
+		!ctx.poly.cmd->use_intens &&
+		ctx.poly.cmd->write_out
 	) {
 		cb(PRELOAD_FLAT);
 	}
@@ -691,39 +691,39 @@ static void bloc_def_func(void (*cb)(unsigned))
 	cb(BEGIN_PIXEL_LOOP);
 	// ZBuffer
 	if (ctx.rendering.z_mode != gpu_z_off) {
-		if (ctx.poly.cmdFacet.perspective) cb(ZBUFFER_PERSP);
+		if (ctx.poly.cmd->perspective) cb(ZBUFFER_PERSP);
 		else cb(ZBUFFER_NOPERSP);
 	}
 	// Peek color
-	switch (ctx.poly.cmdFacet.rendering_type) {
+	switch (ctx.poly.cmd->rendering_type) {
 		case rendering_flat:
-			if (ctx.poly.cmdFacet.write_out && ctx.poly.cmdFacet.use_intens) cb(PEEK_FLAT);
+			if (ctx.poly.cmd->write_out && ctx.poly.cmd->use_intens) cb(PEEK_FLAT);
 			break;
 		case rendering_text:
-			if (ctx.poly.cmdFacet.write_out || ctx.poly.cmdFacet.use_key) cb(PEEK_TEXT);
-			if (ctx.poly.cmdFacet.use_key) cb(KEY_TEST);
+			if (ctx.poly.cmd->write_out || ctx.poly.cmd->use_key) cb(PEEK_TEXT);
+			if (ctx.poly.cmd->use_key) cb(KEY_TEST);
 			break;
 		case rendering_smooth:
-			if (ctx.poly.cmdFacet.write_out) cb(PEEK_SMOOTH);
+			if (ctx.poly.cmd->write_out) cb(PEEK_SMOOTH);
 			break;
 	}
 	// Intens
-	if (ctx.poly.cmdFacet.use_intens && ctx.poly.cmdFacet.write_out) cb(INTENS);
+	if (ctx.poly.cmd->use_intens && ctx.poly.cmd->write_out) cb(INTENS);
 	cb(END_PIXEL_LOOP);
 	// Poke
-	if (ctx.poly.cmdFacet.write_z) {
-		if (ctx.poly.cmdFacet.perspective) cb(POKE_Z_PERSP);
+	if (ctx.poly.cmd->write_z) {
+		if (ctx.poly.cmd->perspective) cb(POKE_Z_PERSP);
 		else cb(POKE_Z_NOPERSP);
 	}
-	if (ctx.poly.cmdFacet.write_out) {
-		if (ctx.poly.cmdFacet.perspective) {
-			if (ctx.poly.cmdFacet.blend_coef) {
+	if (ctx.poly.cmd->write_out) {
+		if (ctx.poly.cmd->perspective) {
+			if (ctx.poly.cmd->blend_coef) {
 				cb(COMBINE_PERSP);
 			} else {
 				cb(POKE_OUT_PERSP);
 			}
 		} else {
-			if (ctx.poly.cmdFacet.blend_coef) {
+			if (ctx.poly.cmd->blend_coef) {
 				cb(COMBINE_NOPERSP);
 			} else {
 				cb(POKE_OUT_NOPERSP);
@@ -731,7 +731,7 @@ static void bloc_def_func(void (*cb)(unsigned))
 		}
 	}
 	// Next pixel
-	if (ctx.poly.cmdFacet.perspective) {
+	if (ctx.poly.cmd->perspective) {
 		cb(NEXT_PERSP);
 	} else {
 		cb(NEXT_NOPERSP);
@@ -776,16 +776,16 @@ static void alloc_regs(void)
 	outz_mask = vars[VARP_Z].rnum != -1 ? 1U<<vars[VARP_Z].rnum:0;
 	if (0 && r < sizeof_array(regs)) {	// TODO
 		// use remaining regs to write several pixels in the loop
-		if (!ctx.poly.cmdFacet.perspective && !ctx.poly.cmdFacet.use_key && ctx.rendering.z_mode == gpu_z_off && !ctx.poly.cmdFacet.blend_coef) {
+		if (!ctx.poly.cmd->perspective && !ctx.poly.cmd->use_key && ctx.rendering.z_mode == gpu_z_off && !ctx.poly.cmd->blend_coef) {
 			// we can read several values and poke them all at once
 			// notice : that z_mode is off does not mean that we do not want to write Z !
-			while (r + ctx.poly.cmdFacet.write_out + ctx.poly.cmdFacet.write_z <= sizeof_array(regs)) {
-				if (ctx.poly.cmdFacet.write_out) {
+			while (r + ctx.poly.cmd->write_out + ctx.poly.cmd->write_z <= sizeof_array(regs)) {
+				if (ctx.poly.cmd->write_out) {
 					regs[r].var = VARP_OUTCOLOR;
 					outcolors_mask |= 1U<<r;
 					r ++;
 				}
-				if (ctx.poly.cmdFacet.write_z) {
+				if (ctx.poly.cmd->write_z) {
 					regs[r].var = VARP_Z;
 					outz_mask |= 1U<<r;
 					r ++;
@@ -874,16 +874,16 @@ static void write_all(void)
 
 static uint64_t get_rendering_key(void)
 {
-	uint64_t key = ctx.poly.cmdFacet.rendering_type + 1;	// so a used key is never 0
-	key |= ctx.poly.cmdFacet.blend_coef << 2;	// need 4 bits
-	key |= ctx.poly.cmdFacet.use_key << 6;
-	key |= ctx.poly.cmdFacet.use_intens << 7;
-	key |= ctx.poly.cmdFacet.perspective << 8;
-	key |= ctx.poly.cmdFacet.write_out << 9;
-	key |= ctx.poly.cmdFacet.write_z << 10;
+	uint64_t key = ctx.poly.cmd->rendering_type + 1;	// so a used key is never 0
+	key |= ctx.poly.cmd->blend_coef << 2;	// need 4 bits
+	key |= ctx.poly.cmd->use_key << 6;
+	key |= ctx.poly.cmd->use_intens << 7;
+	key |= ctx.poly.cmd->perspective << 8;
+	key |= ctx.poly.cmd->write_out << 9;
+	key |= ctx.poly.cmd->write_z << 10;
 	key |= ctx.rendering.z_mode << 11;	// need 3 bits
-	if (ctx.poly.cmdFacet.perspective) key |= (uint64_t)ctx.poly.nc_log << 14;	// need 18 bits
-	if (ctx.poly.cmdFacet.rendering_type == rendering_text) key |= (uint64_t)ctx.location.txt_mask << 32;	// need 18 bits
+	if (ctx.poly.cmd->perspective) key |= (uint64_t)ctx.poly.nc_log << 14;	// need 18 bits
+	if (ctx.poly.cmd->rendering_type == rendering_text) key |= (uint64_t)ctx.location.txt_mask << 32;	// need 18 bits
 	return key;
 }
 
@@ -909,7 +909,7 @@ void build_code(unsigned cache)
 	unsigned z_idx = ctx.poly.nb_params - 1;
 	if (ctx.rendering.z_mode == gpu_z_off) z_idx ++;
 	unsigned i_idx = z_idx;
-	if (ctx.poly.cmdFacet.use_intens) i_idx --;
+	if (ctx.poly.cmd->use_intens) i_idx --;
 	vars[CONSTP_Z].offset = offsetof(struct ctx, line.param[z_idx]);
 	vars[CONSTP_DZ].offset = offsetof(struct ctx, line.dparam[z_idx]);
 	vars[CONSTP_DI].offset = offsetof(struct ctx, line.dparam[i_idx]);

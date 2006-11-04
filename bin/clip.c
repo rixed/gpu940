@@ -38,15 +38,17 @@ static unsigned cache_miss = 0;
 // prev and next must have h <0 and >0 (or vice versa)
 static unsigned new_vec(unsigned prev, unsigned next, unsigned p)
 {
+	static gpuCmdVector cmdVectors[MAX_FACET_SIZE+2*GPU_NB_CLIPPLANES];	// used as a place to store cmds that are not in cmdbuf
 	int32_t ha = Fix_abs(ctx.poly.vectors[prev].h);
 	int32_t hb = Fix_abs(ctx.poly.vectors[next].h);
 	int32_t ratio = 1<<16, hahb = ha+hb;
 	if (hahb) ratio = ((int64_t)ha<<16)/(ha+hb);
 	assert(ctx.poly.nb_vectors < sizeof_array(ctx.poly.vectors));
+	ctx.poly.vectors[ctx.poly.nb_vectors].cmd = cmdVectors + ctx.poly.nb_vectors;
 	for (unsigned u=ctx.poly.nb_params+3; u--; ) {
-		ctx.poly.vectors[ctx.poly.nb_vectors].cmdVector.u.all_params[u] =
-			ctx.poly.vectors[prev].cmdVector.u.all_params[u] +
-			(((int64_t)ratio*(ctx.poly.vectors[next].cmdVector.u.all_params[u]-ctx.poly.vectors[prev].cmdVector.u.all_params[u]))>>16);
+		ctx.poly.vectors[ctx.poly.nb_vectors].cmd->u.all_params[u] =
+			ctx.poly.vectors[prev].cmd->u.all_params[u] +
+			(((int64_t)ratio*(ctx.poly.vectors[next].cmd->u.all_params[u]-ctx.poly.vectors[prev].cmd->u.all_params[u]))>>16);
 	}
 	ctx.poly.vectors[ctx.poly.nb_vectors].prev = prev;
 	ctx.poly.vectors[ctx.poly.nb_vectors].next = next;
@@ -69,7 +71,7 @@ static int clip_facet_by_plane(unsigned p)
 		ctx.poly.vectors[v].h = 0;
 		for (unsigned c=3; c--; ) {
 			if (0 == plane->normal[c]) continue;	// frequent case
-			int32_t const ov = ctx.poly.vectors[v].cmdVector.u.geom.c3d[c] - plane->origin[c];
+			int32_t const ov = ctx.poly.vectors[v].cmd->u.geom.c3d[c] - plane->origin[c];
 			ctx.poly.vectors[v].h += Fix_mul(ov, plane->normal[c]);
 		}
 		if (0 == ctx.poly.vectors[v].h) ctx.poly.vectors[v].h = 1;
@@ -109,8 +111,8 @@ static void next_cache(void)
 static void proj_vec(unsigned v)
 {
 	// Do we have this vertex in cache ?
-	unsigned const same_as = ctx.poly.vectors[v].cmdVector.same_as;
-	if (v < ctx.poly.cmdFacet.size && same_as > 0 && same_as <= cache_depth) {
+	unsigned const same_as = ctx.poly.vectors[v].cmd->same_as;
+	if (v < ctx.poly.cmd->size && same_as > 0 && same_as <= cache_depth) {
 		cache_hit ++;
 		int cache_idx = cache_end - same_as;
 		if (cache_idx < 0) cache_idx += CACHE_SIZE;
@@ -118,9 +120,9 @@ static void proj_vec(unsigned v)
 		ctx.poly.vectors[v].c2d[1] = c2d_cache[cache_idx].y;
 	} else {
 		cache_miss ++;
-		int32_t const x = ctx.poly.vectors[v].cmdVector.u.geom.c3d[0];
-		int32_t const y = ctx.poly.vectors[v].cmdVector.u.geom.c3d[1];
-		int32_t const z = ctx.poly.vectors[v].cmdVector.u.geom.c3d[2];
+		int32_t const x = ctx.poly.vectors[v].cmd->u.geom.c3d[0];
+		int32_t const y = ctx.poly.vectors[v].cmd->u.geom.c3d[1];
+		int32_t const z = ctx.poly.vectors[v].cmd->u.geom.c3d[2];
 		int32_t const dproj = ctx.view.dproj;
 		int32_t c2d;
 		int32_t inv_z = Fix_inv(-z);
@@ -149,7 +151,7 @@ static void proj_vec(unsigned v)
 		}
 		ctx.poly.vectors[v].c2d[1] = c2d + (ctx.view.winHeight<<15);
 	}
-	if (v < ctx.poly.cmdFacet.size) {
+	if (v < ctx.poly.cmd->size) {
 		// store it in cache
 		c2d_cache[cache_end].x = ctx.poly.vectors[v].c2d[0];
 		c2d_cache[cache_end].y = ctx.poly.vectors[v].c2d[1];
@@ -170,12 +172,12 @@ int clip_poly(void)
 	unsigned previous_target = perftime_target();
 	perftime_enter(PERF_CLIP, "clip & proj");
 	// init facet
-	if (ctx.poly.cmdFacet.rendering_type >= GPU_NB_RENDERING_TYPES) {
+	if (ctx.poly.cmd->rendering_type >= GPU_NB_RENDERING_TYPES) {
 		set_error_flag(gpuEPARAM);
 		goto ret;
 	}
 	ctx.poly.nb_params = 0;
-	switch (ctx.poly.cmdFacet.rendering_type) {
+	switch (ctx.poly.cmd->rendering_type) {
 		case rendering_flat:
 			break;
 		case rendering_text:
@@ -188,7 +190,7 @@ int clip_poly(void)
 #	ifdef GP2X
 	int i_param = -1;
 #	endif
-	if (ctx.poly.cmdFacet.use_intens) {
+	if (ctx.poly.cmd->use_intens) {
 #		ifdef GP2X
 		i_param = ctx.poly.nb_params;
 #		endif
@@ -198,7 +200,7 @@ int clip_poly(void)
 	// init vectors
 	unsigned v;
 	ctx.poly.first_vector = 0;
-	ctx.poly.nb_vectors = ctx.poly.cmdFacet.size;
+	ctx.poly.nb_vectors = ctx.poly.cmd->size;
 	for (v=0; v<ctx.poly.nb_vectors; v++) {
 		ctx.poly.vectors[v].next = v+1;
 		ctx.poly.vectors[v].prev = v-1;
@@ -226,14 +228,14 @@ int clip_poly(void)
 			nb_v ++;
 #			ifdef GP2X
 			if (i_param != -1) {	// use this scan to premult i param for YUV illumination
-				ctx.poly.vectors[v].cmdVector.u.geom.param[i_param] *= 55;
+				ctx.poly.vectors[v].cmd->u.geom.param[i_param] *= 55;
 			}
 #			endif
-		} else if (v < ctx.poly.cmdFacet.size) {
+		} else if (v < ctx.poly.cmd->size) {
 			next_cache();	// skip this entry (leave it blank: we won't use it)
 		}
 	}
-	ctx.poly.cmdFacet.size = new_size;
+	ctx.poly.cmd->size = new_size;
 	magick ++;
 	disp = 1;
 ret:
@@ -247,11 +249,11 @@ int cull_poly(void)
 	unsigned previous_target = perftime_target();
 	perftime_enter(PERF_CULL, "culling");
 	int ret = 1;
-	if (ctx.poly.cmdFacet.cull_mode == 3) {
+	if (ctx.poly.cmd->cull_mode == 3) {
 		ret = 0;
 		goto cull_end;
 	}
-	if (ctx.poly.cmdFacet.cull_mode == 0) {
+	if (ctx.poly.cmd->cull_mode == 0) {
 		goto cull_end;
 	}
 	unsigned v = ctx.poly.first_vector;
@@ -267,7 +269,7 @@ int cull_poly(void)
 	if (a == 0) {
 		goto cull_end;
 	}
-	ret = (a > 0 && ctx.poly.cmdFacet.cull_mode == 2) || (a < 0 && ctx.poly.cmdFacet.cull_mode == 1);
+	ret = (a > 0 && ctx.poly.cmd->cull_mode == 2) || (a < 0 && ctx.poly.cmd->cull_mode == 1);
 cull_end:
 	perftime_enter(previous_target, NULL);
 	return ret;

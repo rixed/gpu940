@@ -256,34 +256,14 @@ static void flush_shared(void) {
 #endif
 }
 
-static void *read_from_cmdBuf(void *dest, size_t size_) {
-	static union {
-		gpuCmdReset reset;
-		gpuCmdSetView setView;
-		gpuCmdSetUserClipPlanes setCP;
-		gpuCmdSetBuf setBuf;
-		gpuCmdShowBuf showBuf;
-		gpuCmdRect rect;
-		gpuCmdZMode z_mode;
-	} allCmds;
+static void *get_cmd(void) {
+	return shared->cmds+shared->cmds_begin;
+}
+static void next_cmd(size_t size_) {
 	unsigned size = size_/sizeof(uint32_t);
-	int overrun = (shared->cmds_begin+size) - sizeof_array(shared->cmds);
-	if (overrun < 0) {
-		if (dest) {
-			copy32(dest, shared->cmds+shared->cmds_begin, size);
-		} else {
-			dest = shared->cmds+shared->cmds_begin;
-		}
-		shared->cmds_begin += size;
-	} else {
-		size_t chunk = size - overrun;
-		if (! dest) dest = &allCmds;
-		copy32(dest, shared->cmds+shared->cmds_begin, chunk);
-		copy32((uint32_t*)dest+chunk, shared->cmds, overrun);
-		shared->cmds_begin = overrun;
-	}
+	shared->cmds_begin += size;
+	assert(shared->cmds_begin < sizeof_array(shared->cmds));
 	flush_shared();
-	return dest;
 }
 
 /*
@@ -292,7 +272,7 @@ static void *read_from_cmdBuf(void *dest, size_t size_) {
 
 static void do_setView(void)
 {
-	gpuCmdSetView const *setView = (gpuCmdSetView *)read_from_cmdBuf(NULL, sizeof(*setView));
+	gpuCmdSetView const *setView = (gpuCmdSetView *)get_cmd();
 	ctx.view.dproj = setView->dproj;
 	ctx.view.clipMin[0] = setView->clipMin[0];
 	ctx.view.clipMin[1] = setView->clipMin[1];
@@ -302,82 +282,92 @@ static void do_setView(void)
 	ctx.view.winPos[1] = setView->winPos[1];
 	ctx.view.winWidth = ctx.view.clipMax[0] - ctx.view.clipMin[0];
 	ctx.view.winHeight = ctx.view.clipMax[1] - ctx.view.clipMin[1];
+	next_cmd(sizeof(*setView));
 	reset_clipPlanes();
 }
 static void do_setUsrClipPlanes(void)
 {
-	gpuCmdSetUserClipPlanes const *setCP = (gpuCmdSetUserClipPlanes *)read_from_cmdBuf(NULL, sizeof(*setCP));
+	gpuCmdSetUserClipPlanes const *setCP = (gpuCmdSetUserClipPlanes *)get_cmd();
 	ctx.view.nb_clipPlanes = 5 + setCP->nb_planes;
 	for (unsigned cp=0; cp<setCP->nb_planes; cp++) {
 		my_memcpy(ctx.view.clipPlanes+5+cp, setCP->planes+cp, sizeof(ctx.view.clipPlanes[0]));
 	}
+	next_cmd(sizeof(*setCP));
 }
 static void do_setBuf(void)
 {
-	gpuCmdSetBuf const *setBuf = (gpuCmdSetBuf *)read_from_cmdBuf(NULL, sizeof(*setBuf));
+	gpuCmdSetBuf const *setBuf = (gpuCmdSetBuf *)get_cmd();
 	if (setBuf->type >= GPU_NB_BUFFER_TYPES) {
 		set_error_flag(gpuEPARAM);
-		return;
+		goto dsb_quit;
 	}
 	my_memcpy(&ctx.location.buffer_loc[setBuf->type], &setBuf->loc, sizeof(*ctx.location.buffer_loc));
 	if (ctx.location.buffer_loc[setBuf->type].width_log > 18) {
 		set_error_flag(gpuEPARAM);
-		return;
+		goto dsb_quit;
 	}
 	if (setBuf->type == gpuTxtBuffer) {
 		if ((1U<<setBuf->loc.width_log) != setBuf->loc.height) {
 			set_error_flag(gpuEPARAM);
-			return;
+			goto dsb_quit;
 		}
 		ctx.location.txt_mask = (1<<ctx.location.buffer_loc[gpuTxtBuffer].width_log)-1;
 	} else if (setBuf->type == gpuOutBuffer) {
 		ctx.location.out_start = location_winPos(gpuOutBuffer, 0, 0);
 	}
 	ctx_code_buf_reset();
+dsb_quit:
+	next_cmd(sizeof(*setBuf));
 }
 static void do_showBuf(void)
 {
-	gpuCmdShowBuf const *showBuf = (gpuCmdShowBuf *)read_from_cmdBuf(NULL, sizeof(*showBuf));
+	gpuCmdShowBuf const *showBuf = (gpuCmdShowBuf *)get_cmd();
 	unsigned next_displist_end = displist_end + 1;
 	if (next_displist_end >= sizeof_array(displist)) next_displist_end = 0;
 	if (next_displist_end == displist_begin) {
 		set_error_flag(gpuEDLIST);
-		return;
+		goto dwb_quit;
 	}
 	displist[displist_end] = showBuf->loc;
 	displist_end = next_displist_end;
 #ifndef GP2X
-	//	vertical_interrupt();
+//	vertical_interrupt();
 #endif
+dwb_quit:
+	next_cmd(sizeof(*showBuf));
 }
 static void do_point(void) {}
 static void do_line(void) {}
 static void do_facet(void)
 {
 	// Warning: don't skip any vector here (without positionning err_flag) or future same_as hints will be wrong.
-	(void)read_from_cmdBuf(&ctx.poly.cmdFacet, sizeof(ctx.poly.cmdFacet));
+	ctx.poly.cmd = get_cmd();
 	// sanity checks
-	if (ctx.poly.cmdFacet.size > sizeof_array(ctx.poly.vectors)) {
+	if (ctx.poly.cmd->size > sizeof_array(ctx.poly.vectors)) {
 		set_error_flag(gpuEINT);
-		return;
+		goto df_quit;
 	}
-	if (ctx.poly.cmdFacet.size < 3) {
+	if (ctx.poly.cmd->size < 3) {
 		set_error_flag(gpuEPARAM);
-		return;	// TODO: skip cmdvecs
+		goto df_quit;
 	}
 	// fetch vectors informations
-	for (unsigned v=0; v<ctx.poly.cmdFacet.size; v++) {
-		(void)read_from_cmdBuf(&ctx.poly.vectors[v].cmdVector, sizeof(gpuCmdVector));
+	for (unsigned v=0; v<ctx.poly.cmd->size; v++) {
+		ctx.poly.vectors[v].cmd = (gpuCmdVector *)(ctx.poly.cmd+1) + v;
 	}
+	size_t to_skip = sizeof(gpuCmdFacet) + ctx.poly.cmd->size*sizeof(gpuCmdVector);	// we are about to change facet size
 	if (clip_poly() && cull_poly()) {
+		ctx.code.color = ctx.poly.cmd->color;
 		draw_poly();
 	}
+df_quit:
+	next_cmd(to_skip);
 }
 static void do_rect(void)
 {
 	int previous_target = perftime_target();
 	perftime_enter(PERF_RECTANGLE, "rectangle");
-	gpuCmdRect const *rect = (gpuCmdRect *)read_from_cmdBuf(NULL, sizeof(*rect));
+	gpuCmdRect const *rect = (gpuCmdRect *)get_cmd();
 	// TODO: add clipping against winPos ?
 	uint32_t *dst = rect->relative_to_window ?
 		location_winPos(rect->type, rect->pos[0], rect->pos[1]) :
@@ -386,16 +376,19 @@ static void do_rect(void)
 		my_memset_words(dst, rect->value, rect->width);
 		dst += 1 << ctx.location.buffer_loc[rect->type].width_log;
 	}
+	next_cmd(sizeof(*rect));
 	perftime_enter(previous_target, NULL);
 }
 static void do_zmode(void)
 {
-	gpuCmdZMode const *z_mode = (gpuCmdZMode *)read_from_cmdBuf(NULL, sizeof(*z_mode));
+	gpuCmdZMode const *z_mode = (gpuCmdZMode *)get_cmd();
 	ctx.rendering.z_mode = z_mode->mode;
+	next_cmd(sizeof(*z_mode));
 }
 static void do_reset(void)
 {
-	(void)read_from_cmdBuf(NULL, sizeof(gpuCmdReset));
+	(void)get_cmd();
+	next_cmd(sizeof(gpuCmdReset));
 	perftime_reset();
 	perftime_enter(PERF_WAITCMD, "idle");
 	proj_cache_reset();
@@ -659,6 +652,7 @@ int main(void)
 		perror("sigaction");
 		return EXIT_FAILURE;
 	}
+#	if 1
 	struct itimerval itimer = {
 		.it_interval = {
 			.tv_sec = 0,
@@ -673,6 +667,7 @@ int main(void)
 		perror("setitimer");
 		return EXIT_FAILURE;
 	}
+#	endif
 	console_begin();
 	console_setup();
 	run();

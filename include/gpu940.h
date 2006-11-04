@@ -72,8 +72,8 @@ typedef struct {
 extern struct gpuShared {
 	uint32_t cmds[0x40000-5];	// 1Mbytes for commands and following volatiles.
 	// All integer members are supposed to have the same property as sig_atomic_t.
-	volatile int32_t cmds_begin;	// first word beeing actually used by the gpu. let libgpu read in there.
-	volatile int32_t cmds_end;	// last word + 1 beeing actually used by the gpu. let libgpu write in there.
+	volatile uint32_t cmds_begin;	// first word beeing actually used by the gpu. let libgpu read in there.
+	volatile uint32_t cmds_end;	// last word + 1 beeing actually used by the gpu. let libgpu write in there.
 	// when cmds_begin == cmds_end, its empty
 	volatile uint32_t error_flags;	// use a special swap instruction to read&reset it, as a whole or bit by bit depending of available hardware !
 	volatile uint32_t frame_count;
@@ -211,8 +211,8 @@ void gpuClose(void);
 // TODO: add function to alloc space on cmd buffer so that we do not copy commands (another command commit the commands).
 // Notice: when we are at the end of buffer and want to reserve a bigger amount of space that what's left, fill with a
 // 'Rewind Cmd' that make the GPU return to the begining of cmd buffer.
-gpuErr gpuWrite(void *cmd, size_t size, bool can_wait);
-gpuErr gpuWritev(const struct iovec *cmdvec, size_t count, bool can_wait);
+gpuErr gpuWrite(void const *cmd, size_t size, bool can_wait);
+gpuErr gpuWritev(struct iovec const *cmdvec, size_t count, bool can_wait);
 
 uint32_t gpuReadErr(void);
 gpuErr gpuLoadImg(struct buffer_loc const *loc, uint8_t (*rgb)[3], unsigned lod);

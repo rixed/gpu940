@@ -48,7 +48,7 @@ enum {
 };
 
 typedef struct {
-	gpuCmdVector cmdVector;
+	gpuCmdVector *cmd;
 	int32_t c2d[2];
 	int32_t h;	// dist with a clipPlane
 	int32_t nc_declived;
@@ -82,7 +82,7 @@ extern struct ctx {
 	} location;
 	// Current Polygon
 	struct {
-		gpuCmdFacet cmdFacet;
+		gpuCmdFacet *cmd;
 		gpuVector vectors[MAX_FACET_SIZE+2*GPU_NB_CLIPPLANES];
 		int32_t nc_declived, nc_declived_next;
 		int32_t decliveness;
@@ -126,6 +126,7 @@ extern struct ctx {
 	struct {
 		uint32_t buff_addr[GPU_NB_BUFFER_TYPES];	// address of the buffers
 		int32_t out2zb;	// in words
+		uint32_t color;	// extracted from facet cmd for easier access
 		uint32_t sp_save;
 #		define NB_CODE_CACHE 5
 		struct {

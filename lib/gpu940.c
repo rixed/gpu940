@@ -38,36 +38,45 @@ static size_t mmapsize;
  */
 
 // All unsigned sizes are in words
-static inline void copy32(uint32_t *restrict dest, uint32_t const *restrict src, unsigned size) {
+static inline void copy32(uint32_t *restrict dest, uint32_t const *restrict src, unsigned size)
+{
 	for ( ; size--; ) dest[size] = src[size];
 }
 
 // we do not check for available space
-static int32_t append_to_cmdbuf(unsigned end, uint32_t const *restrict src, unsigned size) {
-	int overrun = end+size - sizeof_array(shared->cmds);
-	if (overrun < 0) {
-		copy32(shared->cmds+end, src, size);
-		return end+size;
-	} else {
-		size_t chunk = size - overrun;
-		copy32(shared->cmds+end, src, chunk);
-		copy32(shared->cmds, src+chunk, overrun);
-		return overrun;
-	}
+static int32_t append_to_cmdbuf(unsigned end, uint32_t const *restrict src, unsigned size)
+{
+	copy32(shared->cmds+end, src, size);
+	return end+size;
 }
 
-static inline unsigned avail_cmd_space(void) {
-	int begin = shared->cmds_begin;	// this is not a problem if begin is incremented while we use this value,
-	// but this would be a problem if it's incremented and wrap around between the if and the computation of available space !
-	// as for cmds_end, we are the only one that increment it.
-	if (begin > shared->cmds_end) {
-		return begin - shared->cmds_end -1;
-	} else {
-		return sizeof_array(shared->cmds) - shared->cmds_end + begin -1;
-	}
+static bool can_write(unsigned count, bool can_wait)
+{
+	do {
+		uint32_t begin = shared->cmds_begin;	// cmds_begin could change during our computation
+		if (begin > shared->cmds_end) {
+			if (begin - shared->cmds_end > count + 1) {
+				return true;
+			}
+		} else {
+			if (sizeof_array(shared->cmds) - shared->cmds_end > count + 1 /* keep space for a future rewind */) {
+				return true;
+			}
+			// write a rewind if possible
+			static gpuCmdRewind const cmdRewind = { .opcode = gpuREWIND };
+			if (begin > 0) {	// otherwise we can not set end to 0
+				(void)append_to_cmdbuf(shared->cmds_end, (void const *)&cmdRewind, sizeof(cmdRewind)>>2);
+				shared->cmds_end = 0;
+			}
+		}
+		// now wait
+		(void)sched_yield();
+	} while (can_wait);
+	return false;
 }
 
-static void flush_writes(void) {
+static void flush_writes(void)
+{
 	// we must ensure that our writes are seen by the other peer in that order, that is data first, then pointer update
 #ifdef GP2X
 	// on the GP2X, this mean drain the write buffer (reading uncached memory is enought)
@@ -80,7 +89,8 @@ static void flush_writes(void) {
  * Public Functions
  */
 
-gpuErr gpuOpen(void) {
+gpuErr gpuOpen(void)
+{
 #	ifdef GP2X
 #		define MMAP_OFFSET SHARED_PHYSICAL_ADDR 
 #	else
@@ -104,40 +114,35 @@ gpuErr gpuOpen(void) {
 #	undef MMAP_OFFSET
 }
 
-void gpuClose(void) {
+void gpuClose(void)
+{
 	(void)munmap(shared, mmapsize);
 	(void)close(shared_fd);
 }
 
-gpuErr gpuWrite(void *cmd/* must be word aligned*/, size_t size, bool can_wait) {
+gpuErr gpuWrite(void const *cmd/* must be word aligned*/, size_t size, bool can_wait)
+{
 	assert(!(size&3));
-	size >>= 2;
-	if (! can_make_room(size, can_wait)) {
+	size /= sizeof(uint32_t);
+	if (! can_write(size, can_wait)) {
 		return gpuENOSPC;
 	}
-/*	while (avail_cmd_space() < size) {
-		if (! can_wait) return gpuENOSPC;
-		(void)sched_yield();
-	}*/
 	shared->cmds_end = append_to_cmdbuf(shared->cmds_end, cmd, size);
 	flush_writes();
 	return gpuOK;
 }
 
-gpuErr gpuWritev(const struct iovec *cmdvec, size_t count, bool can_wait) {
+gpuErr gpuWritev(struct iovec const *cmdvec, size_t count, bool can_wait)
+{
 	size_t size = 0;
 	for (unsigned c=0; c<count; c++) {
 		size += cmdvec[c].iov_len;
 	}
 	assert(!(size&3));
-	size >>= 2;
-	if (! can_make_room(size, can_wait)) {
+	size /= sizeof(uint32_t);
+	if (! can_write(size, can_wait)) {
 		return gpuENOSPC;
 	}
-/*	while (avail_cmd_space() < size) {
-		if (! can_wait) return gpuENOSPC;
-		(void)sched_yield();
-	}*/
 	int end = shared->cmds_end;
 	for (unsigned c=0; c<count; c++) {
 		end = append_to_cmdbuf(end, cmdvec[c].iov_base, cmdvec[c].iov_len>>2);
@@ -147,7 +152,8 @@ gpuErr gpuWritev(const struct iovec *cmdvec, size_t count, bool can_wait) {
 	return gpuOK;
 }
 
-uint32_t gpuReadErr(void) {
+uint32_t gpuReadErr(void)
+{
 	uint32_t err = shared->error_flags;	// do both atomically (xchg)
 	shared->error_flags = 0;
 	return err;

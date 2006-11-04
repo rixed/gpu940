@@ -59,7 +59,7 @@ void raster_gen(void)
 	int32_t decliv = ctx.line.decliv;
 	int nbp = 0;
 	int32_t u,v,r,g,b,i,di,z,dz;	// at most 8 registers (7 if perspective)
-	switch (ctx.poly.cmdFacet.rendering_type) {
+	switch (ctx.poly.cmd->rendering_type) {
 		case rendering_flat:
 			break;
 		case rendering_text:
@@ -74,8 +74,8 @@ void raster_gen(void)
 			nbp += 3;
 			break;
 	}
-	if (ctx.poly.cmdFacet.use_intens) {
-		assert(ctx.poly.cmdFacet.rendering_type != rendering_smooth);	// i was already dissolved into rgb components. We save one register.
+	if (ctx.poly.cmd->use_intens) {
+		assert(ctx.poly.cmd->rendering_type != rendering_smooth);	// i was already dissolved into rgb components. We save one register.
 		i = ctx.line.param[nbp];
 		di = ctx.line.dparam[nbp++];
 #		ifdef GP2X	// gp2x uses YUV
@@ -90,7 +90,7 @@ void raster_gen(void)
 	int count = ctx.line.count;
 	do {
 		uint32_t *w_;
-		if (ctx.poly.cmdFacet.perspective) {
+		if (ctx.poly.cmd->perspective) {
 			w_ = w + ((decliv>>16)<<ctx.poly.nc_log);	
 		} else {
 			w_ = w;
@@ -102,16 +102,16 @@ void raster_gen(void)
 		}
 		// Peek color
 		uint32_t color;
-		switch (ctx.poly.cmdFacet.rendering_type) {
+		switch (ctx.poly.cmd->rendering_type) {
 			case rendering_flat:
-				color = ctx.poly.cmdFacet.color;
+				color = ctx.poly.cmd->color;
 				break;
 			case rendering_text:
 				color = texture_color(&ctx.location.buffer_loc[gpuTxtBuffer], u, v);
 				u += ctx.line.dparam[0];
 				v += ctx.line.dparam[1];
-				if (ctx.poly.cmdFacet.use_key) {
-					if (color == ctx.poly.cmdFacet.color) goto next_pixel;
+				if (ctx.poly.cmd->use_key) {
+					if (color == ctx.poly.cmd->color) goto next_pixel;
 				}
 				break;
 			case rendering_smooth:
@@ -127,7 +127,7 @@ void raster_gen(void)
 				break;
 		}
 		// Intens
-		if (ctx.poly.cmdFacet.use_intens) {
+		if (ctx.poly.cmd->use_intens) {
 #		ifdef GP2X	// gp2x uses YUV
 			int y = color&0xff;
 			y += (i>>22);
@@ -145,25 +145,25 @@ void raster_gen(void)
 			i += di;
 		}
 		// Blend
-		if (ctx.poly.cmdFacet.blend_coef) {
+		if (ctx.poly.cmd->blend_coef) {
 			uint32_t previous = *w_;
-			uint32_t p = (previous&0x00ff00ff)>>(ctx.poly.cmdFacet.blend_coef<=8 ? 8-ctx.poly.cmdFacet.blend_coef : 0);
-			uint32_t c = (color&0x00ff00ff)>>(ctx.poly.cmdFacet.blend_coef>8 ? ctx.poly.cmdFacet.blend_coef-8 : 0);
+			uint32_t p = (previous&0x00ff00ff)>>(ctx.poly.cmd->blend_coef<=8 ? 8-ctx.poly.cmd->blend_coef : 0);
+			uint32_t c = (color&0x00ff00ff)>>(ctx.poly.cmd->blend_coef>8 ? ctx.poly.cmd->blend_coef-8 : 0);
 			uint32_t merge = ((p + c) >> 1) & 0x00ff00ff;
-			p = (previous&0xff00ff00)>>(ctx.poly.cmdFacet.blend_coef<=8 ? 8-ctx.poly.cmdFacet.blend_coef : 0);
-			c = (color&0xff00ff00)>>(ctx.poly.cmdFacet.blend_coef>8 ? ctx.poly.cmdFacet.blend_coef-8 : 0);
+			p = (previous&0xff00ff00)>>(ctx.poly.cmd->blend_coef<=8 ? 8-ctx.poly.cmd->blend_coef : 0);
+			c = (color&0xff00ff00)>>(ctx.poly.cmd->blend_coef>8 ? ctx.poly.cmd->blend_coef-8 : 0);
 			color = merge | (((p + c) >> 1) & 0xff00ff00);
 		}
 		// Poke
-		if (ctx.poly.cmdFacet.write_out) {
+		if (ctx.poly.cmd->write_out) {
 			*w_ = color;
 		}
-		if (ctx.poly.cmdFacet.write_z) {
+		if (ctx.poly.cmd->write_z) {
 			*(w_ + ctx.code.out2zb) = z;
 		}
 		// Next pixel
 next_pixel:
-		if (ctx.poly.cmdFacet.perspective) {
+		if (ctx.poly.cmd->perspective) {
 			w += ctx.line.dw;
 			decliv += ctx.poly.decliveness;
 		} else {
