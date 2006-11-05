@@ -31,34 +31,26 @@
  * Private Functions
  */
 
-typedef void (*draw_line_t)(void);
-
 // buffers are so lower coords have lower addresses. direct coord system was just a convention, right ?
 static void draw_line(void) {
 	int32_t const c_start = ctx.trap.side[ctx.trap.left_side].c >> 16;
 	ctx.line.count = ((ctx.trap.side[!ctx.trap.left_side].c + 0xffff) >> 16) - c_start;
 	if (unlikely(ctx.line.count < 0)) return;	// may happen on some pathological cases ?
 	ctx.line.w = ctx.location.out_start + c_start + ((ctx.poly.nc_declived>>16)<<ctx.location.buffer_loc[gpuOutBuffer].width_log);
-	if (ctx.poly.cmd->perspective) {
+	if (unlikely(ctx.poly.cmd->perspective)) {
 		ctx.line.decliv = ctx.poly.decliveness * c_start;	// 16.16
 		if (ctx.poly.scan_dir != 0) {
 			ctx.line.w = ctx.location.out_start + (ctx.poly.nc_declived>>16) + (c_start<<ctx.location.buffer_loc[gpuOutBuffer].width_log);
 		}
 	}
 	if (ctx.poly.nb_params > 0) {
-		if (ctx.poly.cmd->perspective || unlikely(!ctx.trap.is_triangle)) {	// We need to compute 
+		if (unlikely(ctx.poly.cmd->perspective || !ctx.trap.is_triangle)) {	// We need to compute 
 			int32_t inv_dc = 0;
 			if (likely(ctx.line.count)) {
 				inv_dc = Fix_inv(ctx.line.count<<16);
 			}
 			for (unsigned p=ctx.poly.nb_params; p--; ) {
-				ctx.line.param[p] = ctx.trap.side[ctx.trap.left_side].param[p];	// starting value
 				ctx.line.dparam[p] = Fix_mul(ctx.trap.side[!ctx.trap.left_side].param[p] - ctx.line.param[p], inv_dc);
-			}
-		} else {
-			for (unsigned p=ctx.poly.nb_params; p--; ) {
-				ctx.line.param[p] = ctx.trap.side[ctx.trap.left_side].param[p];	// starting value
-				ctx.line.dparam[p] = ctx.trap.dparam[p];
 			}
 		}
 	}
@@ -74,7 +66,7 @@ static void draw_line(void) {
 
 static void next_params_frac(unsigned side, int32_t dnc) {
 	ctx.trap.side[side].c += Fix_mul(dnc, ctx.trap.side[side].dc);
-	if (ctx.poly.cmd->perspective) {
+	if (unlikely(ctx.poly.cmd->perspective)) {
 		int32_t dalpha = ctx.poly.z_alpha - ctx.trap.side[side].z_alpha_start;
 		for (unsigned p=ctx.poly.nb_params; p--; ) {
 			ctx.trap.side[side].param[p] = Fix_mul(ctx.trap.side[side].param_alpha[p], dalpha) + ctx.poly.vectors[ ctx.trap.side[side].start_v ].cmd->u.geom.param[p];
@@ -90,7 +82,7 @@ static void draw_trapeze_frac(void) {
 	int32_t dnc = ctx.poly.nc_declived_next - ctx.poly.nc_declived;
 	dnc = Fix_abs(dnc);
 	// compute next z_alpha
-	if (ctx.poly.cmd->perspective) {
+	if (unlikely(ctx.poly.cmd->perspective)) {
 		ctx.poly.z_den += (int64_t)dnc*ctx.poly.z_dden;
 		ctx.poly.z_num += (int64_t)dnc*ctx.poly.z_dnum;
 		if (ctx.poly.z_den) ctx.poly.z_alpha = ctx.poly.z_num/(ctx.poly.z_den>>16);	// FIXME: use Fix_div
@@ -108,21 +100,22 @@ static void draw_trapeze_frac(void) {
 
 static void next_params_int(unsigned side) {
 	ctx.trap.side[side].c += ctx.trap.side[side].dc;
-	if (ctx.poly.cmd->perspective) {
+	if (unlikely(ctx.poly.cmd->perspective)) {
 		int32_t dalpha = ctx.poly.z_alpha - ctx.trap.side[side].z_alpha_start;
 		for (unsigned p=ctx.poly.nb_params; p--; ) {
 			ctx.trap.side[side].param[p] = Fix_mul(ctx.trap.side[side].param_alpha[p], dalpha) + ctx.poly.vectors[ ctx.trap.side[side].start_v ].cmd->u.geom.param[p];
 		}
 	} else {
-		for (unsigned p=ctx.poly.nb_params; p--; ) {
-			ctx.trap.side[side].param[p] += ctx.trap.side[side].param_alpha[p];
-		}
+		ctx.trap.side[side].param[0] += ctx.trap.side[side].param_alpha[0];
+		ctx.trap.side[side].param[1] += ctx.trap.side[side].param_alpha[1];
+		ctx.trap.side[side].param[2] += ctx.trap.side[side].param_alpha[2];
+		ctx.trap.side[side].param[3] += ctx.trap.side[side].param_alpha[3];
 	}
 }
 
 static void draw_trapeze_int(void) {
 	// compute next z_alpha
-	if (ctx.poly.cmd->perspective) {
+	if (unlikely(ctx.poly.cmd->perspective)) {
 		ctx.poly.z_den += (int64_t)ctx.poly.z_dden<<16;	// wrong if !complete_scan_line
 		ctx.poly.z_num += (int64_t)ctx.poly.z_dnum<<16;
 		if (ctx.poly.z_den) ctx.poly.z_alpha = ctx.poly.z_num/(ctx.poly.z_den>>16);
@@ -148,10 +141,11 @@ static void draw_trapeze(void) {
 	) {
 		ctx.trap.left_side = 1;
 	}
+	ctx.line.param = ctx.trap.side[ ctx.trap.left_side ].param;
 	ctx.trap.side[ctx.trap.left_side].is_growing = ctx.trap.side[ctx.trap.left_side].dc < 0;
 	ctx.trap.side[!ctx.trap.left_side].is_growing = ctx.trap.side[!ctx.trap.left_side].dc > 0;
 	// Compute constant linear coefs for non-perspective mode if possible
-	if (!ctx.poly.cmd->perspective) {
+	if (likely(!ctx.poly.cmd->perspective)) {
 		// We can use the same dparam for all the trapeze if the trapeze is in fact a triangle
 		ctx.trap.is_triangle = ctx.trap.side[0].start_v == ctx.trap.side[1].start_v ||
 			ctx.trap.side[0].end_v == ctx.trap.side[1].end_v;
@@ -161,17 +155,17 @@ static void draw_trapeze(void) {
 			if (Fix_abs(ddc) > Fix_abs(dc0)) {
 				ddc = Fix_inv(ddc);
 				for (unsigned p=ctx.poly.nb_params; p--; ) {
-					ctx.trap.dparam[p] = Fix_mul(ddc, ctx.trap.side[0].param_alpha[p] - ctx.trap.side[1].param_alpha[p]);
+					ctx.line.dparam[p] = Fix_mul(ddc, ctx.trap.side[0].param_alpha[p] - ctx.trap.side[1].param_alpha[p]);
 				}
 			} else {
 				if (dc0 != 0) {
 					dc0 = Fix_inv(dc0);
 					for (unsigned p=ctx.poly.nb_params; p--; ) {
-						ctx.trap.dparam[p] = Fix_mul(dc0, ctx.trap.side[0].param[p] - ctx.trap.side[1].param[p]);
+						ctx.line.dparam[p] = Fix_mul(dc0, ctx.trap.side[0].param[p] - ctx.trap.side[1].param[p]);
 					}
 				} else {
 					for (unsigned p=ctx.poly.nb_params; p--; ) {
-						ctx.trap.dparam[p] = 0;
+						ctx.line.dparam[p] = 0;
 					}
 				}
 			}
@@ -240,7 +234,7 @@ void draw_poly(void) {
 	// bounding box
 	unsigned b_vec, c_vec;
 	c_vec = b_vec = ctx.poly.first_vector;
-	if (ctx.poly.cmd->perspective) {
+	if (unlikely(ctx.poly.cmd->perspective)) {
 		// compute decliveness (2 DIVs)
 		// FIXME: with clipping, A can get very close from B or C.
 		// we want b = zmin, c = zmax (closer)
@@ -279,16 +273,21 @@ void draw_poly(void) {
 			ctx.line.dw <<= ctx.location.buffer_loc[gpuOutBuffer].width_log;
 		}
 		if (m[0]) ctx.poly.decliveness = (((int64_t)m[1])<<16)/m[0];
-	}
-	// compute all nc_declived
-	{	// TODO : include this in the previous if, else decliveness=0 so nc_declived = nc.
+		// compute all nc_declived
+		v = ctx.poly.first_vector;
+		do {
+			ctx.poly.vectors[v].nc_declived = ctx.poly.vectors[v].c2d[!ctx.poly.scan_dir] - Fix_mul(ctx.poly.decliveness, ctx.poly.vectors[v].c2d[ctx.poly.scan_dir]);
+			v = ctx.poly.vectors[v].next;
+		} while (v != ctx.poly.first_vector);
+	} else {
+		// copy all nc as nc_declived (nc_declived = 0 here)
 		unsigned v = ctx.poly.first_vector;
 		do {
-			ctx.poly.vectors[v].nc_declived = ctx.poly.vectors[v].c2d[!ctx.poly.scan_dir] - (((int64_t)ctx.poly.decliveness*ctx.poly.vectors[v].c2d[ctx.poly.scan_dir])>>16);
+			ctx.poly.vectors[v].nc_declived = ctx.poly.vectors[v].c2d[!ctx.poly.scan_dir];
 			v = ctx.poly.vectors[v].next;
 		} while (v != ctx.poly.first_vector);	
 	}
-	// init trapeze. start at Z min.
+	// init trapeze. start at Z min (or nc_decliv min if !dz, which is allways the case when !perspective)
 	{
 		ctx.poly.z_num = 0;
 		ctx.poly.nc_dir = 1;
@@ -316,7 +315,7 @@ void draw_poly(void) {
 			dnc = -dnc_;
 			ctx.poly.nc_dir = -1;
 		}
-		if (ctx.poly.cmd->perspective) {
+		if (unlikely(ctx.poly.cmd->perspective)) {
 			ctx.poly.z_den = ((int64_t)ctx.poly.vectors[b_vec].cmd->u.geom.c3d[2]*dnc_);
 			ctx.poly.z_dnum = ctx.poly.nc_dir == 1 ? ctx.poly.vectors[c_vec].cmd->u.geom.c3d[2]:-ctx.poly.vectors[c_vec].cmd->u.geom.c3d[2];
 			ctx.poly.z_dden = ctx.poly.nc_dir == 1 ? -dz:dz;
@@ -324,7 +323,7 @@ void draw_poly(void) {
 		}
 		ctx.trap.side[0].start_v = ctx.trap.side[0].end_v = ctx.trap.side[1].start_v = ctx.trap.side[1].end_v = c_vec;
 	}
-	// Now that's all is initialized, build rasterized
+	// Now that all is initialized, build rasterized
 #	if defined(GP2X) || defined(TEST_RASTERIZER)
 	ctx.poly.rasterizer = jit_prepare_rasterizer();
 #	endif
@@ -353,7 +352,7 @@ void draw_poly(void) {
 				// compute alpha_params used for vector parameters
 				if (ctx.poly.nb_params > 0) {
 					int32_t inv_dalpha = 0;
-					if (ctx.poly.cmd->perspective) {
+					if (unlikely(ctx.poly.cmd->perspective)) {
 						// first, compute the z_alpha of end_v
 						int64_t n = ctx.poly.z_num + (((int64_t)ctx.poly.z_dnum*dnc));	// 32.32
 						int64_t d = ctx.poly.z_den + (((int64_t)ctx.poly.z_dden*dnc));	// 32.32

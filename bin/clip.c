@@ -70,9 +70,8 @@ static int clip_facet_by_plane(unsigned p)
 	do {
 		ctx.poly.vectors[v].h = 0;
 		for (unsigned c=3; c--; ) {
-			if (0 == plane->normal[c]) continue;	// frequent case
-			int32_t const ov = ctx.poly.vectors[v].cmd->u.geom.c3d[c] - plane->origin[c];
-			ctx.poly.vectors[v].h += Fix_mul(ov, plane->normal[c]);
+			if (0 == plane->normal[c]) continue;
+			ctx.poly.vectors[v].h += Fix_mul(plane->normal[c], ctx.poly.vectors[v].cmd->u.geom.c3d[c] - plane->origin[c]);
 		}
 		if (0 == ctx.poly.vectors[v].h) ctx.poly.vectors[v].h = 1;
 		v = ctx.poly.vectors[v].next;

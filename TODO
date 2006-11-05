@@ -31,6 +31,45 @@ de cmdFacet (la seule utilisée est cmdFacet.color -> à recopier dans ctx.code).
 fonctions draw_line, draw_trapeze_int, etc (bref celles qui sont appelées pour chaque scanline).
 On pourrait peut être utiliser directement les coordonnées c et les params qui sont stoquées
 dans les vecteurs plutot que de recopier dans side (ne garder que les dparams et dc).
+L'ennuis, c'est qu'on ne peut plus lire dparam en une seul LDR dans le rasterizer.
+Peut être serait-ce plus interressant de faire une version sans perspective de draw_poly ?
 
 -> autoriser GL à utiliser des QUADS pour limiter le nombre de polygones.
 
+
+Après la nouvelle implémentation des commandes, la part de cmd est passée de 16% à 3%. poly
+prend maintenant 50% du temps, raster 10%.
+
+
+Sur le PC, compilé en -O3, on a :
+
+idle: 26%
+cmd:   1%
+clip: 13%
+cull:  0%
+poly: 13%
+rast: 21%
+rect:  7%
+disp:  0%
+div:  15%
+
+pour 611 frame miss à la fin.
+
+Compilé en -O0, on a 1084 frame miss, mais les mêmes pourcentages à +-1%.
+
+Il ne faut donc pas attendre du compilo qu'il améliore poly.
+Peut être faire une version séparée pour perspective ou no-perspective 
+permettrait d'améliorer l'efficacité de l'ICache de façon significative.
+Et comme perspective est dans la clef du rasterizer, lorsque !perspective on peut
+peut être utiliser les params de trap plutot que de line, et ne plus avoir à initialiser
+ctx.line.param dans ce cas ?
+
+Simplement de séparer persp/nopersp dans draw_poly ne change rien, en tout cas sur PC.
+Par contre cette séparation peut permettre quelques optimisations (pas beaucoup).
+Sur GP2X, la version nopersp fait passer le temps 'poly' de 42% à 27% et fait gagner 3 a 4 fps
+sur gpugears. Adopté.
+
+Et transformer jit_exec en inline : passe de 42% à 40%.
+
+Transformer line.param en un pointeur vers les params de side[left], sur PC, fait passer poly
+à 10%, ce qui est interressant, même si pas renversant. Sur GP2x, on passe de 42% a 40%. Ou plutot, de 40 a 40% puisque c'est l'inline qui nous a ammené à 40% :-(

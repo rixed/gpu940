@@ -102,14 +102,13 @@ extern struct ctx {
 		struct {
 			int32_t c;	// 16.16
 			int32_t dc;	// 16.16
-			int32_t param[GPU_NB_PARAMS];	// 16.16. Params are : U, V, Illum
+			int32_t param[GPU_NB_PARAMS];	// 16.16
 			int32_t param_alpha[GPU_NB_PARAMS];	// 16.16
 			uint32_t start_v;
 			uint32_t end_v;
 			int32_t z_alpha_start, z_alpha_end;
 			uint32_t is_growing:1;
 		} side[2];	// side dec, side inc
-		int32_t dparam[GPU_NB_PARAMS];	// 16.16. Used when dparam are constant for all poly (non-perspective mode)
 		uint32_t left_side:1;
 		uint32_t is_triangle:1;
 	} trap;
@@ -119,7 +118,8 @@ extern struct ctx {
 		uint32_t *restrict w;
 		int32_t dw;
 		int32_t decliv;
-		int32_t param[GPU_NB_PARAMS];
+		int32_t *param;	// points to side[left].param
+//		int32_t param[GPU_NB_PARAMS];
 		int32_t dparam[GPU_NB_PARAMS];
 	} line;
 	// generated code

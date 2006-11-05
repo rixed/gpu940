@@ -343,6 +343,7 @@ static void do_facet(void)
 	// Warning: don't skip any vector here (without positionning err_flag) or future same_as hints will be wrong.
 	ctx.poly.cmd = get_cmd();
 	// sanity checks
+	size_t to_skip = sizeof(gpuCmdFacet) + ctx.poly.cmd->size*sizeof(gpuCmdVector);	// we are about to change facet size
 	if (ctx.poly.cmd->size > sizeof_array(ctx.poly.vectors)) {
 		set_error_flag(gpuEINT);
 		goto df_quit;
@@ -355,9 +356,11 @@ static void do_facet(void)
 	for (unsigned v=0; v<ctx.poly.cmd->size; v++) {
 		ctx.poly.vectors[v].cmd = (gpuCmdVector *)(ctx.poly.cmd+1) + v;
 	}
-	size_t to_skip = sizeof(gpuCmdFacet) + ctx.poly.cmd->size*sizeof(gpuCmdVector);	// we are about to change facet size
 	if (clip_poly() && cull_poly()) {
 		ctx.code.color = ctx.poly.cmd->color;
+//		if (0 == ctx.poly.nb_params) ctx.poly.cmd->perspective = 0;
+//		if (ctx.poly.cmd->perspective) draw_poly_persp();
+//		else draw_poly_nopersp();
 		draw_poly();
 	}
 df_quit:

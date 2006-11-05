@@ -225,41 +225,42 @@ static struct {
 static struct {
 	int rnum;	// number of register affected to this variable (-1 if none).
 	uint32_t offset;	// offset to reach this var from ctx
+	uint32_t offset2;	// if previous offset leads only a pointer to the var, nb_words from this pointer to the var
 	// several registers can be affected to the same var ; we only need to know one.
 } vars[MAX_VARP+1] = {
-	{ .offset = offsetof(struct ctx, line.dw), },
-	{ .offset = offsetof(struct ctx, poly.decliveness), },
-	{ .offset = 0 },
-	{ .offset = 0 },
-	{ .offset = offsetof(struct ctx, line.dparam[0]), },
-	{ .offset = offsetof(struct ctx, line.dparam[1]), },
-	{ .offset = offsetof(struct ctx, line.dparam[0]), },
-	{ .offset = offsetof(struct ctx, line.dparam[1]), },
-	{ .offset = offsetof(struct ctx, line.dparam[2]), },
-	{ .offset = 0 },	// CONST_DI = 9
-	{ .offset = offsetof(struct ctx, code.color), },
-	{ .offset = offsetof(struct ctx, code.color), },
-	{ .offset = offsetof(struct ctx, code.out2zb), },
-	{ .offset = offsetof(struct ctx, code.buff_addr[gpuOutBuffer]), },
-	{ .offset = offsetof(struct ctx, code.buff_addr[gpuTxtBuffer]), },
-	{ .offset = offsetof(struct ctx, line.w), },
-	{ .offset = offsetof(struct ctx, line.decliv), },
-	{ .offset = 0 },	// VARP_Z = 18
-	{ .offset = offsetof(struct ctx, line.param[0]), },
-	{ .offset = offsetof(struct ctx, line.param[1]), },
-	{ .offset = offsetof(struct ctx, line.param[0]), },
-	{ .offset = offsetof(struct ctx, line.param[1]), },
-	{ .offset = offsetof(struct ctx, line.param[2]), },
-	{ .offset = 0 },	// VARP_I = 24
-	{ .offset = offsetof(struct ctx, line.count) },
-	{ .offset = 0 },	// VARP_OUTCOLOR, no offset
+	{ .offset = offsetof(struct ctx, line.dw), .offset2 = ~0U, },
+	{ .offset = offsetof(struct ctx, poly.decliveness), .offset2 = ~0U, },
+	{ .offset = 0, .offset2 = ~0U,},
+	{ .offset = 0, .offset2 = ~0U, },
+	{ .offset = offsetof(struct ctx, line.dparam[0]), .offset2 = ~0U, },
+	{ .offset = offsetof(struct ctx, line.dparam[1]), .offset2 = ~0U, },
+	{ .offset = offsetof(struct ctx, line.dparam[0]), .offset2 = ~0U, },
+	{ .offset = offsetof(struct ctx, line.dparam[1]), .offset2 = ~0U, },
+	{ .offset = offsetof(struct ctx, line.dparam[2]), .offset2 = ~0U, },
+	{ .offset = 0, .offset2 = ~0U, },	// CONST_DI = 9
+	{ .offset = offsetof(struct ctx, code.color), .offset2 = ~0U, },
+	{ .offset = offsetof(struct ctx, code.color), .offset2 = ~0U, },
+	{ .offset = offsetof(struct ctx, code.out2zb), .offset2 = ~0U, },
+	{ .offset = offsetof(struct ctx, code.buff_addr[gpuOutBuffer]), .offset2 = ~0U, },
+	{ .offset = offsetof(struct ctx, code.buff_addr[gpuTxtBuffer]), .offset2 = ~0U, },
+	{ .offset = offsetof(struct ctx, line.w), .offset2 = ~0U, },
+	{ .offset = offsetof(struct ctx, line.decliv), .offset2 = ~0U, },
+	{ .offset = offsetof(struct ctx, line.param), .offset2 = 0 /* depends on nb_params */, },	// VARP_Z = 17
+	{ .offset = offsetof(struct ctx, line.param), .offset2 = 0, },
+	{ .offset = offsetof(struct ctx, line.param), .offset2 = 1, },
+	{ .offset = offsetof(struct ctx, line.param), .offset2 = 0, },
+	{ .offset = offsetof(struct ctx, line.param), .offset2 = 1, },
+	{ .offset = offsetof(struct ctx, line.param), .offset2 = 2 },
+	{ .offset = offsetof(struct ctx, line.param), .offset2 = 0 /* depends on nb_params */, },	// VARP_I = 23
+	{ .offset = offsetof(struct ctx, line.count), .offset2 = ~0U,},
+	{ .offset = 0, .offset2 = ~0U, },	// VARP_OUTCOLOR, no offset
 };
 static uint32_t *gen_dst, *write_loop_begin, *pixel_loop_begin;
 static unsigned nb_patches;
 struct patches {
 	uint32_t *addr;
 	enum patch_type { offset_24 } type;
-	enum patch_target { next_pixel } target;
+	enum patch_target { next_pixel, bottom_half } target;
 } patches[5];
 
 /*
@@ -304,11 +305,11 @@ static void preload_flat(void)
 static void begin_write_loop(void)
 {
 	if (nb_pixels_per_loop > 1) {	// test that varp_count >= nb_pixels_per_loop, or jump straight to the "bottom half"
-		assert(nb_pixels_per_loop < (1<<8));
+		assert(nb_pixels_per_loop < 16);
 		assert(vars[VARP_COUNT].rnum != -1);
 		// 1110 0011 0101 count 0000 0000 0000 0000 ie "cmp Rcount, nb_pixels_per_loop"
 		*gen_dst++ = 0xe3500000 | (vars[VARP_COUNT].rnum<<16) | nb_pixels_per_loop;
-		//pacth_bh = gen_dst;
+		add_patch(offset_24, bottom_half);
 		// 0011 1010 0000 0000 0000 0000 0000 0000 ie "blo XXXX"
 		*gen_dst++ = 0x3a000000;
 	}
@@ -331,20 +332,28 @@ static void end_write_loop(void)
 		int32_t begin_offset =  (write_loop_begin - (gen_dst+2)) & 0xffffff;
 		// 0010 1010 0000 0000 0000 0000 0000 0000 ie "bhs write_loop_begin"
 		*gen_dst++ = 0x2a000000 | (begin_offset);
+		do_patch(bottom_half);
+		// Bottom half :
+		// TODO
 	} else {
 		// 1110 0010 0101 _Rn_ _Rd_ 0000 0000 0001 ie "subs rcount, rcount, #1"
 		*gen_dst++ = 0xe2500001 | (vars[VARP_COUNT].rnum<<16) | (vars[VARP_COUNT].rnum<<12);
 		int32_t begin_offset =  (write_loop_begin - (gen_dst+2)) & 0xffffff;
-		// ie "bhs wrote_loop_begin"
+		// ie "bhs write_loop_begin"
 		*gen_dst++ = 0x2a000000 | (begin_offset);
 	}
 }
 
-static uint32_t offset12(unsigned v)
+static void write_load_var(unsigned r, unsigned v)
 {
 	uint32_t offset = (uint8_t *)(gen_dst+2) - (uint8_t *)((char *)&ctx + vars[v].offset);
 	assert(offset < (1<<12));
-	return offset;
+	// 1110 0101 0001 1111 Reg offt var_ v__ ie "ldr Rtmp, [r15, #-offset_v]"
+	*gen_dst++ = 0xe51f0000 | (r<<12) | offset;
+	if (vars[v].offset2 != ~0U) {	// another hop is required
+		// 1110 0101 1001 Reg Reg __of fset 12__ ie "ldr Rtmp, [Rtmp, #+offset2*4]"
+		*gen_dst++ = 0xe5900000 | (r<<16) | (r<<12) | ((vars[v].offset2<<2)&0xfff);
+	}
 }
 
 static unsigned load_constp(unsigned v, int rtmp)
@@ -354,11 +363,9 @@ static unsigned load_constp(unsigned v, int rtmp)
 		// we have a dedicated reg
 		return vars[v].rnum;
 	} else {
-		// we need to load into register rtmp, or r14 if not giver
+		// we need to load into register rtmp, or r14 if not given
 		if (rtmp == -1) rtmp = sizeof_array(regs)-1;
-		uint32_t offset = offset12(v);
-		// 1110 0101 0001 1111 Rtmp offt var_ v__ ie "ldr Rtmp, [r15, #-offset_v]"
-		*gen_dst++ = 0xe51f0000 | (rtmp<<12) | offset;
+		write_load_var(rtmp, v);
 		return rtmp;
 	}
 }
@@ -452,6 +459,7 @@ static void peek_text(void)
 {
 	unsigned tmp1 = 0, tmp2 = 1, tmp3 = 2;
 	for (unsigned p=0; p<nb_pixels_per_loop; p++) {
+		unsigned const rcol = outcolor_rnum(p);
 		write_mov_immediate(tmp2, ctx.location.txt_mask);	// TODO: out of loop ?
 		// 1110 0000 0000 tmp2 tmp1 1000 0100 varU ie "and tmp1, tmp2, varp_u, asr #16" ie tmp1 = U
 		*gen_dst++ = 0xe0000840 | (tmp2<<16) | (tmp1<<12) | vars[VARP_U].rnum;
@@ -466,7 +474,7 @@ static void peek_text(void)
 		// load constp_txt, possibly in tmp2
 		unsigned const constp_txt = load_constp(CONSTP_TEXT, tmp2);	// TODO: out of loop ?
 		// 1110 0111 1001 rtxt outc 0001 0000 tmp1 ie "ldr outcolor, [constp_txt, tmp1, lsl #2]"
-		*gen_dst++ = 0xe7900100 | (constp_txt<<16) | (outcolor_rnum(p)<<12) | tmp1;
+		*gen_dst++ = 0xe7900100 | (constp_txt<<16) | (rcol<<12) | tmp1;
 		// load constp_dv, possibly in tmp2
 		unsigned const constp_dv = load_constp(CONSTP_DV, tmp2);
 		// 1110 0000 1000 varV varV 0000 0000 _DV_ ie "add varp_v, varp_v, constp_dv"
@@ -480,14 +488,15 @@ static void peek_smooth(void)
 	// we omit the second 'R', giving B0GR
 	unsigned tmp1 = 0;
 	for (unsigned p=0; p<nb_pixels_per_loop; p++) {
+		unsigned const rcol = outcolor_rnum(p);
 		// 1110 0010 0000 varG rcol 1100 1111 1111 ie "and rcol, varG, #0xff00"
-		*gen_dst++ = 0xe2000cff | (vars[VARP_G].rnum<<16) | (vars[VARP_OUTCOLOR].rnum<<12);
+		*gen_dst++ = 0xe2000cff | (vars[VARP_G].rnum<<16) | (rcol<<12);
 		// 1110 0001 1000 rcol rcol 0100 0010 varR ie "orr rcol, rcol, varR, lsr #8"
-		*gen_dst++ = 0xe1800420 | (vars[VARP_OUTCOLOR].rnum<<16) | (vars[VARP_OUTCOLOR].rnum<<12) | vars[VARP_R].rnum;
+		*gen_dst++ = 0xe1800420 | (rcol<<16) | (rcol<<12) | vars[VARP_R].rnum;
 		// 1110 0010 0000 varG rcol 1100 1111 1111 ie "and tmp1, varB, #0xff00"
 		*gen_dst++ = 0xe2000cff | (vars[VARP_B].rnum<<16) | (tmp1<<12);
 		// 1110 0001 1000 rcol rcol 1000 0000 tmp1 ie "orr rcol, rcol, tmp1, lsl #16"
-		*gen_dst++ = 0xe1800800 | (vars[VARP_OUTCOLOR].rnum<<16) | (vars[VARP_OUTCOLOR].rnum<<12) | tmp1;
+		*gen_dst++ = 0xe1800800 | (rcol<<16) | (rcol<<12) | tmp1;
 		unsigned const constp_dr = load_constp(CONSTP_DR, tmp1);
 		// 1110 0000 1000 varV varV 0000 0000 _DV_ ie "add varR, varR, constp_DR"
 		*gen_dst++ = 0xe0800000 | (vars[VARP_R].rnum<<16) | (vars[VARP_R].rnum<<12) | constp_dr;
@@ -502,6 +511,7 @@ static void peek_smooth(void)
 
 static void key_test(void)
 {
+	assert(nb_pixels_per_loop == 1);
 	unsigned const constp_key = load_constp(CONSTP_KEY, -1);
 	// 1110 0001 0101 rcol 0000 0000 0000 rkey ie "cmp rcol, rkey"
 	*gen_dst++ = 0xe1500000 | (vars[VARP_OUTCOLOR].rnum<<16) | constp_key;
@@ -514,7 +524,7 @@ static void intens(void)
 {
 	unsigned tmp1 = 0;
 	for (unsigned p=0; p<nb_pixels_per_loop; p++) {
-		unsigned rcol = outcolor_rnum(p);
+		unsigned const rcol = outcolor_rnum(p);
 		// 1110 0010 0000 rcol tmp1 0000 1111 1111 ie "and tmp1, rcol, #0xff" ie tmp1 = Y component
 		*gen_dst++ = 0xe20000ff | (rcol<<16) | (tmp1<<12);
 		// 1110 0000 1001 tmp1 tmp1 1011 0100 varI ie "adds tmp1, tmp1, varI, asr #22"	// tmp1 = Y + intens
@@ -653,6 +663,7 @@ static void combine_nopersp(void)
 
 static void next_persp(void)
 {
+	assert(nb_pixels_per_loop == 1);
 	do_patch(next_pixel);
 	unsigned const constp_ddecliv = load_constp(CONSTP_DDECLIV, -1);
 	// 1110 000c0 1000 decliv decliv 0000 0000 ddecliv ie "add decliv, decliv, ddecliv"
@@ -666,6 +677,7 @@ static void next_nopersp(void)
 {
 	do_patch(next_pixel);
 	if (ctx.poly.cmd->use_key || ctx.rendering.z_mode != gpu_z_off) {	// we still have not incremented VARP_W
+		assert(nb_pixels_per_loop = 1);
 		// 1110 0010 1000 varW varW 0000 0000 0100 ie "add varW, varW, #4"
 		*gen_dst++ = 0xe2800004 | (vars[VARP_W].rnum<<16) | (vars[VARP_W].rnum<<12);
 	}
@@ -774,7 +786,7 @@ static void alloc_regs(void)
 	nb_pixels_per_loop = 1;
 	outcolors_mask = vars[VARP_OUTCOLOR].rnum != -1 ? 1U<<vars[VARP_OUTCOLOR].rnum:0;	// may be null if !write_color
 	outz_mask = vars[VARP_Z].rnum != -1 ? 1U<<vars[VARP_Z].rnum:0;
-	if (0 && r < sizeof_array(regs)) {	// TODO
+	if (r < sizeof_array(regs)) {
 		// use remaining regs to write several pixels in the loop
 		if (!ctx.poly.cmd->perspective && !ctx.poly.cmd->use_key && ctx.rendering.z_mode == gpu_z_off && !ctx.poly.cmd->blend_coef) {
 			// we can read several values and poke them all at once
@@ -841,13 +853,11 @@ static void write_restore(void)
 
 static void write_reg_preload(void)
 {
-	// Now load all required constp into their affected regs
+	// Now load all required vars into their affected regs
 	for (unsigned v = 0; v < sizeof_array(vars); v++) {
 		if (vars[v].rnum != -1) {
 			if (v == VARP_OUTCOLOR) continue;
-			uint32_t offset = offset12(v);
-			// 1110 0101 0001 1111 _Rd_ 0000 0000 0000 ie "ldr Rd,[r15, #-offset]"
-			*gen_dst++ = 0xe51f0000 | (vars[v].rnum<<12) | offset;
+			write_load_var(vars[v].rnum, v);
 		}
 	}
 }
@@ -910,11 +920,11 @@ void build_code(unsigned cache)
 	if (ctx.rendering.z_mode == gpu_z_off) z_idx ++;
 	unsigned i_idx = z_idx;
 	if (ctx.poly.cmd->use_intens) i_idx --;
-	vars[CONSTP_Z].offset = offsetof(struct ctx, line.param[z_idx]);
+	vars[CONSTP_Z].offset = offsetof(struct ctx, line.dparam[z_idx]);
 	vars[CONSTP_DZ].offset = offsetof(struct ctx, line.dparam[z_idx]);
 	vars[CONSTP_DI].offset = offsetof(struct ctx, line.dparam[i_idx]);
-	vars[VARP_Z].offset = offsetof(struct ctx, line.param[z_idx]);
-	vars[VARP_I].offset = offsetof(struct ctx, line.param[i_idx]);
+	vars[VARP_Z].offset2 = z_idx;
+	vars[VARP_I].offset2 = i_idx;
 	// init other global vars
 	gen_dst = ctx.code.caches[cache].buf;
 	write_loop_begin = pixel_loop_begin = NULL;
@@ -926,7 +936,7 @@ void build_code(unsigned cache)
 	unsigned nb_words = gen_dst - ctx.code.caches[cache].buf;
 	assert(nb_words < sizeof_array(ctx.code.caches[cache].buf));
 	static char fname[PATH_MAX];
-	snprintf(fname, sizeof(fname), "/tmp/codegen_%"PRIu64, ctx.code.caches[cache].rendering_key);
+	snprintf(fname, sizeof(fname), "/tmp/codegen_%"PRIx64, ctx.code.caches[cache].rendering_key);
 	int fd = open(fname, O_WRONLY|O_CREAT, 0644);
 	if (fd == -1) {
 		fprintf(stderr, "Cannot open %s : %s\n", fname, strerror(errno));
@@ -1006,9 +1016,4 @@ void jit_invalidate(void)	// TODO: give hint as to what invalidate
 	}
 }
 
-void jit_exec(void)
-{
-	typedef void (*rasterizer_func)(void);
-	rasterizer_func const rasterizer = (rasterizer_func const)ctx.code.caches[ctx.poly.rasterizer].buf;
-	rasterizer();
-}
+extern inline void jit_exec(void);

@@ -1,4 +1,5 @@
 #include <limits.h>
+#include <signal.h>
 #include "gcc.h"
 #include "perftime.h"
 #ifndef GP2X
@@ -25,7 +26,7 @@ static struct {
 	unsigned nb_in;
 } stats[PERFTIME_TARGET_MAX];
 
-static unsigned in_target;
+static sig_atomic_t in_target;
 static unsigned nb_in_tot;
 
 #ifndef GP2X
