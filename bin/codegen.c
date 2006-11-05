@@ -219,6 +219,7 @@ static uint32_t needed_vars, needed_constp;
 static unsigned working_set, used_set;
 static unsigned nb_pixels_per_loop;
 static uint32_t outcolors_mask, outz_mask;
+static bool in_bh;
 static struct {
 	int var;
 } regs[15];
@@ -260,7 +261,7 @@ static unsigned nb_patches;
 struct patches {
 	uint32_t *addr;
 	enum patch_type { offset_24 } type;
-	enum patch_target { next_pixel, bottom_half } target;
+	enum patch_target { next_pixel, bottom_half, restore_quit } target;
 } patches[5];
 
 /*
@@ -292,6 +293,7 @@ static void do_patch(enum patch_target target)
 
 static void preload_flat(void)
 {
+	if (in_bh) return;
 	// We already know VARP_OUTCOLOR: it's CONSP_COLOR. Preload all.
 	assert(vars[CONSTP_COLOR].rnum != -1);
 	for (unsigned r=0; r<sizeof_array(regs); r++) {
@@ -304,7 +306,7 @@ static void preload_flat(void)
 
 static void begin_write_loop(void)
 {
-	if (nb_pixels_per_loop > 1) {	// test that varp_count >= nb_pixels_per_loop, or jump straight to the "bottom half"
+	if (!in_bh && nb_pixels_per_loop > 1) {	// test that varp_count >= nb_pixels_per_loop, or jump straight to the "bottom half"
 		assert(nb_pixels_per_loop < 16);
 		assert(vars[VARP_COUNT].rnum != -1);
 		// 1110 0011 0101 count 0000 0000 0000 0000 ie "cmp Rcount, nb_pixels_per_loop"
@@ -323,7 +325,7 @@ static void begin_pixel_loop(void)
 
 static void end_write_loop(void)
 {
-	if (nb_pixels_per_loop > 1) {
+	if (!in_bh && nb_pixels_per_loop > 1) {
 		assert(nb_pixels_per_loop < (1<<8));
 		// 1110 0010 0100 _Rn_ _Rd_ 0000 nbpix loop ie "sub rcount, rcount, #nb_pixels_per_loop"
 		*gen_dst++ = 0xe2400000 | (vars[VARP_COUNT].rnum<<16) | (vars[VARP_COUNT].rnum<<12) | nb_pixels_per_loop;
@@ -332,9 +334,12 @@ static void end_write_loop(void)
 		int32_t begin_offset =  (write_loop_begin - (gen_dst+2)) & 0xffffff;
 		// 0010 1010 0000 0000 0000 0000 0000 0000 ie "bhs write_loop_begin"
 		*gen_dst++ = 0x2a000000 | (begin_offset);
+		// 1110 0011 0101 _Rn_ 0000 0000 0000 0000 ie "cmp rcount, #0"
+		*gen_dst++ = 0xe3500000 | (vars[VARP_COUNT].rnum<<16);
+		// 0000 1010 0000 0000 0000 0000 0000 0000 ie "beq ret"
+		add_patch(offset_24, restore_quit);
+		*gen_dst++ = 0x0a000000;
 		do_patch(bottom_half);
-		// Bottom half :
-		// TODO
 	} else {
 		// 1110 0010 0101 _Rn_ _Rd_ 0000 0000 0001 ie "subs rcount, rcount, #1"
 		*gen_dst++ = 0xe2500001 | (vars[VARP_COUNT].rnum<<16) | (vars[VARP_COUNT].rnum<<12);
@@ -394,6 +399,7 @@ static uint32_t z_mode_cond(void)
 
 static void ztest_persp(void)
 {
+	assert(! in_bh);
 	assert(nb_pixels_per_loop == 1);
 	unsigned const tmp1 = 0, tmp2 = 1;
 	// 1110 0001 1010 0000 tmp1 1000 0100 Decliv  ie "mov tmp1, decliv, asr #16"
@@ -413,6 +419,7 @@ static void ztest_persp(void)
 
 static void ztest_nopersp(void)
 {
+	assert(! in_bh);
 	assert(nb_pixels_per_loop == 1);
 	unsigned const tmp1 = 0;
 	unsigned const constp_out2zb = load_constp(CONSTP_OUT2ZB, tmp1);
@@ -457,8 +464,9 @@ static unsigned outcolor_rnum(unsigned pix)
 
 static void peek_text(void)
 {
-	unsigned tmp1 = 0, tmp2 = 1, tmp3 = 2;
-	for (unsigned p=0; p<nb_pixels_per_loop; p++) {
+	unsigned const tmp1 = 0, tmp2 = 1, tmp3 = 2;
+	unsigned const max_p = in_bh ? 1 : nb_pixels_per_loop;
+	for (unsigned p=0; p < max_p; p++) {
 		unsigned const rcol = outcolor_rnum(p);
 		write_mov_immediate(tmp2, ctx.location.txt_mask);	// TODO: out of loop ?
 		// 1110 0000 0000 tmp2 tmp1 1000 0100 varU ie "and tmp1, tmp2, varp_u, asr #16" ie tmp1 = U
@@ -486,8 +494,9 @@ static void peek_smooth(void)
 {
 	// For GP2X, r,g,b are y,u,v, and must be stored : VYUY (that is : BRGR)
 	// we omit the second 'R', giving B0GR
-	unsigned tmp1 = 0;
-	for (unsigned p=0; p<nb_pixels_per_loop; p++) {
+	unsigned const tmp1 = 0;
+	unsigned const max_p = in_bh ? 1 : nb_pixels_per_loop;
+	for (unsigned p=0; p < max_p; p++) {
 		unsigned const rcol = outcolor_rnum(p);
 		// 1110 0010 0000 varG rcol 1100 1111 1111 ie "and rcol, varG, #0xff00"
 		*gen_dst++ = 0xe2000cff | (vars[VARP_G].rnum<<16) | (rcol<<12);
@@ -511,6 +520,7 @@ static void peek_smooth(void)
 
 static void key_test(void)
 {
+	assert(! in_bh);
 	assert(nb_pixels_per_loop == 1);
 	unsigned const constp_key = load_constp(CONSTP_KEY, -1);
 	// 1110 0001 0101 rcol 0000 0000 0000 rkey ie "cmp rcol, rkey"
@@ -522,8 +532,9 @@ static void key_test(void)
 
 static void intens(void)
 {
-	unsigned tmp1 = 0;
-	for (unsigned p=0; p<nb_pixels_per_loop; p++) {
+	unsigned const tmp1 = 0;
+	unsigned const max_p = in_bh ? 1 : nb_pixels_per_loop;
+	for (unsigned p=0; p < max_p; p++) {
 		unsigned const rcol = outcolor_rnum(p);
 		// 1110 0010 0000 rcol tmp1 0000 1111 1111 ie "and tmp1, rcol, #0xff" ie tmp1 = Y component
 		*gen_dst++ = 0xe20000ff | (rcol<<16) | (tmp1<<12);
@@ -547,6 +558,7 @@ static void intens(void)
 
 static void poke_persp(void)
 {
+	assert(! in_bh);
 	assert(nb_pixels_per_loop == 1);
 	unsigned const tmp1 = 0;
 	// 1110 0001 1010 0000 tmp1 1000 0100 decliv ie "mov tmp1, decliv, asr #16" ie tmp1 = decliv>>16
@@ -557,6 +569,7 @@ static void poke_persp(void)
 
 static void poke_z_persp(void)
 {
+	assert(! in_bh);
 	assert(nb_pixels_per_loop == 1);
 	unsigned const tmp1 = 0, tmp2 = 1;
 	// 1110 0001 1010 0000 tmp1 1000 0100 decliv ie "mov tmp1, decliv, asr #16" ie tmp1 = decliv>>16
@@ -572,7 +585,7 @@ static void poke_nopersp(void)
 {
 	if (!ctx.poly.cmd->use_key && ctx.rendering.z_mode == gpu_z_off) {
 		// we increment VARP_W on the go, so that we have nothing left for NEXT_NOPERSP
-		if (nb_pixels_per_loop == 1) {
+		if (in_bh || nb_pixels_per_loop == 1) {
 			// 1110 0100 1000 varW rcol 0000 0000 0100 ie "str rcol, [rW], #0x4"
 			*gen_dst++ = 0xe4800004 | (vars[VARP_W].rnum<<16) | (vars[VARP_OUTCOLOR].rnum<<12);
 		} else {
@@ -580,6 +593,7 @@ static void poke_nopersp(void)
 			*gen_dst++ = 0xe8a00000 | (vars[VARP_W].rnum<<16) | outcolors_mask;
 		}
 	} else {	// we must not inc VARP_W here
+		assert(! in_bh);
 		assert(nb_pixels_per_loop == 1);
 		// 1110 0101 1000 varW rcol 0000 0000 0000 ie "str rcol, [rW]"
 		*gen_dst++ = 0xe5800000 | (vars[VARP_W].rnum<<16) | (vars[VARP_OUTCOLOR].rnum<<12);
@@ -588,9 +602,9 @@ static void poke_nopersp(void)
 
 static void poke_z_nopersp(void)
 {
-	unsigned tmp1 = 0;
+	unsigned const tmp1 = 0;
 	unsigned const constp_out2dz = load_constp(CONSTP_OUT2ZB, tmp1);
-	if (nb_pixels_per_loop == 1) {
+	if (in_bh || nb_pixels_per_loop == 1) {
 		// 1110 0111 1000 varW _RZ_ 0001 0000 out2zb ie "str rz, [rW, out2zb, lsl #2]"
 		*gen_dst++ = 0xe7800100 | (vars[VARP_W].rnum<<16) | (vars[VARP_Z].rnum<<12) | constp_out2dz;
 	} else {
@@ -634,6 +648,7 @@ static void write_combine(void)	// come here with previous color in r0
 
 static void combine_persp(void)
 {
+	assert(! in_bh);
 	assert(nb_pixels_per_loop == 1);
 	unsigned const tmp1 = 0, tmp5 = 4;
 	// 1110 0001 1010 0000 tmp5 1000 0100 decliv ie "mov tmp5, decliv, asr #16" ie tmp5 = decliv>>16
@@ -647,6 +662,7 @@ static void combine_persp(void)
 
 static void combine_nopersp(void)
 {
+	assert(! in_bh);
 	assert(nb_pixels_per_loop == 1);
 	unsigned const tmp1 = 0;
 	// 1110 0101 1001 varW tmp1 0000 0000 0000 ie "ldr tmp1, [varW]
@@ -663,6 +679,7 @@ static void combine_nopersp(void)
 
 static void next_persp(void)
 {
+	assert(! in_bh);
 	assert(nb_pixels_per_loop == 1);
 	do_patch(next_pixel);
 	unsigned const constp_ddecliv = load_constp(CONSTP_DDECLIV, -1);
@@ -829,6 +846,7 @@ static void write_save(void)
 
 static void write_restore(void)
 {
+	do_patch(restore_quit);
 	if (used_set >= 13) {
 		uint32_t sp_save_offset = (uint8_t *)(gen_dst+2) - (uint8_t *)&ctx.code.sp_save;
 		assert(sp_save_offset < 1<<12);
@@ -878,7 +896,12 @@ static void write_all(void)
 {
 	write_save();
 	write_reg_preload();
+	in_bh = false;
 	bloc_def_func(write_block);
+	if (nb_pixels_per_loop > 1) {
+		in_bh = true;
+		bloc_def_func(write_block);
+	}
 	write_restore();
 }
 
@@ -934,7 +957,7 @@ void build_code(unsigned cache)
 	write_all();
 #	if defined(TEST_RASTERIZER) && !defined(GP2X)
 	unsigned nb_words = gen_dst - ctx.code.caches[cache].buf;
-	assert(nb_words < sizeof_array(ctx.code.caches[cache].buf));
+	assert(nb_words <= sizeof_array(ctx.code.caches[cache].buf));
 	static char fname[PATH_MAX];
 	snprintf(fname, sizeof(fname), "/tmp/codegen_%"PRIx64, ctx.code.caches[cache].rendering_key);
 	int fd = open(fname, O_WRONLY|O_CREAT, 0644);

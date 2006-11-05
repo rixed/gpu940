@@ -229,6 +229,8 @@ void draw_poly(void) {
 	ctx.poly.decliveness = 0;
 	ctx.poly.scan_dir = 0;
 	ctx.line.dw = 1;
+	ctx.poly.z_num = 0;
+	ctx.poly.nc_dir = 1;
 	ctx.poly.nc_log = ctx.location.buffer_loc[gpuOutBuffer].width_log;
 	if (0 == ctx.poly.nb_params) ctx.poly.cmd->perspective = 0;
 	// bounding box
@@ -279,18 +281,7 @@ void draw_poly(void) {
 			ctx.poly.vectors[v].nc_declived = ctx.poly.vectors[v].c2d[!ctx.poly.scan_dir] - Fix_mul(ctx.poly.decliveness, ctx.poly.vectors[v].c2d[ctx.poly.scan_dir]);
 			v = ctx.poly.vectors[v].next;
 		} while (v != ctx.poly.first_vector);
-	} else {
-		// copy all nc as nc_declived (nc_declived = 0 here)
-		unsigned v = ctx.poly.first_vector;
-		do {
-			ctx.poly.vectors[v].nc_declived = ctx.poly.vectors[v].c2d[!ctx.poly.scan_dir];
-			v = ctx.poly.vectors[v].next;
-		} while (v != ctx.poly.first_vector);	
-	}
-	// init trapeze. start at Z min (or nc_decliv min if !dz, which is allways the case when !perspective)
-	{
-		ctx.poly.z_num = 0;
-		ctx.poly.nc_dir = 1;
+		// init trapeze. start at Z min (or nc_decliv min if !dz, which is allways the case when !perspective)
 		int32_t dz = ctx.poly.vectors[b_vec].cmd->u.geom.c3d[2] - ctx.poly.vectors[c_vec].cmd->u.geom.c3d[2];
 		if (0 == dz) {	// if dz is 0, b_vec and c_vec are random or not set yet, and so would be dnc
 			unsigned v = ctx.poly.first_vector;
@@ -307,7 +298,6 @@ void draw_poly(void) {
 				SWAP(unsigned, b_vec, c_vec);
 			}
 		}
-		ctx.poly.nc_declived = ctx.poly.vectors[c_vec].nc_declived;
 		int32_t dnc, dnc_ = ctx.poly.vectors[b_vec].nc_declived - ctx.poly.vectors[c_vec].nc_declived;
 		if (dnc_ > 0) {
 			dnc = dnc_;
@@ -315,14 +305,26 @@ void draw_poly(void) {
 			dnc = -dnc_;
 			ctx.poly.nc_dir = -1;
 		}
-		if (unlikely(ctx.poly.cmd->perspective)) {
-			ctx.poly.z_den = ((int64_t)ctx.poly.vectors[b_vec].cmd->u.geom.c3d[2]*dnc_);
-			ctx.poly.z_dnum = ctx.poly.nc_dir == 1 ? ctx.poly.vectors[c_vec].cmd->u.geom.c3d[2]:-ctx.poly.vectors[c_vec].cmd->u.geom.c3d[2];
-			ctx.poly.z_dden = ctx.poly.nc_dir == 1 ? -dz:dz;
-			ctx.poly.z_alpha = 0;
-		}
-		ctx.trap.side[0].start_v = ctx.trap.side[0].end_v = ctx.trap.side[1].start_v = ctx.trap.side[1].end_v = c_vec;
+		ctx.poly.z_den = ((int64_t)ctx.poly.vectors[b_vec].cmd->u.geom.c3d[2]*dnc_);
+		ctx.poly.z_dnum = ctx.poly.nc_dir == 1 ? ctx.poly.vectors[c_vec].cmd->u.geom.c3d[2]:-ctx.poly.vectors[c_vec].cmd->u.geom.c3d[2];
+		ctx.poly.z_dden = ctx.poly.nc_dir == 1 ? -dz:dz;
+		ctx.poly.z_alpha = 0;
+	} else {	// no perspective
+		// copy all nc as nc_declived (nc_declived = 0 here)
+		unsigned v = ctx.poly.first_vector;
+		do {
+			ctx.poly.vectors[v].nc_declived = ctx.poly.vectors[v].c2d[!ctx.poly.scan_dir];
+			if (ctx.poly.vectors[v].nc_declived < ctx.poly.vectors[c_vec].nc_declived) {
+				c_vec = v;
+			}
+			if (ctx.poly.vectors[v].nc_declived > ctx.poly.vectors[b_vec].nc_declived) {
+				b_vec = v;
+			}
+			v = ctx.poly.vectors[v].next;
+		} while (v != ctx.poly.first_vector);	
 	}
+	ctx.poly.nc_declived = ctx.poly.vectors[c_vec].nc_declived;
+	ctx.trap.side[0].start_v = ctx.trap.side[0].end_v = ctx.trap.side[1].start_v = ctx.trap.side[1].end_v = c_vec;
 	// Now that all is initialized, build rasterized
 #	if defined(GP2X) || defined(TEST_RASTERIZER)
 	ctx.poly.rasterizer = jit_prepare_rasterizer();

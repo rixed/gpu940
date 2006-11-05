@@ -80,6 +80,21 @@ extern struct ctx {
 		uint32_t txt_mask;
 		uint32_t *out_start;	// addres (in words) of the first pixel of the window.
 	} location;
+	// Current trapeze
+	struct {
+		struct {
+			int32_t c;	// 16.16
+			int32_t dc;	// 16.16
+			int32_t param[GPU_NB_PARAMS];	// 16.16
+			int32_t param_alpha[GPU_NB_PARAMS];	// 16.16
+			uint32_t start_v;
+			uint32_t end_v;
+			int32_t z_alpha_start, z_alpha_end;
+			uint32_t is_growing:1;
+		} side[2];	// side dec, side inc
+		uint32_t left_side:1;
+		uint32_t is_triangle:1;
+	} trap;
 	// Current Polygon
 	struct {
 		gpuCmdFacet *cmd;
@@ -97,21 +112,6 @@ extern struct ctx {
 		int32_t z_dden, z_dnum;	// 16.16
 		uint32_t rasterizer;	// index in code.cache
 	} poly;
-	// Current trapeze
-	struct {
-		struct {
-			int32_t c;	// 16.16
-			int32_t dc;	// 16.16
-			int32_t param[GPU_NB_PARAMS];	// 16.16
-			int32_t param_alpha[GPU_NB_PARAMS];	// 16.16
-			uint32_t start_v;
-			uint32_t end_v;
-			int32_t z_alpha_start, z_alpha_end;
-			uint32_t is_growing:1;
-		} side[2];	// side dec, side inc
-		uint32_t left_side:1;
-		uint32_t is_triangle:1;
-	} trap;
 	// Current line
 	struct {
 		int32_t count;
@@ -130,7 +130,7 @@ extern struct ctx {
 		uint32_t sp_save;
 #		define NB_CODE_CACHE 5
 		struct {
-#			define MAX_CODE_SIZE 56
+#			define MAX_CODE_SIZE 87
 			uint32_t buf[MAX_CODE_SIZE];
 			uint32_t use_count;
 			uint64_t rendering_key;

@@ -78,12 +78,12 @@ int main(void) {
 		.color = gpuColor(20, 30, 180),
 		.rendering_type = rendering_text,
 		.use_intens = 0,
-		.perspective = 1,
+		.perspective = 0,
 		.use_key = 0,
 		.blend_coef = 0,
 		.write_out = 1,
 		.write_z = 0,
-		.cull_mode = GPU_CCW,
+		.cull_mode = 0,//GPU_CCW,
 	};
 	gpuCmdRect clear_rect = {
 		.opcode = gpuRECT,
