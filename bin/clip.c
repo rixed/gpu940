@@ -225,14 +225,14 @@ int clip_poly(void)
 		if (ctx.view.nb_clipPlanes <= 5) {	// no user clip planes
 			proj_given(v);
 			clipped |= ctx.poly.vectors[v].clipped;
-#			ifdef GP2X
-			if (i_param != -1) {	// use this scan to premult i param for YUV illumination
-				ctx.poly.vectors[v].cmd->u.geom.param[i_param] *= 55;
-			}
-#			endif
 		} else {
 			next_cache();
 		}
+#		ifdef GP2X
+		if (i_param != -1) {	// use this scan to premult i param for YUV illumination
+			ctx.poly.vectors[v].cmd->u.geom.param[i_param] *= 55;
+		}
+#		endif
 	}
 	ctx.poly.vectors[0].prev = v-1;
 	ctx.poly.vectors[v-1].next = 0;
@@ -250,11 +250,6 @@ int clip_poly(void)
 		new_size ++;
 		if (v >= ctx.poly.cmd->size || ctx.view.nb_clipPlanes  > 5) {
 			proj_new_vec(v);
-#			ifdef GP2X
-			if (i_param != -1) {	// use this scan to premult i param for YUV illumination
-				ctx.poly.vectors[v].cmd->u.geom.param[i_param] *= 55;
-			}
-#			endif
 		}
 		v = ctx.poly.vectors[v].next;
 	} while (v != ctx.poly.first_vector);
