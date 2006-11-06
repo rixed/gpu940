@@ -25,6 +25,7 @@
 #define CACHE_SIZE 8
 static struct {
 	int32_t x,y;
+	int32_t clipped;
 } c2d_cache[CACHE_SIZE];
 static unsigned cache_end = 0;
 static unsigned cache_depth = 0;
@@ -57,16 +58,6 @@ static unsigned new_vec(unsigned prev, unsigned next, unsigned p)
 	return ctx.poly.nb_vectors++;
 }
 
-/* TODO:
- * Instead of computing all H first, adding new vertexes, and then projecting,
- * loop on all cmdFacet->size first vertexes, proj them using the cache but no clipFlag
- * and if out of screen tag them as clipped (function proj_given()).
- * Then, call a modified version of clip_facet_by_plane which use this tag to compute
- * only the needed H and add new vectors.
- * Then, project these new vectors using the clipFlag and no cache (function proj_new_vec).
- */
-
-// return true if something is left
 static int clip_facet_by_plane(unsigned p)
 {
 	gpuPlane const *const plane = ctx.view.clipPlanes+p;
@@ -74,8 +65,6 @@ static int clip_facet_by_plane(unsigned p)
 	unsigned last_in = ~0U;
 	unsigned new_v[2], nb_new_v = 0;
 	unsigned v = ctx.poly.first_vector;
-	// We spend most of our time in the following loop, computing h.
-	// In fact we barely need h but it's sign.
 	do {
 		ctx.poly.vectors[v].h = 0;
 		for (unsigned c=3; c--; ) {
@@ -116,55 +105,74 @@ static void next_cache(void)
 	if (cache_depth < CACHE_SIZE-1) cache_depth++;
 }
 
-static void proj_vec(unsigned v)
+static void proj_given(unsigned v)
 {
 	// Do we have this vertex in cache ?
 	unsigned const same_as = ctx.poly.vectors[v].cmd->same_as;
-	if (v < ctx.poly.cmd->size && same_as > 0 && same_as <= cache_depth) {
+	if (same_as > 0 && same_as <= cache_depth) {
 		cache_hit ++;
 		int cache_idx = cache_end - same_as;
 		if (cache_idx < 0) cache_idx += CACHE_SIZE;
 		ctx.poly.vectors[v].c2d[0] = c2d_cache[cache_idx].x;
 		ctx.poly.vectors[v].c2d[1] = c2d_cache[cache_idx].y;
+		ctx.poly.vectors[v].clipped = c2d_cache[cache_idx].clipped;
 	} else {
 		cache_miss ++;
 		int32_t const x = ctx.poly.vectors[v].cmd->u.geom.c3d[0];
 		int32_t const y = ctx.poly.vectors[v].cmd->u.geom.c3d[1];
 		int32_t const z = ctx.poly.vectors[v].cmd->u.geom.c3d[2];
-		int32_t const dproj = ctx.view.dproj;
-		int32_t c2d;
-		int32_t inv_z = Fix_inv(-z);
-		switch (ctx.poly.vectors[v].clipFlag & 0xa) {
-			case 0x2:	// right
-				c2d = ctx.view.clipMax[0]<<16;
-				break;
-			case 0x8:	// left
-				c2d = ctx.view.clipMin[0]<<16;
-				break;
-			default:
-				c2d = Fix_mul(x<<dproj, inv_z);//((int64_t)x<<(16+dproj))/-z;
-				break;
+		ctx.poly.vectors[v].clipped = 1;
+		if (z < ctx.view.clipPlanes[0].origin[2]) {
+			int32_t const dproj = ctx.view.dproj;
+			int32_t inv_z = Fix_inv(-z);
+			ctx.poly.vectors[v].c2d[0] = Fix_mul(x<<dproj, inv_z) + (ctx.view.winWidth<<15);
+			if (ctx.poly.vectors[v].c2d[0] > 0 && ctx.poly.vectors[v].c2d[0] < ctx.view.winWidth<<16) {
+				ctx.poly.vectors[v].c2d[1] = Fix_mul(y<<dproj, inv_z) + (ctx.view.winHeight<<15);
+				if (ctx.poly.vectors[v].c2d[1] > 0 && ctx.poly.vectors[v].c2d[1] < ctx.view.winHeight<<16) {
+					ctx.poly.vectors[v].clipped = 0;
+				}
+			}
 		}
-		ctx.poly.vectors[v].c2d[0] = c2d + (ctx.view.winWidth<<15);
-		switch (ctx.poly.vectors[v].clipFlag & 0x14) {
-			case 0x4:	// up
-				c2d = ctx.view.clipMax[1]<<16;
-				break;
-			case 0x10:	// bottom
-				c2d = ctx.view.clipMin[1]<<16;
-				break;
-			default:
-				c2d = Fix_mul(y<<dproj, inv_z);//((int64_t)y<<(16+dproj))/-z;
-				break;
-		}
-		ctx.poly.vectors[v].c2d[1] = c2d + (ctx.view.winHeight<<15);
 	}
-	if (v < ctx.poly.cmd->size) {
-		// store it in cache
-		c2d_cache[cache_end].x = ctx.poly.vectors[v].c2d[0];
-		c2d_cache[cache_end].y = ctx.poly.vectors[v].c2d[1];
-		next_cache();
+	// store it in cache
+	c2d_cache[cache_end].x = ctx.poly.vectors[v].c2d[0];
+	c2d_cache[cache_end].y = ctx.poly.vectors[v].c2d[1];
+	c2d_cache[cache_end].clipped = ctx.poly.vectors[v].clipped;
+	next_cache();
+}
+
+static void proj_new_vec(unsigned v)
+{
+	int32_t const x = ctx.poly.vectors[v].cmd->u.geom.c3d[0];
+	int32_t const y = ctx.poly.vectors[v].cmd->u.geom.c3d[1];
+	int32_t const z = ctx.poly.vectors[v].cmd->u.geom.c3d[2];
+	int32_t const dproj = ctx.view.dproj;
+	int32_t c2d;
+	int32_t inv_z = Fix_inv(-z);
+	switch (ctx.poly.vectors[v].clipFlag & 0xa) {
+		case 0x2:	// right
+			c2d = ctx.view.clipMax[0]<<16;
+			break;
+		case 0x8:	// left
+			c2d = ctx.view.clipMin[0]<<16;
+			break;
+		default:
+			c2d = Fix_mul(x<<dproj, inv_z);
+			break;
 	}
+	ctx.poly.vectors[v].c2d[0] = c2d + (ctx.view.winWidth<<15);
+	switch (ctx.poly.vectors[v].clipFlag & 0x14) {
+		case 0x4:	// up
+			c2d = ctx.view.clipMax[1]<<16;
+			break;
+		case 0x10:	// bottom
+			c2d = ctx.view.clipMin[1]<<16;
+			break;
+		default:
+			c2d = Fix_mul(y<<dproj, inv_z);
+			break;
+	}
+	ctx.poly.vectors[v].c2d[1] = c2d + (ctx.view.winHeight<<15);
 }
 
 /*
@@ -207,44 +215,50 @@ int clip_poly(void)
 	if (ctx.rendering.z_mode != gpu_z_off) ctx.poly.nb_params++;
 	// init vectors
 	unsigned v;
+	unsigned clipped = 0;
 	ctx.poly.first_vector = 0;
 	ctx.poly.nb_vectors = ctx.poly.cmd->size;
 	for (v=0; v<ctx.poly.nb_vectors; v++) {
 		ctx.poly.vectors[v].next = v+1;
 		ctx.poly.vectors[v].prev = v-1;
 		ctx.poly.vectors[v].clipFlag = 0;
-	}
-	ctx.poly.vectors[0].prev = v-1;
-	ctx.poly.vectors[v-1].next = 0;
-	for (v=0; v<ctx.view.nb_clipPlanes; v++) {
-		if (! clip_facet_by_plane(v)) goto ret;
-	}
-	// compute new size and tag used vectors so that we can then loop over vectors array
-	v = ctx.poly.first_vector;
-	unsigned new_size = 0;
-	static int32_t magick = 0;
-	do {
-		new_size ++;
-		ctx.poly.vectors[v].used = magick;
-		v = ctx.poly.vectors[v].next;
-	} while (v != ctx.poly.first_vector);
-	// We must enter vectors in incoming order into the cache (same_as significance)
-	v = 0;
-	for (unsigned nb_v = 0; nb_v < new_size; v++) {
-		if (ctx.poly.vectors[v].used == magick) {
-			proj_vec(v);
-			nb_v ++;
+		if (ctx.view.nb_clipPlanes <= 5) {	// no user clip planes
+			proj_given(v);
+			clipped |= ctx.poly.vectors[v].clipped;
 #			ifdef GP2X
 			if (i_param != -1) {	// use this scan to premult i param for YUV illumination
 				ctx.poly.vectors[v].cmd->u.geom.param[i_param] *= 55;
 			}
 #			endif
-		} else if (v < ctx.poly.cmd->size) {
-			next_cache();	// skip this entry (leave it blank: we won't use it)
+		} else {
+			next_cache();
 		}
 	}
+	ctx.poly.vectors[0].prev = v-1;
+	ctx.poly.vectors[v-1].next = 0;
+	if (ctx.view.nb_clipPlanes <= 5 && !clipped) {
+		disp = 1;
+		goto ret;
+	}
+	for (v=0; v<ctx.view.nb_clipPlanes; v++) {
+		if (! clip_facet_by_plane(v)) goto ret;
+	}
+	// compute new size and project new vertexes
+	unsigned new_size = 0;
+	v = ctx.poly.first_vector;
+	do {
+		new_size ++;
+		if (v >= ctx.poly.cmd->size || ctx.view.nb_clipPlanes  > 5) {
+			proj_new_vec(v);
+#			ifdef GP2X
+			if (i_param != -1) {	// use this scan to premult i param for YUV illumination
+				ctx.poly.vectors[v].cmd->u.geom.param[i_param] *= 55;
+			}
+#			endif
+		}
+		v = ctx.poly.vectors[v].next;
+	} while (v != ctx.poly.first_vector);
 	ctx.poly.cmd->size = new_size;
-	magick ++;
 	disp = 1;
 ret:
 	perftime_enter(previous_target, NULL);

@@ -74,4 +74,3 @@ Et transformer jit_exec en inline : passe de 42% à 40%.
 Transformer line.param en un pointeur vers les params de side[left], sur PC, fait passer poly
 à 10%, ce qui est interressant, même si pas renversant. Sur GP2x, ça ne change rien.
 
-
