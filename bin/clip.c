@@ -57,6 +57,15 @@ static unsigned new_vec(unsigned prev, unsigned next, unsigned p)
 	return ctx.poly.nb_vectors++;
 }
 
+/* TODO:
+ * Instead of computing all H first, adding new vertexes, and then projecting,
+ * loop on all cmdFacet->size first vertexes, proj them using the cache but no clipFlag
+ * and if out of screen tag them as clipped (function proj_given()).
+ * Then, call a modified version of clip_facet_by_plane which use this tag to compute
+ * only the needed H and add new vectors.
+ * Then, project these new vectors using the clipFlag and no cache (function proj_new_vec).
+ */
+
 // return true if something is left
 static int clip_facet_by_plane(unsigned p)
 {
