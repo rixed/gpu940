@@ -331,7 +331,7 @@ static void do_showBuf(void)
 	displist[displist_end] = showBuf->loc;
 	displist_end = next_displist_end;
 #ifndef GP2X
-//	vertical_interrupt();
+	vertical_interrupt();
 #endif
 dwb_quit:
 	next_cmd(sizeof(*showBuf));
@@ -655,7 +655,7 @@ int main(void)
 		perror("sigaction");
 		return EXIT_FAILURE;
 	}
-#	if 1
+#	if 0
 	struct itimerval itimer = {
 		.it_interval = {
 			.tv_sec = 0,

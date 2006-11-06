@@ -1,5 +1,6 @@
 #include <limits.h>
 #include <signal.h>
+#include <stdint.h>
 #include "gcc.h"
 #include "perftime.h"
 #ifndef GP2X
@@ -91,7 +92,7 @@ void perftime_stat(unsigned target, struct perftime_stat *s)
 	assert(target<sizeof_array(stats));
 	s->name = stats[target].name;
 	s->nb_enter = stats[target].nb_enter;
-	s->load_avg = (1024ULL * stats[target].nb_in) / nb_in_tot;
+	s->load_avg = ((uint64_t)stats[target].nb_in<<10) / nb_in_tot;
 }
 
 void perftime_stat_print(int fd, unsigned target)

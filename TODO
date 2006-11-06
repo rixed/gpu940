@@ -72,4 +72,6 @@ sur gpugears. Adopté.
 Et transformer jit_exec en inline : passe de 42% à 40%.
 
 Transformer line.param en un pointeur vers les params de side[left], sur PC, fait passer poly
-à 10%, ce qui est interressant, même si pas renversant. Sur GP2x, on passe de 42% a 40%. Ou plutot, de 40 a 40% puisque c'est l'inline qui nous a ammené à 40% :-(
+à 10%, ce qui est interressant, même si pas renversant. Sur GP2x, ça ne change rien.
+
+
