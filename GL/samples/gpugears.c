@@ -151,7 +151,7 @@ static void gear(GLfixed inner_radius, GLfixed outer_radius, GLfixed width, GLin
 		angle = i * 2 * FIXED_PI / teeth;
 		u = Fix_mul(r2, Fix_cos(angle + da)) - Fix_mul(r1, Fix_cos(angle));
 		v = Fix_mul(r2, Fix_sin(angle + da)) - Fix_mul(r1, Fix_sin(angle));
-		len = my_sqrt(Fix_mul(u, u) + Fix_mul(v, v));
+		len = Fix_sqrt(Fix_mul(u, u) + Fix_mul(v, v));
 		u = Fix_div(u, len);
 		v = Fix_div(v, len);
 		addNormal(v, -u, 0);
@@ -162,6 +162,9 @@ static void gear(GLfixed inner_radius, GLfixed outer_radius, GLfixed width, GLin
 		addVertex(Fix_mul(r2, Fix_cos(angle + da)), Fix_mul(r2, Fix_sin(angle + da)), -width>>1);
 		u = Fix_mul(r1, Fix_cos(angle + 3 * da)) - Fix_mul(r2, Fix_cos(angle + 2 * da));
 		v = Fix_mul(r1, Fix_sin(angle + 3 * da)) - Fix_mul(r2, Fix_sin(angle + 2 * da));
+		len = Fix_sqrt(Fix_mul(u, u) + Fix_mul(v, v));
+		u = Fix_div(u, len);
+		v = Fix_div(v, len);
 		addNormal(v, -u, 0);
 		addVertex(Fix_mul(r2, Fix_cos(angle + 2 * da)), Fix_mul(r2, Fix_sin(angle + 2 * da)), width>>1);
 		addVertex(Fix_mul(r2, Fix_cos(angle + 2 * da)), Fix_mul(r2, Fix_sin(angle + 2 * da)), -width>>1);
