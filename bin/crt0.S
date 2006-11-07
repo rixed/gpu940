@@ -7,6 +7,8 @@
 	.global _icache_prefetch
 	.global _dbuffer_drain*/
 	.global my_memset_words
+	.global unsigned_divide32
+//	.global unsigned_divide64
 
 _start:
 	b _reset @ Reset
@@ -123,6 +125,110 @@ my_memset_words:	// r0 = dst, r1 = value, r2 = count
 	strhs r1, [r0], #4
 	bhi 1b
 	mov pc, lr
+
+unsigned_divide32:
+	// in : r0 = R
+	//      r1 = D
+	stmdb sp!, {r4, lr}
+	mov r2, r0	// r2 = R   (keep r0 for result)
+	mov r0, #0
+	// if (R < D) return 0
+	cmp r2, r1
+	blo 0f
+	// r4 = e = 0
+	mov r4, #0
+	// r3 = R>>1  (R/2>=1, D>=1)
+	mov r3, r2, lsr #1
+1:
+	add r4, r4, #1
+	cmp r3, r1, lsl r4
+	bhs 1b
+	mov r3, r1, lsl r4	// r3 = normD
+	mov lr, #1
+	mov r4, lr, lsl r4	// r4 = 1 << e
+3:	// do {
+	cmp r3, r2
+	// 	Q += e
+	addls r0, r0, r4
+	// 	R -= normD
+	subls r2, r2, r3
+	// 	normD >>= 1
+	mov r3, r3, lsr #1
+	// 	e >>= 1
+	mov r4, r4, lsr #1
+	// 	if (R < D) return 0
+	cmp r2, r1
+	bhs 3b
+	// } while (1);
+0:	ldmia sp!, {r4, pc}
+
+unsigned_divide64:
+	// in : (r0, r1) = R (r0 = low)
+	//      (r2, r3) = D (r2 = low)
+	stmdb sp!, {r4-r9, lr}
+	mov r4, r0	// (r4, r1) = R   (keep r0 for result)
+	mov r0, #0
+	// if (R < D) return 0
+	cmp r1, r3
+	blo 0f
+	cmpeq r4, r2
+	blo 0f
+	// (r5, r6) = normD
+	// r0 = Q
+	// r7 = e
+	// (r8, r9) = next_normD
+	mov r7, #1
+	mov r8, r2
+	mov r9, r3
+1:	// do {
+	// 	normD = next_normD
+	mov r5, r8
+	mov r6, r9
+	// 	next_normD <<= 1;
+	adds r8, r8, r8
+	adc r9, r9, r9
+	// 	e ++;
+	mov r7, r7, lsl #1
+	// } while (next_normD <= R)
+	cmp r9, r1
+	blo 1b
+	bhi 2f
+	cmp r8, r4
+	bls 1b
+2:	// e >>= 1
+	mov r7, r7, lsr #1
+3:	// do {
+	// 	(r8, r9) = temp_normD
+	// 	lr = temp_e
+	mov r8, r5
+	mov r9, r6
+	mov lr, r7
+	cmp r6, r1
+	movhi r8, #0
+	movhi r9, #0
+	movhi lr, #0
+	cmpeq r5, r4
+	movhi r8, #0
+	movhi r9, #0
+	movhi lr, #0
+	// 	Q += temp_e
+	add r0, r0, lr
+	// 	R -= temp_normD
+	subs r4, r4, r8
+	sbc r1, r1, r9
+	// 	if (R < D) return 0
+	cmp r1, r3
+	blo 0f
+	cmpeq r4, r2
+	blo 0f
+	// 	normD >>= 1
+	mov r6, r6, lsr #1
+	mov r5, r5, rrx
+	// 	e >>= 1
+	mov r7, r7, lsr #1
+	// } while (1);
+	b 3b
+0:	ldmia sp!, {r4-r9, pc}
 
 	.pool
 #endif

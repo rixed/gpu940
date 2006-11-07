@@ -24,17 +24,21 @@
  * Private Functions
  */
 
-static uint32_t unsigned_divide32(uint64_t R, uint64_t D)
+#ifdef GP2X
+extern uint32_t unsigned_divide32(uint32_t R, uint32_t D);
+#else
+static uint32_t unsigned_divide32(uint32_t R, uint32_t D)
 {
 	if (R < D) return 0;
-	uint64_t normD, next_normD = D;
+	uint32_t normD;
+	uint64_t next_normD = D;
 	uint32_t Q = 0;
 	uint32_t e = 0, next_e = 1;
 	do {
 		normD = next_normD;
 		e = next_e;
-		next_normD = normD<<1;
-		next_e <<= 1;
+		next_normD <<= 1U;
+		next_e <<= 1U;
 	} while (next_normD <= R);
 	// TODO: on ARM, unroll this loop (32 times) and use temp e and normD that are conditionnaly set to 0 if normD > R.
 	do {
@@ -44,10 +48,11 @@ static uint32_t unsigned_divide32(uint64_t R, uint64_t D)
 			R -= normD;
 		}
 		if (R < D) return Q;
-		normD >>= 1;
-		e >>= 1;
+		normD >>= 1U;
+		e >>= 1U;
 	} while (1);
 }
+#endif
 
 static uint64_t unsigned_divide64(uint64_t R, uint64_t D)
 {
@@ -58,8 +63,8 @@ static uint64_t unsigned_divide64(uint64_t R, uint64_t D)
 	do {
 		normD = next_normD;
 		e = next_e;
-		next_normD = normD<<1;
-		next_e <<= 1;
+		next_normD <<= 1U;
+		next_e <<= 1U;
 	} while (next_normD <= R);
 	do {
 		// can not be done more than 64 times
@@ -69,17 +74,17 @@ static uint64_t unsigned_divide64(uint64_t R, uint64_t D)
 			R -= normD;
 		}
 		if (R < D) return Q;
-		normD >>= 1;
-		e >>= 1;
+		normD >>= 1U;
+		e >>= 1U;
 	} while (1);
 }
 
-static int32_t signed_divide32(int64_t n, int64_t d)
+static int32_t signed_divide32(int32_t n, int32_t d)
 {
-	uint64_t dd = Fix_abs64(n);
-	uint64_t dr = Fix_abs64(d);
+	uint32_t dd = Fix_abs(n);
+	uint32_t dr = Fix_abs(d);
 	uint32_t q = unsigned_divide32(dd, dr);
-	if (n>>63 == d>>63) return q;
+	if (n>>31 == d>>31) return q;
 	return -q;
 }
 

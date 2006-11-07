@@ -54,9 +54,8 @@ typedef struct {
 	int32_t nc_declived;
 	uint32_t next;
 	uint32_t prev;
-	uint32_t clipFlag;	// bit 0..3 indicate that the point is on this plane (do not project corresponding coordinate)
-	int32_t clipped;
-	int32_t used;
+	uint32_t clipFlag:4;	// bit 0..3 indicate that the point is on this plane (do not project corresponding coordinate)
+	uint32_t clipped:1, proj:1;
 } gpuVector;
 
 extern struct ctx {
