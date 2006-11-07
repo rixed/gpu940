@@ -101,7 +101,7 @@ static void gear(GLfixed inner_radius, GLfixed outer_radius, GLfixed width, GLin
 		}
 	}
 	glVertexPointer(3, GL_FIXED, 0, vertexes);
-	glDrawArrays(GL_TRIANGLE_STRIP, 0, nb_vertexes);
+	glDrawArrays(GL_QUAD_STRIP, 0, nb_vertexes);
 
 	/* draw front sides of teeth */
 	nb_vertexes = 0;
@@ -111,13 +111,10 @@ static void gear(GLfixed inner_radius, GLfixed outer_radius, GLfixed width, GLin
 		addVertex(Fix_mul(r1, Fix_cos(angle)), Fix_mul(r1, Fix_sin(angle)), width>>1);
 		addVertex(Fix_mul(r2, Fix_cos(angle + da)), Fix_mul(r2, Fix_sin(angle + da)), width>>1);
 		addVertex(Fix_mul(r2, Fix_cos(angle + 2 * da)), Fix_mul(r2, Fix_sin(angle + 2 * da)), width>>1);
-	
-		addVertex(Fix_mul(r1, Fix_cos(angle)), Fix_mul(r1, Fix_sin(angle)), width>>1);
-		addVertex(Fix_mul(r2, Fix_cos(angle + 2 * da)), Fix_mul(r2, Fix_sin(angle + 2 * da)), width>>1);
 		addVertex(Fix_mul(r1, Fix_cos(angle + 3 * da)), Fix_mul(r1, Fix_sin(angle + 3 * da)), width>>1);
 	}
 	glVertexPointer(3, GL_FIXED, 0, vertexes);
-	glDrawArrays(GL_TRIANGLES, 0, nb_vertexes);
+	glDrawArrays(GL_QUADS, 0, nb_vertexes);
 
 	glNormal3x(0, 0, -1<<16);
 	/* draw back face */
@@ -132,7 +129,7 @@ static void gear(GLfixed inner_radius, GLfixed outer_radius, GLfixed width, GLin
 		}
 	}
 	glVertexPointer(3, GL_FIXED, 0, vertexes);
-	glDrawArrays(GL_TRIANGLE_STRIP, 0, nb_vertexes);
+	glDrawArrays(GL_QUAD_STRIP, 0, nb_vertexes);
 
 	/* draw back sides of teeth */
 	nb_vertexes = 0;
@@ -142,13 +139,10 @@ static void gear(GLfixed inner_radius, GLfixed outer_radius, GLfixed width, GLin
 		addVertex(Fix_mul(r1, Fix_cos(angle + 3 * da)), Fix_mul(r1, Fix_sin(angle + 3 * da)), -width>>1);
 		addVertex(Fix_mul(r2, Fix_cos(angle + 2 * da)), Fix_mul(r2, Fix_sin(angle + 2 * da)), -width>>1);
 		addVertex(Fix_mul(r2, Fix_cos(angle + da)), Fix_mul(r2, Fix_sin(angle + da)), -width>>1);
-		
-		addVertex(Fix_mul(r1, Fix_cos(angle + 3 * da)), Fix_mul(r1, Fix_sin(angle + 3 * da)), -width>>1);
-		addVertex(Fix_mul(r2, Fix_cos(angle + da)), Fix_mul(r2, Fix_sin(angle + da)), -width>>1);
 		addVertex(Fix_mul(r1, Fix_cos(angle)), Fix_mul(r1, Fix_sin(angle)), -width>>1);
 	}
 	glVertexPointer(3, GL_FIXED, 0, vertexes);
-	glDrawArrays(GL_TRIANGLES, 0, nb_vertexes);
+	glDrawArrays(GL_QUADS, 0, nb_vertexes);
 	
 	/* draw outward faces of teeth */
 	nb_vertexes = 0;
@@ -180,7 +174,7 @@ static void gear(GLfixed inner_radius, GLfixed outer_radius, GLfixed width, GLin
 	addVertex(Fix_mul(r1, Fix_cos(0)), Fix_mul(r1, Fix_sin(0)), -width>>1);
 	glVertexPointer(3, GL_FIXED, 0, vertexes);
 	glNormalPointer(GL_FIXED, 0, normals);
-	glDrawArrays(GL_TRIANGLE_STRIP, 0, nb_vertexes);
+	glDrawArrays(GL_QUAD_STRIP, 0, nb_vertexes);
 	glDisableClientState(GL_NORMAL_ARRAY);
 
 	/* draw inside radius cylinder */
@@ -195,7 +189,7 @@ static void gear(GLfixed inner_radius, GLfixed outer_radius, GLfixed width, GLin
 	}
 	glVertexPointer(3, GL_FIXED, 0, vertexes);
 	glNormalPointer(GL_FIXED, 0, normals);
-	glDrawArrays(GL_TRIANGLE_STRIP, 0, nb_vertexes);
+	glDrawArrays(GL_QUAD_STRIP, 0, nb_vertexes);
 	glDisableClientState(GL_NORMAL_ARRAY);
 }
 

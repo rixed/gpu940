@@ -210,15 +210,15 @@ void glDisableClientState(GLenum array)
 
 void glDrawArrays(GLenum mode, GLint first, GLsizei count)
 {
-	if (/* mode < GL_POINTS ||*/ mode > GL_TRIANGLES) {
+	if (/* mode < GL_POINTS ||*/ mode > GL_QUADS) {
 		return gli_set_error(GL_INVALID_ENUM);
 	}
 	if (count < 0) {
 		return gli_set_error(GL_INVALID_VALUE);
 	}
 	if (mode >= GL_TRIANGLE_STRIP) {
-		gli_triangle_array(mode, first, count);
-	} else {
+		gli_facet_array(mode, first, count);
+	} else {	// lines and points
 		// TODO
 	}
 }

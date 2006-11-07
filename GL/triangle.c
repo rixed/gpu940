@@ -24,12 +24,13 @@
  */
 
 static gpuCmdFacet cmdFacet;
-static gpuCmdVector cmdVec[3];
+static gpuCmdVector cmdVec[4];
 static struct iovec const iov_triangle[] = {
 	{ .iov_base = &cmdFacet, .iov_len = sizeof(cmdFacet) },
 	{ .iov_base = cmdVec+0, .iov_len = sizeof(*cmdVec) },
 	{ .iov_base = cmdVec+1, .iov_len = sizeof(*cmdVec) },
 	{ .iov_base = cmdVec+2, .iov_len = sizeof(*cmdVec) },
+	{ .iov_base = cmdVec+3, .iov_len = sizeof(*cmdVec) },
 };
 
 /*
@@ -151,7 +152,11 @@ static void set_depth_mode(void)
 	}
 }
 
-static void send_triangle(int32_t vi[4], GLint ci, bool facet_is_inverted)
+static void send_facet(
+	int32_t vi[4], // vertex that can give its color to facet
+	GLint ci,	// idx of this vertex
+	bool facet_is_inverted,
+	unsigned size)
 {
 	// Set cull_mode
 	cmdFacet.cull_mode = 0;
@@ -160,6 +165,7 @@ static void send_triangle(int32_t vi[4], GLint ci, bool facet_is_inverted)
 	if (! gli_must_render_face(GL_FRONT)) cmdFacet.cull_mode |= 1<<(!front_is_cw);
 	if (! gli_must_render_face(GL_BACK)) cmdFacet.cull_mode |= 2>>(!front_is_cw);
 	if (cmdFacet.cull_mode == 3) return;
+	cmdFacet.size = size;
 	// Set facet rendering type and color if needed
 	if (gli_smooth()) {
 		cmdFacet.rendering_type = rendering_smooth;
@@ -173,7 +179,7 @@ static void send_triangle(int32_t vi[4], GLint ci, bool facet_is_inverted)
 	cmdFacet.write_out = gli_color_mask_all && (!depth_test() || gli_depth_func != GL_NEVER);
 	cmdFacet.write_z = depth_test() && gli_depth_mask;
 	// Send to GPU
-	gpuErr const err = gpuWritev(iov_triangle, sizeof_array(iov_triangle), true);
+	gpuErr const err = gpuWritev(iov_triangle, 1+size, true);
 	assert(gpuOK == err);
 }
 
@@ -200,24 +206,7 @@ static void write_vertex(GLfixed v[4], unsigned vec_idx, GLint arr_idx)
 	}
 }
 
-/*
- * Public Functions
- */
-
-int gli_triangle_begin(void)
-{
-	cmdFacet.opcode = gpuFACET;
-	cmdFacet.size = 3;
-	cmdFacet.use_key = 0;
-	cmdFacet.use_intens = 0;
-	cmdFacet.blend_coef = 0;
-	cmdFacet.perspective = 0;
-	return 0;
-}
-
-extern inline void gli_triangle_end(void);
-
-void gli_triangle_array(enum gli_DrawMode mode, GLint first, unsigned count)
+static void gli_triangles_array(enum gli_DrawMode mode, GLint first, unsigned count)
 {
 	if (count < 3) return;
 	GLint const last = first + count;
@@ -230,7 +219,7 @@ void gli_triangle_array(enum gli_DrawMode mode, GLint first, unsigned count)
 		write_vertex(v, 1, first++);
 		rotate_vertex(v, first);
 		write_vertex(v, 2, first++);
-		send_triangle(mode == GL_TRIANGLES ? first_v:v, first - (mode == GL_TRIANGLES ? 3:1), facet_is_inverted);
+		send_facet(mode == GL_TRIANGLES ? first_v:v, first - (mode == GL_TRIANGLES ? 3:1), facet_is_inverted, 3);
 	} while (mode == GL_TRIANGLES && first < last);
 	unsigned repl_idx = 0;
 	if (mode == GL_TRIANGLE_FAN) repl_idx = 1;
@@ -239,13 +228,71 @@ void gli_triangle_array(enum gli_DrawMode mode, GLint first, unsigned count)
 		for (unsigned i=0; i<3; i++) {
 			if (i == repl_idx) {
 				rotate_vertex(v, first);
-				write_vertex(v, repl_idx, first++);
+				write_vertex(v, i, first++);
 			} else {
 				cmdVec[i].same_as = 3;
 			}
 		}
-		send_triangle(v, first-1, facet_is_inverted);
+		send_facet(v, first-1, facet_is_inverted, 3);
 		if (++ repl_idx > 2) repl_idx = mode == GL_TRIANGLE_FAN ? 1:0;
+	}
+}
+
+static void gli_quads_array(enum gli_DrawMode mode, GLint first, unsigned count)
+{
+	if (count < 4) return;
+	GLint const last = first + count;
+	bool facet_is_inverted = false;
+	GLfixed v[4], first_v[4];
+	do {
+		rotate_vertex(first_v, first);
+		write_vertex(first_v, 0, first++);
+		rotate_vertex(v, first);
+		write_vertex(v, 1, first++);
+		rotate_vertex(v, first);
+		write_vertex(v, mode == GL_QUADS ? 2:3, first++);	// quad_strips vertexes are 'crossed'
+		rotate_vertex(v, first);
+		write_vertex(v, mode == GL_QUADS ? 3:2, first++);
+		send_facet(mode == GL_QUADS ? first_v:v, first - (mode == GL_QUADS ? 4:1), facet_is_inverted, 4);
+	} while (mode == GL_QUADS && first < last);
+	unsigned repl_idx = 0;
+	while (first < last) {
+		facet_is_inverted = !facet_is_inverted;
+		rotate_vertex(v, first);
+		write_vertex(v, repl_idx == 0 ? 0:3, first++);
+		rotate_vertex(v, first);
+		write_vertex(v, repl_idx == 0 ? 1:2, first++);
+		unsigned const norep = repl_idx == 0 ? 2:0;
+		cmdVec[norep].same_as = 4;
+		cmdVec[norep+1].same_as = 4;
+		send_facet(v, first-1, facet_is_inverted, 4);
+		repl_idx = (repl_idx + 2) & 3;
+	}
+}
+
+/*
+ * Public Functions
+ */
+
+int gli_triangle_begin(void)
+{
+	cmdFacet.opcode = gpuFACET;
+	cmdFacet.use_key = 0;
+	cmdFacet.use_intens = 0;
+	cmdFacet.blend_coef = 0;
+	cmdFacet.perspective = 0;
+	return 0;
+}
+
+extern inline void gli_triangle_end(void);
+
+void gli_facet_array(enum gli_DrawMode mode, GLint first, unsigned count)
+{
+	if (mode >= GL_TRIANGLE_STRIP && mode <= GL_TRIANGLES) {
+		gli_triangles_array(mode, first, count);
+	} else {
+		assert(mode == GL_QUAD_STRIP || mode == GL_QUADS);
+		gli_quads_array(mode, first, count);
 	}
 }
 
