@@ -54,6 +54,9 @@ static uint32_t unsigned_divide32(uint32_t R, uint32_t D)
 }
 #endif
 
+#ifdef GP2X
+extern uint64_t unsigned_divide64(uint64_t R, uint64_t D);
+#else
 static uint64_t unsigned_divide64(uint64_t R, uint64_t D)
 {
 	if (R < D) return 0;
@@ -78,6 +81,7 @@ static uint64_t unsigned_divide64(uint64_t R, uint64_t D)
 		e >>= 1U;
 	} while (1);
 }
+#endif
 
 static int32_t signed_divide32(int32_t n, int32_t d)
 {

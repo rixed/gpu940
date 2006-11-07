@@ -8,7 +8,7 @@
 	.global _dbuffer_drain*/
 	.global my_memset_words
 	.global unsigned_divide32
-//	.global unsigned_divide64
+	.global unsigned_divide64
 
 _start:
 	b _reset @ Reset
@@ -165,19 +165,22 @@ unsigned_divide32:
 unsigned_divide64:
 	// in : (r0, r1) = R (r0 = low)
 	//      (r2, r3) = D (r2 = low)
-	stmdb sp!, {r4-r9, lr}
-	mov r4, r0	// (r4, r1) = R   (keep r0 for result)
-	mov r0, #0
+	stmdb sp!, {r4-r12, lr}
+	mov r4, r0	// (r4, r10) = R   (keep r0 for result)
+	mov r10, r1
+	mov r0, #0	// (r0, r1) = Q
+	mov r1, #0
 	// if (R < D) return 0
-	cmp r1, r3
+	cmp r10, r3
 	blo 0f
 	cmpeq r4, r2
 	blo 0f
 	// (r5, r6) = normD
-	// r0 = Q
-	// r7 = e
+	// (r0, r1) = Q
+	// (r7, r11) = e
 	// (r8, r9) = next_normD
 	mov r7, #1
+	mov r11, #0
 	mov r8, r2
 	mov r9, r3
 1:	// do {
@@ -187,48 +190,55 @@ unsigned_divide64:
 	// 	next_normD <<= 1;
 	adds r8, r8, r8
 	adc r9, r9, r9
-	// 	e ++;
-	mov r7, r7, lsl #1
+	// 	e <<= 1;
+	adds r7, r7, r7
+	adc r11, r11, r11
 	// } while (next_normD <= R)
-	cmp r9, r1
+	cmp r9, r10
 	blo 1b
 	bhi 2f
 	cmp r8, r4
 	bls 1b
 2:	// e >>= 1
-	mov r7, r7, lsr #1
+	movs r11, r11, lsr #1
+	mov r7, r7, rrx
 3:	// do {
 	// 	(r8, r9) = temp_normD
-	// 	lr = temp_e
+	// 	(lr, r12) = temp_e
 	mov r8, r5
 	mov r9, r6
 	mov lr, r7
-	cmp r6, r1
+	mov r12, r11
+	cmp r6, r10
 	movhi r8, #0
 	movhi r9, #0
 	movhi lr, #0
+	movhi r12, #0
 	cmpeq r5, r4
 	movhi r8, #0
 	movhi r9, #0
 	movhi lr, #0
+	movhi r12, #0
 	// 	Q += temp_e
-	add r0, r0, lr
+	adds r0, r0, lr
+	adc r1, r1, r12
 	// 	R -= temp_normD
 	subs r4, r4, r8
-	sbc r1, r1, r9
+	sbc r10, r10, r9
 	// 	if (R < D) return 0
-	cmp r1, r3
+	cmp r10, r3
 	blo 0f
 	cmpeq r4, r2
 	blo 0f
 	// 	normD >>= 1
-	mov r6, r6, lsr #1
+	movs r6, r6, lsr #1
 	mov r5, r5, rrx
 	// 	e >>= 1
-	mov r7, r7, lsr #1
+	movs r11, r11, lsr #1
+	mov r7, r7, rrx
 	// } while (1);
 	b 3b
-0:	ldmia sp!, {r4-r9, pc}
+0:	ldmia sp!, {r4-r12, pc}
 
 	.pool
 #endif
