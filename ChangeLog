@@ -1,3 +1,6 @@
+2006-11-07 rixed@free.fr
+	* Many optimizations : divs in ARM asm, faster projections, GL_QUADS.
+
 2006-10-18 rixed@free.fr
 	* Suppression of some non-required DIVs in no-perspective mode.
 	* Addition of a projection cache.
