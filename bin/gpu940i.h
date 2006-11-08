@@ -82,14 +82,14 @@ extern struct ctx {
 	} location;
 	// Current trapeze
 	struct {
-		struct {
+		struct {	// this is 16 words, which is good because we want easy access of any sides (side+s*16*4 is ok)
 			int32_t c;	// 16.16
 			int32_t dc;	// 16.16
 			int32_t param[GPU_NB_PARAMS];	// 16.16
 			int32_t param_alpha[GPU_NB_PARAMS];	// 16.16
 			uint32_t start_v;
 			uint32_t end_v;
-			int32_t z_alpha_start, z_alpha_end;
+			int32_t z_alpha_start;
 			uint32_t is_growing:1;
 		} side[2];	// side dec, side inc
 		uint32_t left_side:1;
@@ -110,7 +110,7 @@ extern struct ctx {
 		int32_t z_alpha;
 		int64_t z_num, z_den;	// 32.32
 		int32_t z_dden, z_dnum;	// 16.16
-		uint32_t rasterizer;	// index in code.cache
+		struct jit_cache *rasterizer;
 	} poly;
 	// Current line
 	struct {
@@ -129,7 +129,7 @@ extern struct ctx {
 		uint32_t color;	// extracted from facet cmd for easier access
 		uint32_t sp_save;
 #		define NB_CODE_CACHE 5
-		struct {
+		struct jit_cache {
 #			define MAX_CODE_SIZE 87
 			uint32_t buf[MAX_CODE_SIZE];
 			uint32_t use_count;

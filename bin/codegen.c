@@ -1000,14 +1000,14 @@ void flush_cache(void)
  * Public Functions
  */
 
-unsigned jit_prepare_rasterizer(void)
+struct jit_cache *jit_prepare_rasterizer(void)
 {
 	uint64_t key = get_rendering_key();
 	int r_dest = -1;
 	for (unsigned r=0; r<sizeof_array(ctx.code.caches); r++) {
 		if (ctx.code.caches[r].rendering_key == key) {
 			ctx.code.caches[r].use_count ++;
-			return r;
+			return ctx.code.caches+r;
 		}
 		if (ctx.code.caches[r].rendering_key == 0) {
 			r_dest = r;
@@ -1029,7 +1029,7 @@ unsigned jit_prepare_rasterizer(void)
 	ctx.code.caches[r_dest].rendering_key = key;
 	build_code(r_dest);
 	flush_cache();
-	return r_dest;
+	return ctx.code.caches+r_dest;
 }
 
 void jit_invalidate(void)	// TODO: give hint as to what invalidate

@@ -35,7 +35,7 @@
 static void draw_line(void) {
 	int32_t const c_start = ctx.trap.side[ctx.trap.left_side].c >> 16;
 	ctx.line.count = ((ctx.trap.side[!ctx.trap.left_side].c + 0xffff) >> 16) - c_start;
-	if (unlikely(ctx.line.count < 0)) return;	// may happen on some pathological cases ?
+	if (unlikely(ctx.line.count <= 0)) return;	// may happen on some pathological cases ?
 	ctx.line.w = ctx.location.out_start + c_start + ((ctx.poly.nc_declived>>16)<<ctx.location.buffer_loc[gpuOutBuffer].width_log);
 	if (unlikely(ctx.poly.cmd->perspective)) {
 		ctx.line.decliv = ctx.poly.decliveness * c_start;	// 16.16
@@ -45,10 +45,7 @@ static void draw_line(void) {
 	}
 	if (ctx.poly.nb_params > 0) {
 		if (unlikely(ctx.poly.cmd->perspective || !ctx.trap.is_triangle)) {	// We need to compute 
-			int32_t inv_dc = 0;
-			if (likely(ctx.line.count)) {
-				inv_dc = Fix_inv(ctx.line.count<<16);
-			}
+			int32_t const inv_dc = Fix_uinv(ctx.line.count<<16);
 			for (unsigned p=ctx.poly.nb_params; p--; ) {
 				ctx.line.dparam[p] = Fix_mul(ctx.trap.side[!ctx.trap.left_side].param[p] - ctx.line.param[p], inv_dc);
 			}
@@ -359,9 +356,8 @@ void draw_poly(void) {
 						int64_t n = ctx.poly.z_num + (((int64_t)ctx.poly.z_dnum*dnc));	// 32.32
 						int64_t d = ctx.poly.z_den + (((int64_t)ctx.poly.z_dden*dnc));	// 32.32
 						ctx.trap.side[side].z_alpha_start = ctx.poly.z_alpha;
-						ctx.trap.side[side].z_alpha_end = ctx.poly.z_alpha;
-						if (d) ctx.trap.side[side].z_alpha_end = n/(d>>16);
-						int32_t const dalpha = ctx.trap.side[side].z_alpha_end - ctx.trap.side[side].z_alpha_start;
+						int32_t z_alpha_end = d ? n/(d>>16) : ctx.poly.z_alpha;
+						int32_t const dalpha = z_alpha_end - ctx.trap.side[side].z_alpha_start;
 						if (dalpha) inv_dalpha = Fix_inv(dalpha);
 					} else {
 						inv_dalpha = Fix_inv(dnc);

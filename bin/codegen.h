@@ -20,12 +20,12 @@
 
 #define TEST_RASTERIZER
 
-unsigned jit_prepare_rasterizer(void);
+struct jit_cache *jit_prepare_rasterizer(void);
 void jit_invalidate(void);
 static inline void jit_exec(void)
 {
 	typedef void (*rasterizer_func)(void);
-	rasterizer_func const rasterizer = (rasterizer_func const)ctx.code.caches[ctx.poly.rasterizer].buf;
+	rasterizer_func const rasterizer = (rasterizer_func const)ctx.poly.rasterizer->buf;
 	rasterizer();
 }
 
