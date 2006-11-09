@@ -7,6 +7,7 @@ SECTIONS {
 		clip.o(.text)
 		raster.o(.text)
 		poly.o(.text)
+		poly_nopersp.o(.text)
 		text.o(.text)
 		fixmath.o(.text)
 		mydiv.o(.text)

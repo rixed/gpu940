@@ -66,7 +66,7 @@ GLubyte const *glGetString(GLenum name)
 #			endif
 				;
 		case GL_VERSION:
-			return (GLubyte const *)TOSTR(VERSION);
+			return (GLubyte const *)"1.2";	// let's pretend we implement everything in order to have good looking bugs
 		case GL_EXTENSIONS:
 			return (GLubyte const *)"";
 	}

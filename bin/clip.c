@@ -308,7 +308,9 @@ unsigned proj_cache_ratio(void)
 		cache_hit >>= 1;
 		cache_miss >>= 1;
 	}
-	return (100*cache_hit)/(cache_hit+cache_miss);
+	unsigned tot = cache_hit+cache_miss;
+	if (!tot) return 0;
+	return (100*cache_hit)/tot;
 }
 
 void proj_cache_reset(void)

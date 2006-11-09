@@ -20,11 +20,7 @@
 
 #include "../perftime/perftime.h"
 #include "gpu940.h"
-#ifdef GP2X
-#	define assert(x)
-#else
-#	include <assert.h>
-#endif
+#include <assert.h>
 
 #define GPU_NB_CLIPPLANES (5+GPU_NB_USER_CLIPPLANES)
 
@@ -140,6 +136,7 @@ extern struct ctx {
 } ctx;
 
 #include "poly.h"
+#include "poly_nopersp.h"
 #include "clip.h"
 #include "text.h"
 #include "mylib.h"

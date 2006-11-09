@@ -15,10 +15,10 @@
  * along with gpu940; if not, write to the Free Software
  * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
  */
-#ifndef POLY_H_060323
-#define POLY_H_060323
+#ifndef POLY_NOPERSP_H_060323
+#define POLY_NOPERSP_H_060323
 #include "../config.h"
 
-void draw_poly_persp(void);
+void draw_poly_nopersp(void);
 
 #endif

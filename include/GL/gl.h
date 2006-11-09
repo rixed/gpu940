@@ -80,6 +80,7 @@ void glViewport(GLint x, GLint y, GLsizei width, GLsizei height);
 
 // Color and Lighting
 void glColor4x(GLfixed red, GLfixed green, GLfixed blue, GLfixed alpha);
+void glColor3x(GLfixed red, GLfixed green, GLfixed blue);
 void glNormal3x(GLfixed nx, GLfixed ny, GLfixed nz);
 #define GL_LIGHT0 1
 #define GL_LIGHT1 2
@@ -131,6 +132,7 @@ void glBindTexture(GLenum target, GLuint texture);
 void glDeleteTextures(GLsizei n, GLuint const *textures);
 void glActiveTexture(GLenum texture);
 void glGenTextures(GLsizei n, GLuint *textures);
+GLboolean glIsTexture(GLuint texture);
 
 // Fog
 

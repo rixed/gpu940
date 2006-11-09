@@ -3,16 +3,15 @@
 #include <stdint.h>
 #include "gcc.h"
 #include "perftime.h"
+#include <assert.h>
 #ifndef GP2X
 #	include <stdio.h>
-#	include <assert.h>
 #	include <sys/time.h>
 #	include <time.h>
 #	include <unistd.h>
 #	include <string.h>
 #else
 #	include "../bin/gpu940i.h"
-#	define assert(x)
 #endif
 
 /*

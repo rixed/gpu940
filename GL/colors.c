@@ -101,7 +101,7 @@ bool gli_light_enabled(unsigned l)
 	return lights[l].enabled;
 }
 
-void gli_light_dir(unsigned l, GLfixed const v[4], GLfixed dir[4], GLfixed *dist)
+void gli_light_dir(unsigned l, GLfixed const v[4], GLfixed dir[3], GLfixed *dist)
 {
 	assert(gli_light_enabled(l));
 	*dist = 0;
@@ -157,6 +157,11 @@ void glColor4x(GLfixed red, GLfixed green, GLfixed blue, GLfixed alpha)
 	color[1] = green;
 	color[2] = blue;
 	color[3] = alpha;
+}
+
+void glColor3x(GLfixed red, GLfixed green, GLfixed blue)
+{
+	glColor4x(red, green, blue, 1U<<16);
 }
 
 void glNormal3x(GLfixed nx, GLfixed ny, GLfixed nz)

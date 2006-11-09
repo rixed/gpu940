@@ -358,10 +358,9 @@ static void do_facet(void)
 	}
 	if (clip_poly() && cull_poly()) {
 		ctx.code.color = ctx.poly.cmd->color;
-//		if (0 == ctx.poly.nb_params) ctx.poly.cmd->perspective = 0;
-//		if (ctx.poly.cmd->perspective) draw_poly_persp();
-//		else draw_poly_nopersp();
-		draw_poly();
+		if (0 == ctx.poly.nb_params) ctx.poly.cmd->perspective = 0;
+		if (ctx.poly.cmd->perspective) draw_poly_persp();
+		else draw_poly_nopersp();
 	}
 df_quit:
 	next_cmd(to_skip);

@@ -58,18 +58,18 @@ static GLfixed const *get_vertex_color(int32_t v[4], unsigned vec_idx)
 	for (unsigned i=0; i<3; i++) {
 		cpri[i] = ecm[i] + Fix_mul(acm[i], acs[i]);
 	}
-	GLfixed normal_tmp[4], normal[4];
+	GLfixed normal_tmp[4], normal[3];
 	gli_normal_get(vec_idx, normal_tmp);
 	gli_multmatrixU(GL_MODELVIEW, normal, normal_tmp);
 //	GLfixed const *scm = gli_material_specular();
-	for (unsigned l=0; l<GLI_MAX_LIGHTS; l++) {	// Use a current_min_light, current_max_light
+	for (unsigned l=0; l<GLI_MAX_LIGHTS; l++) {	// TODO: use a current_min_light, current_max_light
 		if (! gli_light_enabled(l)) continue;
 		GLfixed vl_dir[3], vl_dist;
 		gli_light_dir(l, v, vl_dir, &vl_dist);
-		GLfixed att = gli_light_attenuation(l, vl_dist);
-		GLfixed spot = gli_light_spot(l);
-		GLfixed att_spot = Fix_mul(att, spot);
-		if (att_spot < 16) continue;	// skip lights if negligible or null contribution
+		GLfixed const att = gli_light_attenuation(l, vl_dist);
+		GLfixed const spot = gli_light_spot(l);
+		GLfixed const att_spot = Fix_mul(att, spot);
+		if (att_spot < 16) continue;	// skip light if negligible or null contribution
 		GLfixed const *acli = gli_light_ambient(l);
 		GLfixed const *dcli = gli_light_diffuse(l);
 		for (unsigned i=0; i<3; i++) {
@@ -77,6 +77,7 @@ static GLfixed const *get_vertex_color(int32_t v[4], unsigned vec_idx)
 			cpri[i] += Fix_mul(att_spot, sum);
 		}
 		GLfixed n_vl_dir = Fix_scalar(normal, vl_dir);
+		assert(n_vl_dir < 70000);
 		if (n_vl_dir > 0) {
 			GLfixed att_spot_n_vl_dir = Fix_mul(att_spot, n_vl_dir);
 			for (unsigned i=0; i<3; i++) {

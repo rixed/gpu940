@@ -1,10 +1,5 @@
 #include "console.h"
 #include "bin/gpu940i.h"
-#ifndef GP2X
-#	include <assert.h>
-#else
-#	define assert(x)
-#endif
 
 /*
  * Private Datas
