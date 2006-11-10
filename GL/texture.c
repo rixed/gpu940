@@ -32,7 +32,7 @@ static struct gli_texture_object *binds[NB_MAX_TEXOBJ];
 struct pixel_reader {
 	void (*read_func)(struct pixel_reader *);
 	uint8_t r, g, b, a;
-	uint8_t *pixels;
+	uint8_t const *pixels;
 };
 
 /*
@@ -68,10 +68,21 @@ static int texture_object_ctor(struct gli_texture_object *to)
 	return 0;
 }
 
+static void free_to_datas(struct gli_texture_object *to)
+{
+	if (! to->has_data) return;
+	if (to->is_resident) {
+		gpuFree(to->img_res);	// no need to keep it any longer
+	} else {
+		free(to->img_nores);
+	}
+	to->has_data = GL_FALSE;
+}
+
 static void texture_object_dtor(struct gli_texture_object *to)
 {
 	if (!to->has_data) return;
-	// TODO
+	free_to_datas(to);
 }
 
 // we keep it in binds[] if it's there
@@ -156,7 +167,7 @@ static void read_5551(struct pixel_reader *reader)
 	reader->a = v & 0x1;
 }
 
-static void pixel_reader_ctor(struct pixel_reader *reader, GLenum format, GLenum type, void *pixels)
+static void pixel_reader_ctor(struct pixel_reader *reader, GLenum format, GLenum type, void const *pixels)
 {
 	reader->pixels = pixels;
 	switch (type) {
@@ -202,17 +213,6 @@ static void pixel_reader_dtor(struct pixel_reader *reader)
 static void pixel_read_next(struct pixel_reader *reader)
 {
 	reader->read_func(reader);
-}
-
-static void free_to_datas(struct gli_texture_object *to)
-{
-	if (! to->has_data) return;
-	if (to->is_resident) {
-		gpuFree(to->img_res);	// no need to keep it any longer
-	} else {
-		free(to->img_nores);
-	}
-	to->has_data = GL_FALSE;
 }
 
 void glTexSubImage2D_nocheck(struct gli_texture_object *to, GLint level, GLint xoffset, GLint yoffset, GLsizei width, GLsizei height, GLenum format, GLenum type, GLvoid const *pixels)
