@@ -24,4 +24,6 @@ static inline void gli_triangle_end(void) {}
 void gli_facet_array(enum gli_DrawMode mode, GLint first, unsigned count);
 void gli_clear(gpuBufferType type, GLclampx *val);
 
+uint32_t *gli_get_texture_address(struct gpuBuf *const buf);
+
 #endif

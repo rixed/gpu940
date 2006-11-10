@@ -101,5 +101,6 @@ static inline int32_t Fix_sqrt(int32_t n) {
 }
 
 #define is_power_of_2(v) (0 == ((v)&((v)-1)))
+unsigned Fix_log2(uint32_t v);
 
 #endif

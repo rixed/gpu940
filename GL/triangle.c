@@ -318,3 +318,9 @@ void gli_clear(gpuBufferType type, GLclampx *val)
 	gpuErr const err = gpuWrite(&rect, sizeof(rect), true);
 	assert(gpuOK == err);
 }
+
+uint32_t *gli_get_texture_address(struct gpuBuf *const buf)
+{
+	return &shared->buffers[gpuBuf_get_loc(buf)->address];
+}
+

@@ -191,10 +191,6 @@ int clip_poly(void)
 	perftime_enter(PERF_CLIP, "clip & proj");
 	// init facet
 	unsigned new_size = ctx.poly.cmd->size;
-	if (ctx.poly.cmd->rendering_type >= GPU_NB_RENDERING_TYPES) {
-		set_error_flag(gpuEPARAM);
-		goto ret;
-	}
 	ctx.poly.nb_params = 0;
 	switch (ctx.poly.cmd->rendering_type) {
 		case rendering_flat:
@@ -205,6 +201,9 @@ int clip_poly(void)
 		case rendering_smooth:
 			ctx.poly.nb_params = 3;
 			break;
+		default:
+			set_error_flag(gpuEPARAM);
+			goto ret;
 	}
 #	ifdef GP2X
 	int i_param = -1;

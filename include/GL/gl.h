@@ -128,6 +128,7 @@ void glTexEnvxv(GLenum target, GLenum pname, GLfixed const *params);
 enum gli_TexFormat { GL_ALPHA, GL_RGB, GL_RGBA, GL_LUMINANCE, GL_LUMINANCE_ALPHA };
 enum gli_TexType { GL_UNSIGNED_SHORT_5_6_5=0x1000 /* avoid collision with gli_Types */, GL_UNSIGNED_SHORT_4_4_4_4, GL_UNSIGNED_SHORT_5_5_5_1 };
 void glTexImage2D(GLenum target, GLint level, GLint internalformat, GLsizei width, GLsizei height, GLint border, GLenum format, GLenum type, GLvoid const *pixels);
+void glTexSubImage2D(GLenum target, GLint level, GLint xoffset, GLint yoffset, GLsizei width, GLsizei height, GLenum format, GLenum type, void *data);
 void glBindTexture(GLenum target, GLuint texture);
 void glDeleteTextures(GLsizei n, GLuint const *textures);
 void glActiveTexture(GLenum texture);

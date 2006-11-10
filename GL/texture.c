@@ -16,6 +16,7 @@
  * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
  */
 #include <stdlib.h>
+#include <assert.h>
 #include "gli.h"
 #include "fixmath.h"
 
@@ -28,6 +29,11 @@ static struct gli_texture_object default_texture;
 static GLuint active_texture_unit;	// idx in textures
 #define NB_MAX_TEXOBJ 128
 static struct gli_texture_object *binds[NB_MAX_TEXOBJ];
+struct pixel_reader {
+	void (*read_func)(struct pixel_reader *);
+	uint8_t r, g, b, a;
+	uint8_t *pixels;
+};
 
 /*
  * Private Functions
@@ -56,6 +62,9 @@ static int texture_object_ctor(struct gli_texture_object *to)
 	to->wrap_s = to->wrap_t = GL_REPEAT;
 	to->has_data = false;
 	to->was_bound = false;
+	for (unsigned m=0; m<sizeof_array(to->mipmaps); m++) {
+		to->mipmaps[m].height = 0;	// mean : not defined
+	}
 	return 0;
 }
 
@@ -84,6 +93,146 @@ static struct gli_texture_object *texture_object_new(void)
 		return NULL;
 	}
 	return to;
+}
+
+static void read_alpha(struct pixel_reader *reader)
+{
+	reader->a = *(uint8_t *)reader->pixels++;
+	reader->r = reader->g = reader->b = 0;
+}
+
+static void read_rgb(struct pixel_reader *reader)
+{
+	reader->r = *(uint8_t *)reader->pixels++;
+	reader->g = *(uint8_t *)reader->pixels++;
+	reader->b = *(uint8_t *)reader->pixels++;
+	reader->a = 255;
+}
+
+static void read_rgba(struct pixel_reader *reader)
+{
+	reader->r = *(uint8_t *)reader->pixels++;
+	reader->g = *(uint8_t *)reader->pixels++;
+	reader->b = *(uint8_t *)reader->pixels++;
+	reader->a = *(uint8_t *)reader->pixels++;
+}
+
+static void read_lum(struct pixel_reader *reader)
+{
+	reader->r = reader->g = reader->b = *(uint8_t *)reader->pixels++;
+	reader->a = 255;
+}
+
+static void read_luma(struct pixel_reader *reader)
+{
+	reader->r = reader->g = reader->b = *(uint8_t *)reader->pixels++;
+	reader->a = *(uint8_t *)reader->pixels++;
+}
+
+static void read_565(struct pixel_reader *reader)
+{
+	uint16_t v = *(uint16_t *)reader->pixels++;
+	reader->r = (v>>11);
+	reader->g = (v>>5) & 0x3f;
+	reader->b = v & 0x1f;
+	reader->a = 255;
+}
+
+static void read_4444(struct pixel_reader *reader)
+{
+	uint16_t v = *(uint16_t *)reader->pixels++;
+	reader->r = (v>>12);
+	reader->g = (v>>8) & 0xf;
+	reader->b = (v>>4) & 0xf;
+	reader->a = v & 0xf;
+}
+
+static void read_5551(struct pixel_reader *reader)
+{
+	uint16_t v = *(uint16_t *)reader->pixels++;
+	reader->r = (v>>11);
+	reader->g = (v>>6) & 0x1f;
+	reader->b = (v>>1) & 0x1f;
+	reader->a = v & 0x1;
+}
+
+static void pixel_reader_ctor(struct pixel_reader *reader, GLenum format, GLenum type, void *pixels)
+{
+	reader->pixels = pixels;
+	switch (type) {
+		case GL_UNSIGNED_BYTE:
+			switch (format) {
+				case GL_ALPHA:
+					reader->read_func = read_alpha;
+					break;
+				case GL_RGB:
+					reader->read_func = read_rgb;
+					break;
+				case GL_RGBA:
+					reader->read_func = read_rgba;
+					break;
+				case GL_LUMINANCE:
+					reader->read_func = read_lum;
+					break;
+				case GL_LUMINANCE_ALPHA:
+					reader->read_func = read_luma;
+					break;
+				default:
+					assert(0);
+			}
+		case GL_UNSIGNED_SHORT_5_6_5:
+			reader->read_func = read_565;
+			break;
+		case GL_UNSIGNED_SHORT_4_4_4_4:
+			reader->read_func = read_4444;
+			break;
+		case GL_UNSIGNED_SHORT_5_5_5_1:
+			reader->read_func = read_5551;
+			break;
+		default:
+			assert(0);
+	}
+}
+
+static void pixel_reader_dtor(struct pixel_reader *reader)
+{
+	(void)reader;
+}
+
+static void pixel_read_next(struct pixel_reader *reader)
+{
+	reader->read_func(reader);
+}
+
+static void free_to_datas(struct gli_texture_object *to)
+{
+	if (! to->has_data) return;
+	if (to->is_resident) {
+		gpuFree(to->img_res);	// no need to keep it any longer
+	} else {
+		free(to->img_nores);
+	}
+	to->has_data = GL_FALSE;
+}
+
+void glTexSubImage2D_nocheck(struct gli_texture_object *to, GLint level, GLint xoffset, GLint yoffset, GLsizei width, GLsizei height, GLenum format, GLenum type, GLvoid const *pixels)
+{
+	assert(to->has_data);
+	uint32_t *dest;
+	if (to->is_resident) {	// destination is GPU memory
+		dest = gli_get_texture_address(to->img_res);
+	} else {	// destination is malloced rgb array (which is actually YUV on GP2X)
+		dest = to->img_nores;
+	}
+	struct pixel_reader reader;
+	pixel_reader_ctor(&reader, format, type, pixels);
+	for (unsigned y=(to->mipmaps[level].height-yoffset)<<to->mipmaps[level].width_log; height>0; height--, y -= (1<<to->mipmaps[level].width_log)) {
+		for (int x=xoffset; x < xoffset+width; x++) {
+			pixel_read_next(&reader);
+			dest[y+x] = gpuColor(reader.r, reader.g, reader.b);
+		}
+	}
+	pixel_reader_dtor(&reader);
 }
 
 /*
@@ -214,7 +363,7 @@ void glTexImage2D(GLenum target, GLint level, GLint internalformat, GLsizei widt
 	}
 	if (
 		border != 0 ||
-		level < 0 ||
+		level < 0 || level > 0 /*TODO: mapmapping*/ ||
 		width < 0 || height < 0 || width > GLI_MAX_TEXTURE_SIZE || height > GLI_MAX_TEXTURE_SIZE ||
 		!is_power_of_2(width) || !is_power_of_2(height)
 	) {
@@ -227,9 +376,50 @@ void glTexImage2D(GLenum target, GLint level, GLint internalformat, GLsizei widt
 	) {
 		return gli_set_error(GL_INVALID_OPERATION);
 	}
-	// TODO
-	(void)pixels;
-	// First allocate memory, then, if pixels != NULL, fill it (using glTexSubImage2D)
+	// if we already had data for this texture, free it
+	struct gli_texture_object *to = gli_get_texture_object();
+	free_to_datas(to);	// will free non resident as well as resident datas, and set has_data to false
+	// allocate memory for non-resident (malloc)
+	to->img_nores = malloc(width*height*sizeof(*to->img_nores));
+	if (! to->img_nores) return gli_set_error(GL_OUT_OF_MEMORY);
+	to->has_data = GL_TRUE;
+	to->is_resident = false;
+	to->mipmaps[level].height = height;
+	to->mipmaps[level].width_log = Fix_log2(width);
+	if (pixels) {
+		glTexSubImage2D_nocheck(to, level, 0, 0, width, height, format, type, pixels);
+	}
+	// Notice that the texture will no be made resident untill we actually use it for drawing.
+	// It will then remain resident until deleted or no more GPU memory.
+	// Unloading unused textures would be a great feature to add later.
+}
+
+void glTexSubImage2D(GLenum target, GLint level, GLint xoffset, GLint yoffset, GLsizei width, GLsizei height, GLenum format, GLenum type, void *pixels)
+{
+	if (
+		target != GL_TEXTURE_2D ||
+		/*format < GL_ALPHA ||*/ format > GL_LUMINANCE_ALPHA ||
+		(type != GL_UNSIGNED_BYTE && (type < GL_UNSIGNED_SHORT_5_6_5 || type > GL_UNSIGNED_SHORT_5_5_5_1))
+	) {
+		return gli_set_error(GL_INVALID_ENUM);
+	}
+	struct gli_texture_object *to = gli_get_texture_object();
+	if (
+		level < 0 || level > 0 /*TODO: mipmapping*/ ||
+		xoffset < 0 || xoffset+width > (1<<to->mipmaps[level].width_log) ||
+		yoffset < 0 || yoffset+height > (int)to->mipmaps[level].height ||
+		width < 0 || height < 0
+	) {
+		return gli_set_error(GL_INVALID_VALUE);
+	}
+	if (
+		GL_FALSE == to->has_data ||
+		(type == GL_UNSIGNED_SHORT_5_6_5 && format != GL_RGB) ||
+		((type == GL_UNSIGNED_SHORT_4_4_4_4 || type == GL_UNSIGNED_SHORT_5_5_5_1) && format != GL_RGBA)
+	) {
+		return gli_set_error(GL_INVALID_OPERATION);
+	}
+	glTexSubImage2D_nocheck(to, level, xoffset, yoffset, width, height, format, type, pixels);
 }
 
 void glBindTexture(GLenum target, GLuint texture)

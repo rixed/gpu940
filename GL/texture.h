@@ -32,17 +32,21 @@ struct gli_texture_object {
 	// State :
 	// - mipmap array (with width, height, border width, internal format, resolutions for r,g,b,a,lum and intens components,
 	//                 flag for compression, size of compressed image)
+	struct {
+		unsigned height, width_log;	// this is inconsistant : img_datas should go there, even if is_resident remains global
+	} mipmaps[16];
 	// - property set : minification and magnification filters, wrap mode for s and t, border_color, min and max LOD, base and max
 	//                  mipmap array, flag for resident, depth mode, compare mode, compare function, priority.
 	enum gli_TexFilter min_filter, max_filter;
 	enum gli_TexWrap wrap_s, wrap_t;
-	GLboolean is_resident;	// meaningfull only if has_data
 	// - another property set, with another priority.
 	// - and of course, image data
 	// See glSpecs section 3.8.11
+	bool is_resident;	// meaningfull only if has_data
 	bool has_data;
 	bool was_bound;	// to distinguish between to we created due to genTextures but that do not account as texture obj yet for isTexture
-	struct buffer_loc loc;	// if has_data and is_resident
+	uint32_t *img_nores;	// if has_data and !is_resident
+	struct gpuBuf *img_res;	// if has_data and is_resident
 };
 
 int gli_texture_begin(void);

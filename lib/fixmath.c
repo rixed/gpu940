@@ -131,5 +131,12 @@ int32_t my_sqrt(int32_t n) {
 	return root >> 1;
 }
 
-
-#undef NB_STEPS
+unsigned Fix_log2(uint32_t v)
+{
+	unsigned i = 0;
+	while (v) {
+		v >>= 1;
+		i++;
+	}
+	return i-1;
+}
