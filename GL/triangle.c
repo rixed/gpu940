@@ -44,12 +44,10 @@ static void rotate_vertex(GLfixed dest[4], GLint arr_idx)
 	gli_multmatrix(GL_MODELVIEW, dest, c);
 }
 
-static GLfixed const *get_vertex_color(int32_t v[4], unsigned vec_idx)
+// Returns the color contribution of the material, which is constant for all
+// vertexes of an array
+static void get_material_color(GLfixed cpri[4])
 {
-	if (! gli_enabled(GL_LIGHTING)) {
-		return gli_current_color();
-	}
-	static GLfixed cpri[4];
 	GLfixed const *ecm = gli_material_emissive();
 	GLfixed const *acm = gli_material_ambient();
 	GLfixed const *acs = gli_scene_ambient();
@@ -58,6 +56,13 @@ static GLfixed const *get_vertex_color(int32_t v[4], unsigned vec_idx)
 	for (unsigned i=0; i<3; i++) {
 		cpri[i] = ecm[i] + Fix_mul(acm[i], acs[i]);
 	}
+}
+
+// Returns the color contribution of lights to this particular vertex
+static void add_vertex_color(GLfixed cpri[4], int32_t v[4], unsigned vec_idx)
+{
+	GLfixed const *acm = gli_material_ambient();
+	GLfixed const *dcm = gli_material_diffuse();
 	GLfixed normal_tmp[4], normal[3];
 	gli_normal_get(vec_idx, normal_tmp);
 	gli_multmatrixU(GL_MODELVIEW, normal, normal_tmp);
@@ -77,7 +82,6 @@ static GLfixed const *get_vertex_color(int32_t v[4], unsigned vec_idx)
 			cpri[i] += Fix_mul(att_spot, sum);
 		}
 		GLfixed n_vl_dir = Fix_scalar(normal, vl_dir);
-		assert(n_vl_dir < 70000);
 		if (n_vl_dir > 0) {
 			GLfixed att_spot_n_vl_dir = Fix_mul(att_spot, n_vl_dir);
 			for (unsigned i=0; i<3; i++) {
@@ -88,7 +92,61 @@ static GLfixed const *get_vertex_color(int32_t v[4], unsigned vec_idx)
 		// TODO
 		//GLfixed scli = gli_light_specular(l);
 	}
-	return &cpri[0];
+}
+
+// Returns the color of the given vertex
+static GLfixed const *get_color(int32_t v[4], unsigned vec_idx)
+{
+	if (! gli_enabled(GL_LIGHTING)) {
+		return gli_current_color();
+	}
+	static GLfixed cpri[4];
+	get_material_color(cpri);
+	add_vertex_color(cpri, v, vec_idx);
+	return cpri;
+}
+
+static GLfixed get_luminosity(int32_t v[4], unsigned vec_idx)
+{
+	// We can only use a luminosity instead of full color component set, if :
+	// - acm = dcm (AMBIANT_AND_DIFFUSE like setting)
+	// - ecm = 0 (usual case)
+	// - acs = _acs*(1,1,1)
+	// - dcli = _dcli*(1,1,1)
+	// - acli = _acli*(1,1,1)
+	// Then, the lighting expression simplify to :
+	// color = acm * { acs + Sum(i=0,N-1)[(atti)*(spoti)*(_acli+(scalar(n, VP)*_dcli))] }
+	// That is :
+	// color = acm * 'luminosity'
+	// GPU don't know how to scale, but he can add an intensity to color.
+	// This is not the same result, but it's the same idea :->
+	GLfixed const _acs = gli_scene_ambient()[0];
+	GLfixed lum = _acs;
+	GLfixed normal_tmp[4], normal[3];
+	gli_normal_get(vec_idx, normal_tmp);
+	gli_multmatrixU(GL_MODELVIEW, normal, normal_tmp);
+//	GLfixed const *scm = gli_material_specular();
+	for (unsigned l=0; l<GLI_MAX_LIGHTS; l++) {	// TODO: use a current_min_light, current_max_light
+		if (! gli_light_enabled(l)) continue;
+		GLfixed this_lum = 0;
+		GLfixed vl_dir[3], vl_dist;
+		gli_light_dir(l, v, vl_dir, &vl_dist);
+		GLfixed const att = gli_light_attenuation(l, vl_dist);
+		GLfixed const spot = gli_light_spot(l);
+		GLfixed const att_spot = Fix_mul(att, spot);
+		if (att_spot < 16) continue;	// skip light if negligible or null contribution
+		GLfixed const _acli = gli_light_ambient(l)[0];
+		this_lum = _acli;
+		GLfixed n_vl_dir = Fix_scalar(normal, vl_dir);
+		if (n_vl_dir > 0) {
+			GLfixed const _dcli = gli_light_diffuse(l)[0];
+			this_lum += Fix_mul(n_vl_dir, _dcli);
+		}
+		lum += Fix_mul(this_lum, att_spot);
+		// TODO
+		//GLfixed scli = gli_light_specular(l);
+	}
+	return lum;
 }
 
 static int32_t get_vertex_depth(int32_t v[4])
@@ -167,11 +225,20 @@ static void send_facet(
 	if (! gli_must_render_face(GL_BACK)) cmdFacet.cull_mode |= 2>>(!front_is_cw);
 	if (cmdFacet.cull_mode == 3) return;
 	cmdFacet.size = size;
+	cmdFacet.use_intens = 0;
 	// Set facet rendering type and color if needed
 	if (gli_smooth()) {
-		cmdFacet.rendering_type = rendering_smooth;
+		if (gli_simple_lighting()) {	// or if we use texture...
+			GLfixed c[4];
+			get_material_color(c);
+			cmdFacet.color = color_GL2gpu(c);
+			cmdFacet.rendering_type = rendering_flat;
+			cmdFacet.use_intens = 1;
+		} else {
+			cmdFacet.rendering_type = rendering_smooth;
+		}
 	} else {
-		GLfixed const *c = get_vertex_color(vi, ci);
+		GLfixed const *c = get_color(vi, ci);
 		cmdFacet.color = color_GL2gpu(c);
 		cmdFacet.rendering_type = rendering_flat;
 	}
@@ -192,14 +259,20 @@ static void write_vertex(GLfixed v[4], unsigned vec_idx, GLint arr_idx)
 	cmdVec[vec_idx].u.geom.c3d[2] = v[2];
 	unsigned z_param = 0;	// we don't use i or now
 	if (gli_smooth()) {
-		GLfixed const *c = get_vertex_color(v, arr_idx);
-		cmdVec[vec_idx].u.smooth_params.r = Fix_gpuColor1(c[0], c[1], c[2]);
-		cmdVec[vec_idx].u.smooth_params.g = Fix_gpuColor2(c[0], c[1], c[2]);
-		cmdVec[vec_idx].u.smooth_params.b = Fix_gpuColor3(c[0], c[1], c[2]);
-		CLAMP(cmdVec[vec_idx].u.smooth_params.r, 0, 0xFFFF);
-		CLAMP(cmdVec[vec_idx].u.smooth_params.g, 0, 0xFFFF);
-		CLAMP(cmdVec[vec_idx].u.smooth_params.b, 0, 0xFFFF);
-		z_param += 3;
+		if (gli_simple_lighting()) {
+			GLfixed lum = get_luminosity(v, arr_idx);
+			cmdVec[vec_idx].u.flat_params.i_zb = (lum - (1<<16))<<6;
+			z_param ++;
+		} else {
+			GLfixed const *c = get_color(v, arr_idx);
+			cmdVec[vec_idx].u.smooth_params.r = Fix_gpuColor1(c[0], c[1], c[2]);
+			cmdVec[vec_idx].u.smooth_params.g = Fix_gpuColor2(c[0], c[1], c[2]);
+			cmdVec[vec_idx].u.smooth_params.b = Fix_gpuColor3(c[0], c[1], c[2]);
+			CLAMP(cmdVec[vec_idx].u.smooth_params.r, 0, 0xFFFF);
+			CLAMP(cmdVec[vec_idx].u.smooth_params.g, 0, 0xFFFF);
+			CLAMP(cmdVec[vec_idx].u.smooth_params.b, 0, 0xFFFF);
+			z_param += 3;
+		}
 	}
 	// Add zb parameter if needed
 	if (depth_test()) {
@@ -279,7 +352,6 @@ int gli_triangle_begin(void)
 {
 	cmdFacet.opcode = gpuFACET;
 	cmdFacet.use_key = 0;
-	cmdFacet.use_intens = 0;
 	cmdFacet.blend_coef = 0;
 	cmdFacet.perspective = 0;
 	return 0;

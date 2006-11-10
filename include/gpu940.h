@@ -146,9 +146,9 @@ typedef struct {
 } gpuCmdShowBuf;
 
 enum gpuRenderingType {
-	rendering_flat,	// use facet color for flat rendering
-	rendering_text,	// use u,v for textured rendering
-	rendering_smooth,	// use vectors r,g,b and interpolate
+	rendering_flat,	// use facet color for flat rendering. can use intens.
+	rendering_text,	// use u,v for textured rendering. can use intens.
+	rendering_smooth,	// use vectors r,g,b and interpolate. no intens then !
 };
 typedef struct {
 	gpuOpcode opcode;

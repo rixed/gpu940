@@ -22,11 +22,14 @@ struct gli_light {
 	GLboolean enabled;
 	GLfixed spot_exponent, spot_cutoff, constant_attenuation, linear_attenuation, quadratic_attenuation;
 	GLfixed ambient[4], diffuse[4], specular[4], position[4], spot_direction[4];
+	bool is_simple;
 };
 
 struct gli_material {
 	GLfixed shininess;
 	GLfixed ambient[4], diffuse[4], specular[4], emission[4];
+	bool no_emissive;
+	bool is_simple;
 };
 
 int gli_colors_begin(void);
@@ -47,5 +50,6 @@ GLfixed const *gli_material_diffuse(void);
 GLfixed const *gli_scene_ambient(void);
 bool gli_smooth(void);
 bool gli_front_faces_are_cw(void);
+bool gli_simple_lighting(void);
 
 #endif

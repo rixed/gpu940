@@ -28,12 +28,43 @@ static GLfixed normal[3];
 static struct gli_light lights[GLI_MAX_LIGHTS];
 static struct gli_material material;
 static GLfixed ambient[4];
+static bool scene_is_simple;	// if scene ambient is _ambient*(1,1,1)
 static enum gli_ShadeModel shade_model;
 static enum gli_FrontFace front_face;
+static unsigned nb_simple_lights, nb_enabled_lights;
 
 /*
  * Private Functions
  */
+
+static bool is_simple(GLfixed comp[4])
+{
+	// TODO: be more tolerant
+	return comp[0] == comp[1] && comp[1] == comp[2];	// we don't care about alpha
+}
+
+static bool are_near(GLfixed v1[4], GLfixed v2[4])
+{
+	for (unsigned i=0; i<3; i++) {	// we don't care about alpha
+		if (Fix_abs(v1[i]-v2[i]) > 1<<6) return false;
+	}
+	return true;
+}
+
+static void light_update_simple(struct gli_light *light)
+{
+	bool was_simple = light->is_simple;
+	light->is_simple = is_simple(light->diffuse) && is_simple(light->ambient);
+	if (light->enabled == GL_TRUE) {
+		if (was_simple && !light->is_simple) nb_simple_lights --;
+		else if (!was_simple && light->is_simple) nb_simple_lights ++;
+	}
+}
+
+static void material_update_simple(struct gli_material *mat)
+{
+	mat->is_simple = are_near(mat->diffuse, mat->ambient) && mat->no_emissive;
+}
 
 static void light_ctor(struct gli_light *light)
 {
@@ -44,6 +75,8 @@ static void light_ctor(struct gli_light *light)
 	light->position[2] = 1<<16;
 	light->spot_direction[2] = -1<<16;
 	light->enabled = GL_FALSE;
+	light->is_simple = false;
+	light_update_simple(light);
 }
 
 /*
@@ -55,11 +88,14 @@ int gli_colors_begin(void)
 	color[0] = color[1] = color[2] = color[3] = 0x10000;
 	normal[0] = normal[1] = 0;
 	normal[2] = 0x10000;
+	nb_enabled_lights = 0;
+	nb_simple_lights = 0;
 	for (unsigned i=0; i<sizeof_array(lights); i++) {
 		light_ctor(lights+i);
 	}
 	lights[0].diffuse[0] = lights[0].diffuse[1] = lights[0].diffuse[2] = lights[0].diffuse[3] = 1<<16;
 	lights[0].specular[0] = lights[0].specular[1] = lights[0].specular[2] = lights[0].specular[3] = 1<<16;
+	light_update_simple(lights+0);
 	memset(&material, 0, sizeof(material));
 	material.ambient[0] = material.ambient[1] = material.ambient[2] = 13107;
 	material.ambient[3] = 1<<16;
@@ -67,8 +103,11 @@ int gli_colors_begin(void)
 	material.diffuse[3] = 1<<16;
 	material.specular[3] = 1<<16;
 	material.emission[3] = 1<<16;
+	material.no_emissive = true;
+	material_update_simple(&material);
 	ambient[0] = ambient[1] = ambient[2] = 13107;
 	ambient[3] = 1<<16;
+	scene_is_simple = true;
 	shade_model = GL_SMOOTH;
 	front_face = GL_CCW;
 	return 0;
@@ -88,12 +127,18 @@ GLfixed const *gli_current_normal(void)
 
 void gli_light_enable(unsigned l)
 {
+	if (GL_TRUE == lights[l].enabled) return;
+	nb_enabled_lights ++;
 	lights[l].enabled = GL_TRUE;
+	if (lights[l].is_simple) nb_simple_lights ++;
 }
 
 void gli_light_disable(unsigned l)
 {
+	if (GL_FALSE == lights[l].enabled) return;
+	nb_enabled_lights --;
 	lights[l].enabled = GL_FALSE;
+	if (lights[l].is_simple) nb_simple_lights --;
 }
 
 bool gli_light_enabled(unsigned l)
@@ -216,9 +261,11 @@ void glLightxv(GLenum light, GLenum pname, GLfixed const *params)
 	switch ((enum gli_ColorParam)pname) {
 		case GL_AMBIENT:
 			dest = lights[l].ambient;
+			light_update_simple(lights+l);
 			break;
 		case GL_DIFFUSE:
 			dest = lights[l].diffuse;
+			light_update_simple(lights+l);
 			break;
 		case GL_SPECULAR:
 			dest = lights[l].specular;
@@ -249,15 +296,18 @@ void glMaterialxv(GLenum face, GLenum pname, GLfixed const *params)
 	switch ((enum gli_ColorParam)pname) {
 		case GL_AMBIENT:
 			memcpy(material.ambient, params, sizeof(material.ambient));
+			material_update_simple(&material);
 			return;
 		case GL_DIFFUSE:
 			memcpy(material.diffuse, params, sizeof(material.diffuse));
+			material_update_simple(&material);
 			return;
 		case GL_SPECULAR:
 			memcpy(material.specular, params, sizeof(material.specular));
 			return;
 		case GL_EMISSION:
 			memcpy(material.emission, params, sizeof(material.emission));
+			material.no_emissive = material.emission[0] < 16 && material.emission[1] < 16 && material.emission[2] < 16;	// don't care about alpha
 			return;
 		case GL_SHININESS:
 			material.shininess = *params;
@@ -265,6 +315,7 @@ void glMaterialxv(GLenum face, GLenum pname, GLfixed const *params)
 		case GL_AMBIENT_AND_DIFFUSE:
 			memcpy(material.ambient, params, sizeof(material.ambient));
 			memcpy(material.diffuse, params, sizeof(material.diffuse));
+			material_update_simple(&material);
 			return;
 		default:
 			return gli_set_error(GL_INVALID_ENUM);
@@ -289,6 +340,7 @@ void glLightModelxv(GLenum pname, GLfixed const *params)
 			return;
 		case GL_LIGHT_MODEL_AMBIENT:
 			memcpy(ambient, params, sizeof(ambient));
+			scene_is_simple = is_simple(ambient);
 			return;
 		default:
 			return gli_set_error(GL_INVALID_ENUM);
@@ -351,4 +403,9 @@ GLfixed const *gli_scene_ambient(void)
 bool gli_smooth(void)
 {
 	return shade_model == GL_SMOOTH;
+}
+
+bool gli_simple_lighting(void)
+{
+	return nb_simple_lights == nb_enabled_lights && material.is_simple && scene_is_simple;
 }
