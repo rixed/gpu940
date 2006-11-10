@@ -102,7 +102,7 @@ void raster_gen(void)
 		}
 		// Peek color
 		uint32_t color;
-		switch (ctx.poly.cmd->rendering_type) {
+		switch ((enum gpuRenderingType)ctx.poly.cmd->rendering_type) {
 			case rendering_flat:
 				color = ctx.poly.cmd->color;
 				break;

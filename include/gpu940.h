@@ -149,7 +149,6 @@ enum gpuRenderingType {
 	rendering_flat,	// use facet color for flat rendering
 	rendering_text,	// use u,v for textured rendering
 	rendering_smooth,	// use vectors r,g,b and interpolate
-	GPU_NB_RENDERING_TYPES
 };
 typedef struct {
 	gpuOpcode opcode;
