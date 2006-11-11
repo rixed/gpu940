@@ -32,6 +32,7 @@
 
 #define CLAMP(x, min, max) do { if (x<=min) x=min; else if (x>=max) x=max; } while(0)
 
+#include "../config.h"
 #include "state.h"
 #include "arrays.h"
 #include "transfo.h"
