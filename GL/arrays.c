@@ -100,7 +100,7 @@ static void array_get(struct array const *arr, GLint idx, int32_t c[4])
 				GLbyte const *v = v_;
 				c[0] = v[0]<<16;
 				c[1] = v[1]<<16;
-				c[2] = v[2]<<16;
+				c[2] = arr->size > 2 ? v[2]<<16 : 0;
 				c[3] = arr->size > 3 ? v[3]<<16 : 1<<16;
 			}
 			break;
@@ -109,7 +109,7 @@ static void array_get(struct array const *arr, GLint idx, int32_t c[4])
 				GLshort const *v = v_;
 				c[0] = v[0]<<16;
 				c[1] = v[1]<<16;
-				c[2] = v[2]<<16;
+				c[2] = arr->size > 2 ? v[2]<<16 : 0;
 				c[3] = arr->size > 3 ? v[3]<<16 : 1<<16;
 			}
 			break;
@@ -118,7 +118,7 @@ static void array_get(struct array const *arr, GLint idx, int32_t c[4])
 				GLfixed const *v = v_;
 				c[0] = v[0];
 				c[1] = v[1];
-				c[2] = v[2];
+				c[2] = arr->size > 2 ? v[2] : 0;
 				c[3] = arr->size > 3 ? v[3] : 1<<16;
 			}
 			break;
