@@ -35,17 +35,17 @@ static GLfixed Angle = 0;
 
 static void draw( void )
 {
-	GLfixed vertexes[4*2] = {
-     -1.0, -1.0,
-      1.0, -1.0,
-      1.0,  1.0,
-     -1.0,  1.0,
+	static GLfixed const vertexes[4*2] = {
+     -1<<16, -1<<16,
+      1<<16, -1<<16,
+      1<<16,  1<<16,
+     -1<<16,  1<<16,
 	};
-	GLfixed texcoords[4*2] = {
-      0.0, 0.0,
-      1.0, 0.0,
-      1.0, 1.0,
-      0.0, 1.0,
+	static GLfixed const texcoords[4*2] = {
+      0, 0,
+      1<<16, 0,
+      1<<16, 1<<16,
+      0, 1<<16,
 	};
 	glEnableClientState( GL_VERTEX_ARRAY );
 	glEnableClientState( GL_TEXTURE_COORD_ARRAY );
@@ -61,7 +61,7 @@ static void draw( void )
    glTranslatex( -1<<16, 0, 0 );
    glRotatex( Angle, 0, 0, 1<<16 );
    glBindTexture( GL_TEXTURE_2D, TexObj[0] );
-   glDrawArrays( GL_QUADS, 0, 1 );
+   glDrawArrays( GL_QUADS, 0, 4 );
 	glPopMatrix();
 
    /* draw second polygon */
@@ -69,7 +69,7 @@ static void draw( void )
    glTranslatex( 1<<16, 0, 0 );
    glRotatex( Angle-(1<<14), 0, 1<<16, 0 );
    glBindTexture( GL_TEXTURE_2D, TexObj[1] );
-   glDrawArrays( GL_QUADS, 0, 1 );
+   glDrawArrays( GL_QUADS, 0, 4 );
    glPopMatrix();
 
    (void)glSwapBuffers();
@@ -81,7 +81,7 @@ static int
 gettime()
 {
 	static int mytime = 0;
-   return mytime++;
+   return mytime += 100;
 }
 
 static void idle( void )
