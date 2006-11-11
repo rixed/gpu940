@@ -51,5 +51,6 @@ void glCullFace(GLenum mode)
 
 bool gli_must_render_face(enum gli_CullFace face)
 {
+	if (! gli_enabled(GL_CULL_FACE)) return true;
 	return cull_face != GL_FRONT_AND_BACK && cull_face != face;
 }
