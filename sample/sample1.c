@@ -25,7 +25,7 @@
 #include <stdlib.h>
 #include "fixmath.h"
 
-static uint8_t pascale[256*256][3];
+static uint32_t pascale[256*256];
 
 int main(void) {
 	if (gpuOK != gpuOpen()) {
@@ -39,10 +39,12 @@ int main(void) {
 	}
 	lseek(fd, 18, SEEK_SET);
 	read(fd, pascale, sizeof(pascale));
-	for (unsigned p=0; p<256*256; p++) {	// B, G, R -> R, G, B
-		uint8_t r = pascale[p][2];
-		pascale[p][2] = pascale[p][0];
-		pascale[p][0] = r;
+	for (unsigned p=256*256; p--; ) {	// B, G, R -> R, G, B
+		uint8_t (*tga)[3] = (void *)pascale;
+		uint8_t r = tga[p][2];
+		uint8_t g = tga[p][1];
+		uint8_t b = tga[p][0];
+		pascale[p] = (r<<16)|(g<<8)|(b);
 	}
 	close(fd);
 	struct gpuBuf *txtBuf = gpuAlloc(8, 256, false);
@@ -78,7 +80,7 @@ int main(void) {
 		.color = gpuColor(20, 30, 180),
 		.rendering_type = rendering_text,
 		.use_intens = 0,
-		.perspective = 0,
+		.perspective = 1,
 		.use_key = 0,
 		.blend_coef = 0,
 		.write_out = 1,

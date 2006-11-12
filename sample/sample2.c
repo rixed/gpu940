@@ -26,7 +26,7 @@
 #include <stdlib.h>
 #include "fixmath.h"
 
-static uint8_t img[64*64][3];
+static uint8_t img[64*64][4];
 
 static void satadd(uint8_t *v, int d) {
 	d = *v + d;
@@ -66,7 +66,7 @@ static int randc(void) {
 	return ((rand()>>5)&3);
 }
 static void gen_img(void) {
-	memset(img, 128, 64*64*3);
+	memset(img, 128, sizeof(img));
 	for (unsigned i=600; i--; ) {
 		pass(randi(), randi(), randu(), randu(), randc(), randc(), randc());
 	}
@@ -177,7 +177,7 @@ int main(void) {
 		fprintf(stderr, "Cannot alloc buf for texture\n");
 		return EXIT_FAILURE;
 	}
-	if (gpuOK != gpuLoadImg(gpuBuf_get_loc(txtGenBuf), img, 0)) {
+	if (gpuOK != gpuLoadImg(gpuBuf_get_loc(txtGenBuf), (void *)img, 0)) {
 		fprintf(stderr, "Cannot load texture.\n");
 		return EXIT_FAILURE;
 	}

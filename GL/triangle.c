@@ -106,7 +106,7 @@ static GLfixed const *get_color(int32_t v[4], unsigned vec_idx)
 	return cpri;
 }
 
-static GLfixed get_luminosity(int32_t v[4], unsigned vec_idx)
+static int32_t get_luminosity(int32_t v[4], unsigned vec_idx)
 {
 	// We can only use a luminosity instead of full color component set, if :
 	// - acm = dcm (AMBIANT_AND_DIFFUSE like setting)
@@ -146,7 +146,8 @@ static GLfixed get_luminosity(int32_t v[4], unsigned vec_idx)
 		// TODO
 		//GLfixed scli = gli_light_specular(l);
 	}
-	return lum;
+	// lum is a scale factor to be applied to acm. We change this to a signed value to be added.
+	return (lum - (1<<16))<<6;	// this gives good result
 }
 
 static int32_t get_vertex_depth(int32_t v[4])
@@ -168,6 +169,33 @@ static uint32_t color_GL2gpu(GLfixed const *c)
 	CLAMP(g, 0, 0xFF);
 	CLAMP(b, 0, 0xFF);	
 	return gpuColor(r, g, b);
+}
+
+static void set_current_texture(void)
+{
+	gpuErr err;
+	struct gli_texture_object *to = gli_get_texture_object();
+	assert(to->has_data && to->was_bound);
+	// if its not resident, load it.
+	if (! to->is_resident) {
+		to->img_res = gpuAlloc(to->mipmaps[0].width_log, 1U<<to->mipmaps[0].height_log, false);
+		if (! to->img_res) return gli_set_error(GL_OUT_OF_MEMORY);
+		err = gpuLoadImg(gpuBuf_get_loc(to->img_res), to->img_nores, 0);
+		assert(gpuOK == err);
+		free(to->img_nores);
+		to->img_nores = NULL;
+		to->is_resident = true;
+	}
+	// then, compare with actual tex buffer. if not the same, send SetBuf cmd.
+	// FIXME
+	static uint32_t last_address = 0, last_width;
+	struct buffer_loc const *loc = gpuBuf_get_loc(to->img_res);
+	if (loc->address != last_address || loc->width_log != last_width) {
+		err = gpuSetBuf(gpuTxtBuffer, to->img_res, true);
+		assert(gpuOK == err);
+		last_address = loc->address;
+		last_width = loc->width_log;
+	}
 }
 
 // Send a ZMode command if needed
@@ -227,7 +255,27 @@ static void send_facet(
 	cmdFacet.size = size;
 	cmdFacet.use_intens = 0;
 	// Set facet rendering type and color if needed
-	if (gli_smooth()) {
+	if (gli_texturing()) {
+		set_current_texture();
+		cmdFacet.rendering_type = rendering_text;
+		if (1 /*gli_lighting*/) {
+			cmdFacet.use_intens = 1;
+			if (! gli_smooth()) {	// intens was not set
+				int32_t lum = get_luminosity(vi, ci);
+				for (unsigned v=0; v<size; v++) {
+					cmdVec[v].u.text_params.i_zb = lum;
+				}
+			}
+		} else {
+			cmdFacet.use_intens = 0;
+		}
+		// Scale UV coord to actual texture sizes
+		struct gli_texture_object *to = gli_get_texture_object();
+		for (unsigned v=0; v<size; v++) {
+			cmdVec[v].u.text_params.u <<= to->mipmaps[0].width_log;
+			cmdVec[v].u.text_params.v <<= to->mipmaps[0].height_log;
+		}
+	} else if (gli_smooth() /*FIXME and gli_lighting*/) {
 		if (gli_simple_lighting()) {	// or if we use texture...
 			GLfixed c[4];
 			get_material_color(c);
@@ -237,7 +285,7 @@ static void send_facet(
 		} else {
 			cmdFacet.rendering_type = rendering_smooth;
 		}
-	} else {
+	} else { /*FIXME and gli_lighting*/
 		GLfixed const *c = get_color(vi, ci);
 		cmdFacet.color = color_GL2gpu(c);
 		cmdFacet.rendering_type = rendering_flat;
@@ -257,11 +305,28 @@ static void write_vertex(GLfixed v[4], unsigned vec_idx, GLint arr_idx)
 	cmdVec[vec_idx].u.geom.c3d[0] = v[0];
 	cmdVec[vec_idx].u.geom.c3d[1] = v[1];
 	cmdVec[vec_idx].u.geom.c3d[2] = v[2];
-	unsigned z_param = 0;	// we don't use i or now
-	if (gli_smooth()) {
+	unsigned z_param = 0;	// we don't use i for now
+	if (gli_texturing()) {
+		// first, get U and V
+		int32_t uv[2];
+		gli_texcoord_get(arr_idx, uv);
+		cmdVec[vec_idx].u.text_params.u = uv[0];
+		cmdVec[vec_idx].u.text_params.v = uv[1];
+		z_param = 2;
+		// then, if some lighting is on, add intens.
+		if (1 /*FIXME gli_lighting*/) {
+			if (gli_smooth()) {
+				cmdVec[vec_idx].u.text_params.i_zb = get_luminosity(v, arr_idx);
+			}
+			// else intens will be set later
+			// gpu940 can not uniformly lighten a texture (no flat intens), so
+			// if !gli_smooth use the same i for all vertexes. But we don't know
+			// which intens to use for now, so it must be added later in send_facet.
+			z_param ++;
+		}
+	} else if (gli_smooth() /*FIXME and gli_lighting*/) {
 		if (gli_simple_lighting()) {
-			GLfixed lum = get_luminosity(v, arr_idx);
-			cmdVec[vec_idx].u.flat_params.i_zb = (lum - (1<<16))<<6;
+			cmdVec[vec_idx].u.flat_params.i_zb = get_luminosity(v, arr_idx);
 			z_param ++;
 		} else {
 			GLfixed const *c = get_color(v, arr_idx);

@@ -23,12 +23,12 @@
 
 extern inline uint32_t gpuColor(unsigned r, unsigned g, unsigned b);
 
-gpuErr gpuLoadImg(struct buffer_loc const *loc, uint8_t (*rgb)[3], unsigned nb_lod) {
+gpuErr gpuLoadImg(struct buffer_loc const *loc, uint32_t *rgb, unsigned nb_lod) {
 	(void)nb_lod;
 	for (unsigned c=loc->height<<loc->width_log; c--; ) {
-		unsigned r = rgb[c][0];
-		unsigned g = rgb[c][1];
-		unsigned b = rgb[c][2];
+		unsigned r = (rgb[c]>>16) & 0xff;
+		unsigned g = (rgb[c]>>8) & 0xff;
+		unsigned b = rgb[c] & 0xff;
 		shared->buffers[loc->address + c] = gpuColor(r, g, b);
 	}
 	return gpuOK;

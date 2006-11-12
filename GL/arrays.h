@@ -18,18 +18,20 @@
 #ifndef ARRAYS_H_061009
 #define ARRAYS_H_061009
 
-struct array {
+extern struct array {
 	GLvoid const *ptr;
 	GLsizei stride;
 	enum gli_Types type;
 	GLint size;
 	size_t raw_size;
 	unsigned enabled:1;
-};
+} gli_color_array, gli_normal_array, gli_vertex_array, gli_texcoord_array[GLI_MAX_TEXTURE_UNITS];
 
 int gli_arrays_begin(void);
 static inline void gli_arrays_end(void) {}
 void gli_vertex_get(GLint idx, int32_t c[4]);
 void gli_normal_get(GLint idx, int32_t c[4]);
+void gli_texcoord_get(GLint idx, int32_t uv[2]);
+bool gli_texturing(void);
 
 #endif

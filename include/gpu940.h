@@ -214,7 +214,7 @@ gpuErr gpuWrite(void const *cmd, size_t size, bool can_wait);
 gpuErr gpuWritev(struct iovec const *cmdvec, size_t count, bool can_wait);
 
 uint32_t gpuReadErr(void);
-gpuErr gpuLoadImg(struct buffer_loc const *loc, uint8_t (*rgb)[3], unsigned lod);
+gpuErr gpuLoadImg(struct buffer_loc const *loc, uint32_t *rgb, unsigned lod);
 // r, g, b are 16.16 ranging from 0 to 1
 static inline int32_t Fix_gpuColor1(int32_t r, int32_t g, int32_t b) {
 #ifdef GP2X

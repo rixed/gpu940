@@ -41,7 +41,7 @@ static struct gpuBuf *grab_menu_texture(void) {
 #	define GP2X_MENU_SIZE 320*240*sizeof(uint16_t)
 	uint16_t *menupic = mmap(NULL, GP2X_MENU_SIZE, PROT_READ, MAP_SHARED, fbdev, 0);
 	assert(menupic != MAP_FAILED);
-	uint8_t *resized = malloc(512*512*3);
+	uint32_t *resized = malloc(512*512*sizeof(*resized));
 	for (unsigned y = 512; y--; ) {
 		for (unsigned x = 512; x--; ) {
 			uint16_t c16;
@@ -57,37 +57,19 @@ static struct gpuBuf *grab_menu_texture(void) {
 				xs = 0;
 			}
 			c16 = menupic[ys*320+xs];
-			resized[((y<<9)+x)*3+0] = (c16>>11)<<3;
-			resized[((y<<9)+x)*3+1] = ((c16>>5)&0x3f)<<2;
-			resized[((y<<9)+x)*3+2] = (c16&0x1f)<<3;
+			resized[((y<<9)+x)*3] = 
+				(((c16>>11)<<3) & 0xff) ||
+				(((c16>>5)&0x3f)<<10) & 0xff00 ||
+				((c16&0x1f)<<19) & 0xff0000;
 		}
 	}
 	(void)munmap(menupic, GP2X_MENU_SIZE);
 	(void)close(fbdev);
-	if (gpuOK != gpuLoadImg(gpuBuf_get_loc(menu_texture), (void *)resized, 0)) {
+	if (gpuOK != gpuLoadImg(gpuBuf_get_loc(menu_texture), resized, 0)) {
 		assert(0);
 	}
 	(void)free(resized);
 #	undef GP2X_MENU_TEXTURE
-#else
-	uint8_t *txt = malloc(512*512*3);
-	for (unsigned y = 512; y--; ) {
-		for (unsigned x = 512; x--; ) {
-			if (y > (512+240)/2 || y < (512-240)/2 || x > (512+320)/2 || x < (512-320)/2) {
-				txt[((y<<9)+x)*3+2] = x+y;
-				txt[((y<<9)+x)*3+1] = x-y;
-				txt[((y<<9)+x)*3+0] = x*y;
-			} else {
-				txt[((y<<9)+x)*3+2] = y;
-				txt[((y<<9)+x)*3+1] = x;
-				txt[((y<<9)+x)*3+0] = x*y;
-			}
-		}
-	}
-	if (gpuOK != gpuLoadImg(gpuBuf_get_loc(menu_texture), (void *)txt, 0)) {
-		assert(0);
-	}
-	(void)free(txt);
 #endif
 	return menu_texture;
 }

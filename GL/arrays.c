@@ -24,7 +24,7 @@
  * Data Definitions
  */
 
-static struct array colors, normals, vertexes, texcoords[GLI_MAX_TEXTURE_UNITS];
+struct array gli_color_array, gli_normal_array, gli_vertex_array, gli_texcoord_array[GLI_MAX_TEXTURE_UNITS];
 static unsigned gli_active_texture;
 
 /*
@@ -76,22 +76,22 @@ static void set_enable(GLenum array, int bit)
 {
 	switch (array) {
 		case GL_COLOR_ARRAY:
-			colors.enabled = bit;
+			gli_color_array.enabled = bit;
 			return;
 		case GL_NORMAL_ARRAY:
-			normals.enabled = bit;
+			gli_normal_array.enabled = bit;
 			return;
 		case GL_VERTEX_ARRAY:
-			vertexes.enabled = bit;
+			gli_vertex_array.enabled = bit;
 			return;
 		case GL_TEXTURE_COORD_ARRAY:
-			texcoords[gli_active_texture].enabled = bit;
+			gli_texcoord_array[gli_active_texture].enabled = bit;
 			return;
 	}
 	gli_set_error(GL_INVALID_ENUM);
 }
 
-static void array_get(struct array const *arr, GLint idx, int32_t c[4])
+static void array_get(struct array const *arr, GLint idx, int32_t *c)
 {
 	void const *v_ = (char *)arr->ptr + idx*arr->raw_size;
 	switch (arr->type) {
@@ -133,13 +133,13 @@ static void array_get(struct array const *arr, GLint idx, int32_t c[4])
 
 int gli_arrays_begin(void)
 {
-	memset(&colors, 0, sizeof(colors));
-	memset(&normals, 0, sizeof(normals));
-	memset(&vertexes, 0, sizeof(vertexes));
-	memset(texcoords, 0, sizeof(texcoords));
-	colors.size = normals.size = vertexes.size = 4;
-	for (unsigned t=0; t<sizeof_array(texcoords); t++) {
-		texcoords[t].size = 4;
+	memset(&gli_color_array, 0, sizeof(gli_color_array));
+	memset(&gli_normal_array, 0, sizeof(gli_normal_array));
+	memset(&gli_vertex_array, 0, sizeof(gli_vertex_array));
+	memset(gli_texcoord_array, 0, sizeof(gli_texcoord_array));
+	gli_color_array.size = gli_normal_array.size = gli_vertex_array.size = 4;
+	for (unsigned t=0; t<sizeof_array(gli_texcoord_array); t++) {
+		gli_texcoord_array[t].size = 4;
 	}
 	gli_active_texture = GL_TEXTURE0;
 	return 0;
@@ -149,13 +149,13 @@ extern  inline void gli_arrays_end(void);
 
 void gli_vertex_get(GLint idx, int32_t c[4])
 {
-	return array_get(&vertexes, idx, c);
+	return array_get(&gli_vertex_array, idx, c);
 }
 
 void gli_normal_get(GLint idx, int32_t c[4])
 {
-	if (normals.enabled) {
-		array_get(&normals, idx, c);
+	if (gli_normal_array.enabled) {
+		array_get(&gli_normal_array, idx, c);
 	} else {
 		GLfixed const *n = gli_current_normal();
 		for (unsigned i=0; i<3; i++) {
@@ -165,28 +165,33 @@ void gli_normal_get(GLint idx, int32_t c[4])
 	}
 }
 
+void gli_texcoord_get(GLint idx, int32_t uv[2])
+{
+	array_get(gli_texcoord_array+gli_active_texture, idx, uv);
+}
+
 void glColorPointer(GLint size, GLenum type, GLsizei stride, GLvoid const *pointer)
 {
 	static enum gli_Types const allowed_types[] = { GL_FIXED, GL_UNSIGNED_BYTE };
-	set_array(&colors, size, type, stride, pointer, 4, 4, allowed_types, sizeof_array(allowed_types));
+	set_array(&gli_color_array, size, type, stride, pointer, 4, 4, allowed_types, sizeof_array(allowed_types));
 }
 
 void glNormalPointer(GLenum type, GLsizei stride, GLvoid const *pointer)
 {
 	static enum gli_Types const allowed_types[] = { GL_FIXED, GL_BYTE, GL_SHORT };
-	set_array(&normals, 3, type, stride, pointer, 3, 3, allowed_types, sizeof_array(allowed_types));
+	set_array(&gli_normal_array, 3, type, stride, pointer, 3, 3, allowed_types, sizeof_array(allowed_types));
 }
 
 void glVertexPointer(GLint size, GLenum type, GLsizei stride, GLvoid const *pointer)
 {
 	static enum gli_Types const allowed_types[] = { GL_FIXED, GL_BYTE, GL_SHORT };
-	set_array(&vertexes, size, type, stride, pointer, 2, 4, allowed_types, sizeof_array(allowed_types));
+	set_array(&gli_vertex_array, size, type, stride, pointer, 2, 4, allowed_types, sizeof_array(allowed_types));
 }
 
 void glTexCoordPointer(GLint size, GLenum type, GLsizei stride, GLvoid const *pointer)
 {
 	static enum gli_Types const allowed_types[] = { GL_FIXED, GL_BYTE, GL_SHORT };
-	set_array(texcoords+gli_active_texture, size, type, stride, pointer, 2, 4, allowed_types, sizeof_array(allowed_types));
+	set_array(gli_texcoord_array+gli_active_texture, size, type, stride, pointer, 2, 4, allowed_types, sizeof_array(allowed_types));
 }
 
 void glClientActiveTexture(GLenum texture)

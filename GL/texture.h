@@ -19,7 +19,7 @@
 #define GL_TEXTURE_H_061010
 
 struct gli_texture_unit {
-	GLboolean enabled;
+//	GLboolean enabled;	useless ?
 	enum gli_TexEnvMode env_mode;
 	GLfixed env_color[4];
 	GLuint bound;
@@ -33,7 +33,7 @@ struct gli_texture_object {
 	// - mipmap array (with width, height, border width, internal format, resolutions for r,g,b,a,lum and intens components,
 	//                 flag for compression, size of compressed image)
 	struct {
-		unsigned height, width_log;	// this is inconsistant : img_datas should go there, even if is_resident remains global
+		unsigned height_log, width_log;	// this is inconsistant : img_datas should go there, even if is_resident remains global
 	} mipmaps[16];
 	// - property set : minification and magnification filters, wrap mode for s and t, border_color, min and max LOD, base and max
 	//                  mipmap array, flag for resident, depth mode, compare mode, compare function, priority.
@@ -52,5 +52,6 @@ struct gli_texture_object {
 int gli_texture_begin(void);
 void gli_texture_end(void);
 struct gli_texture_unit *gli_get_texture_unit(void);
+struct gli_texture_object *gli_get_texture_object(void);
 
 #endif
