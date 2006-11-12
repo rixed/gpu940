@@ -35,7 +35,7 @@
 static void draw_line(void)
 {
 	int32_t const c_start = ctx.trap.side[ctx.trap.left_side].c >> 16;
-	ctx.line.count = ((ctx.trap.side[!ctx.trap.left_side].c + 0xffff) >> 16) - c_start;
+	ctx.line.count = (ctx.trap.side[!ctx.trap.left_side].c >> 16) - c_start;
 	if (unlikely(ctx.line.count <= 0)) return;	// may happen on some pathological cases ?
 	ctx.line.w = ctx.location.out_start + c_start + ((ctx.poly.nc_declived>>16)<<ctx.location.buffer_loc[gpuOutBuffer].width_log);
 	if (unlikely(! ctx.trap.is_triangle) && likely(ctx.poly.nb_params > 0)) {

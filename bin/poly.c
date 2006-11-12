@@ -34,8 +34,8 @@
 // buffers are so lower coords have lower addresses. direct coord system was just a convention, right ?
 static void draw_line(void) {
 	int32_t const c_start = ctx.trap.side[ctx.trap.left_side].c >> 16;
-	ctx.line.count = ((ctx.trap.side[!ctx.trap.left_side].c + 0xffff) >> 16) - c_start;
-	if (unlikely(ctx.line.count <= 0)) return;	// may happen on some pathological cases ?
+	ctx.line.count = (ctx.trap.side[!ctx.trap.left_side].c >> 16) - c_start;
+	if (unlikely(ctx.line.count <= 0)) return;	// may happen on some pathological cases
 	ctx.line.w = ctx.location.out_start + c_start + ((ctx.poly.nc_declived>>16)<<ctx.location.buffer_loc[gpuOutBuffer].width_log);
 	ctx.line.decliv = ctx.poly.decliveness * c_start;	// 16.16
 	if (ctx.poly.scan_dir != 0) {
