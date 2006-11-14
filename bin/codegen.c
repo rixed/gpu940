@@ -621,29 +621,29 @@ static void write_combine(void)	// come here with previous color in r0
 	write_mov_immediate(tmp3, 0x00ff00ff);
 	// 1110 0000 0000 tmp1 tmp2 0000 0000 tmp3 ie "and tmp2, tmp1, tmp3" ie tmp2 = tmp1 & 0x00ff00ff
 	*gen_dst++ = 0xe0000000 | (tmp1<<16) | (tmp2<<12) | tmp3;
-	// ie "and tmp4, rcol, tmp3" ie tmp4 = rcol & 0x00ff00ff	
+	// 1110 0000 0000 rcol tmp4 0000 0000 tmp3 ie "and tmp4, rcol, tmp3" ie tmp4 = rcol & 0x00ff00ff	
 	*gen_dst++ = 0xe0000000 | (vars[VARP_OUTCOLOR].rnum<<16) | (tmp4<<12) | tmp3;
 	// 1110 0000 0000 rcol rcol 0100 0000 tmp3 ie "and rcol, rcol, tmp3, lsl #8" ie rcol = rcol & 0xff00ff00
 	*gen_dst++ = 0xe0000400 | (vars[VARP_OUTCOLOR].rnum<<16) | (vars[VARP_OUTCOLOR].rnum<<12) | tmp3;
-	// 1110 0000 0000 rcol rcol 0100 0000 tmp3 ie "and tmp1, tmp1, tmp3 lsl #8" ie tmp1 = tmp1 & 0xff00ff00
+	// 1110 0000 0000 rcol rcol 0100 0000 tmp3 ie "and tmp1, tmp1, tmp3, lsl #8" ie tmp1 = tmp1 & 0xff00ff00
 	*gen_dst++ = 0xe0000400 | (tmp1<<16) | (tmp1<<12) | tmp3;
 	if (ctx.poly.cmd->blend_coef<=8) {
 		// 1110 0000 1000 tmp4 tmp2 shif t010 tmp2 ie "add tmp2, tmp4, tmp2, lsr #(8-blend)" tmp2 = tmp2>>(8-blend_coef) + tmp4	
 		*gen_dst++ = 0xe0800020 | (tmp4<<16) | (tmp2<<12) | ((8-ctx.poly.cmd->blend_coef)<<7) | tmp2;
-		// 1110 0000 1000 tmp1 rcol shif t010 rcol ie "add rcol, tmp1, rcol, lsr #(8-blend)" rcol = rcol>>(8-blend_coef) + tmp1
-		*gen_dst++ = 0xe0800020 | (tmp1<<16) | (vars[VARP_OUTCOLOR].rnum<<12) | ((8-ctx.poly.cmd->blend_coef)<<7) | vars[VARP_OUTCOLOR].rnum;
+		// 1110 0000 1001 tmp1 rcol shif t010 rcol ie "adds rcol, tmp1, rcol, lsr #(8-blend)" rcol = rcol>>(8-blend_coef) + tmp1 (with carry for higher bit)
+		*gen_dst++ = 0xe0900020 | (tmp1<<16) | (vars[VARP_OUTCOLOR].rnum<<12) | ((8-ctx.poly.cmd->blend_coef)<<7) | vars[VARP_OUTCOLOR].rnum;
 	} else {
 		// 1110 0000 1000 tmp2 tmp2 shif t010 tmp4 ie "add tmp2, tmp2, tmp4, lsr #(blend-8)" tmp2 = tmp2 + tmp4>>(blend-8)
 		*gen_dst++ = 0xe0800020 | (tmp2<<16) | (tmp2<<12) | ((ctx.poly.cmd->blend_coef-8)<<7) | tmp4;
-		// 1110 0000 1000 rcol rcol shif t010 tmp1 ie "add rcol, rcol, tmp1, lsr #(blend-8)" rcol = rcol + tmp1>>(blend-8)
-		*gen_dst++ = 0xe0800020 | (vars[VARP_OUTCOLOR].rnum<<16) | (vars[VARP_OUTCOLOR].rnum<<12) | ((ctx.poly.cmd->blend_coef-8)<<7) | tmp1;
+		// 1110 0000 1001 rcol rcol shif t010 tmp1 ie "adds rcol, rcol, tmp1, lsr #(blend-8)" rcol = rcol + tmp1>>(blend-8) (with carry for higher bit)
+		*gen_dst++ = 0xe0900020 | (vars[VARP_OUTCOLOR].rnum<<16) | (vars[VARP_OUTCOLOR].rnum<<12) | ((ctx.poly.cmd->blend_coef-8)<<7) | tmp1;
 	}
-	// 1110 0000 0000 tmp3 tmp2 0000 1010 tmp2 ie "and tmp2, tmp3, tmp2 lsr #1"
+	// 1110 0000 0000 tmp3 tmp2 0000 1010 tmp2 ie "and tmp2, tmp3, tmp2, lsr #1"
 	*gen_dst++ = 0xe00000a0 | (tmp3<<16) | (tmp2<<12) | tmp2;
-	// 1110 0000 0000 rcol rcol 0100 1000 tmp3 ie "and rcol, rcol, tmp3 lsl #9"
+	// 1110 0000 0000 rcol rcol 0100 1000 tmp3 ie "and rcol, rcol, tmp3, lsl #9"
 	*gen_dst++ = 0xe0000480 | (vars[VARP_OUTCOLOR].rnum<<16) | (vars[VARP_OUTCOLOR].rnum<<12) | tmp3;
-	// 1110 0001 1000 tmp2 rcol 0000 1010 rcol ie "orr rcol, tmp2, rcol lsr #1"
-	*gen_dst++ = 0xe18000a0 | (tmp2<<16) | (vars[VARP_OUTCOLOR].rnum<<12) | vars[VARP_OUTCOLOR].rnum;
+	// 1110 0001 1000 tmp2 rcol 0000 0110 rcol ie "orr rcol, tmp2, rcol, rxx"
+	*gen_dst++ = 0xe1800060 | (tmp2<<16) | (vars[VARP_OUTCOLOR].rnum<<12) | vars[VARP_OUTCOLOR].rnum;
 }
 
 static void combine_persp(void)
