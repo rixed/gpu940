@@ -26,6 +26,8 @@
 
 struct array gli_color_array, gli_normal_array, gli_vertex_array, gli_texcoord_array[GLI_MAX_TEXTURE_UNITS];
 static unsigned gli_active_texture;
+static void const *gli_indices;
+static GLenum gli_indices_type;
 
 /*
  * Private Functions
@@ -36,6 +38,10 @@ static size_t sizeof_type(enum gli_Types type)
 	switch (type) {
 		case GL_UNSIGNED_BYTE:
 			return sizeof(GLubyte);
+		case GL_UNSIGNED_SHORT:
+			return sizeof(GLushort);
+		case GL_UNSIGNED_INT:
+			return sizeof(GLuint);
 		case GL_FIXED:
 			return sizeof(GLfixed);
 		case GL_BYTE:
@@ -91,9 +97,38 @@ static void set_enable(GLenum array, int bit)
 	gli_set_error(GL_INVALID_ENUM);
 }
 
+static unsigned read_index(GLint idx)
+{
+	assert(gli_indices);
+	switch (gli_indices_type) {
+		case GL_UNSIGNED_BYTE:
+			{
+				GLubyte const *indices = gli_indices;
+				return indices[idx];
+			}
+		case GL_UNSIGNED_SHORT:
+			{
+				GLushort const *indices = gli_indices;
+				return indices[idx];
+			}
+		case GL_UNSIGNED_INT:
+			{
+				GLuint const *indices = gli_indices;
+				return indices[idx];
+			}
+		default:
+			assert(0);
+	}
+	return 0;
+}
+
 static void array_get(struct array const *arr, GLint idx, int32_t *c)
 {
-	void const *v_ = (char *)arr->ptr + idx*arr->raw_size;
+	void const *v_;
+	if (gli_indices) {
+		idx = read_index(idx);
+	}
+	v_ = (char *)arr->ptr + idx*arr->raw_size;
 	switch (arr->type) {
 		case GL_BYTE:
 			{
@@ -230,9 +265,21 @@ void glDrawArrays(GLenum mode, GLint first, GLsizei count)
 
 void glDrawElements(GLenum mode, GLsizei count, GLenum type, GLvoid const *indices)
 {
-	// TODO
-	(void)mode;
-	(void)count;
-	(void)type;
-	(void)indices;
+	if (/* mode < GL_POINTS ||*/ mode > GL_QUADS) {
+		return gli_set_error(GL_INVALID_ENUM);
+	}
+	if (count < 0) {
+		return gli_set_error(GL_INVALID_VALUE);
+	}
+	if (type != GL_UNSIGNED_INT && type != GL_UNSIGNED_SHORT && type != GL_UNSIGNED_BYTE) {
+		return gli_set_error(GL_INVALID_ENUM);
+	}
+	gli_indices = indices;
+	gli_indices_type = type;
+	if (mode >= GL_TRIANGLE_STRIP) {
+		gli_facet_array(mode, 0, count);
+	} else {	// lines and points
+		// TODO
+	}
+	gli_indices = NULL;
 }

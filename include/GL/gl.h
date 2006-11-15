@@ -21,12 +21,14 @@
 #include <stdlib.h>
 #include <inttypes.h>
 #include <stdbool.h>
+#include <unistd.h>
 
 // GL types
 typedef enum { GL_FALSE, GL_TRUE } GLboolean;
 typedef unsigned GLenum;
 typedef uint8_t GLubyte;
 typedef int8_t GLbyte;
+typedef uint16_t GLushort;
 typedef int16_t GLshort;
 typedef int GLint;
 typedef ssize_t GLsizei;
@@ -49,7 +51,7 @@ GLboolean glSwapBuffers(void);
 #define GL_TEXTURE1 1
 #define GL_TEXTURE2 2
 #define GL_TEXTURE3 3
-enum gli_Types { GL_FLOAT, GL_UNSIGNED_BYTE, GL_FIXED, GL_BYTE, GL_SHORT };
+enum gli_Types { GL_FLOAT, GL_UNSIGNED_BYTE, GL_UNSIGNED_SHORT, GL_UNSIGNED_INT, GL_FIXED, GL_BYTE, GL_SHORT };
 void glColorPointer(GLint size, GLenum type, GLsizei stride, GLvoid const *pointer);
 void glNormalPointer(GLenum type, GLsizei stride, GLvoid const *pointer);
 void glVertexPointer(GLint size, GLenum type, GLsizei stride, GLvoid const *pointer);
