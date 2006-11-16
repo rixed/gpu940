@@ -91,18 +91,21 @@ extern struct ctx {
 		uint32_t left_side:1;
 		uint32_t is_triangle:1;
 	} trap;
+	// Vectors in use
+	struct {
+		uint32_t nb_vectors;	// gives how many vectors are in vectors. For the size of facet, see cmdFacet.size.
+		uint32_t first_vector;
+		gpuVector vectors[MAX_FACET_SIZE+2*GPU_NB_CLIPPLANES];
+	} points;
 	// Current Polygon
 	struct {
 		gpuCmdFacet *cmd;
-		gpuVector vectors[MAX_FACET_SIZE+2*GPU_NB_CLIPPLANES];
 		int32_t nc_declived, nc_declived_next;
 		int32_t decliveness;
 		uint32_t scan_dir;
 		int32_t nc_dir;
-		uint32_t first_vector;
 		uint32_t nb_params;	// from cmdFacet rendering_type
 		uint32_t nc_log;	// used to shift-left dw in line drawing routines.
-		uint32_t nb_vectors;	// gives how many vectors are in vectors. For the size of facet, see cmdFacet.size.
 		int32_t z_alpha;
 		int64_t z_num, z_den;	// 32.32
 		int32_t z_dden, z_dnum;	// 16.16
@@ -137,6 +140,7 @@ extern struct ctx {
 
 #include "poly.h"
 #include "poly_nopersp.h"
+#include "point.h"
 #include "clip.h"
 #include "text.h"
 #include "mylib.h"

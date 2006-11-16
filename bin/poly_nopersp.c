@@ -145,8 +145,8 @@ static void draw_trapeze(void)
 		ctx.poly.nc_declived_next += 1<<16;
 		// maybe we reached end of trapeze already ?
 		for (unsigned side=2; side--; ) {
-			if (ctx.poly.vectors[ ctx.trap.side[side].end_v ].c2d[1] <= ctx.poly.nc_declived_next) {
-				ctx.poly.nc_declived_next = ctx.poly.vectors[ ctx.trap.side[side].end_v ].c2d[1];
+			if (ctx.points.vectors[ ctx.trap.side[side].end_v ].c2d[1] <= ctx.poly.nc_declived_next) {
+				ctx.poly.nc_declived_next = ctx.points.vectors[ ctx.trap.side[side].end_v ].c2d[1];
 				quit = true;
 			}
 		}
@@ -155,9 +155,9 @@ static void draw_trapeze(void)
 	}
 	// Now draw integral scanlines
 	int32_t d_nc_declived, last_nc_declived_i;
-	int32_t last_nc_declived = ctx.poly.vectors[ ctx.trap.side[0].end_v ].c2d[1];
-	if (ctx.poly.vectors[ ctx.trap.side[1].end_v ].c2d[1] <= last_nc_declived) {
-		last_nc_declived = ctx.poly.vectors[ ctx.trap.side[1].end_v ].c2d[1];
+	int32_t last_nc_declived = ctx.points.vectors[ ctx.trap.side[0].end_v ].c2d[1];
+	if (ctx.points.vectors[ ctx.trap.side[1].end_v ].c2d[1] <= last_nc_declived) {
+		last_nc_declived = ctx.points.vectors[ ctx.trap.side[1].end_v ].c2d[1];
 	}
 	last_nc_declived_i = last_nc_declived & 0xffff0000;
 	d_nc_declived = 0x10000;
@@ -183,17 +183,17 @@ void draw_poly_nopersp(void)
 	ctx.poly.nc_log = ctx.location.buffer_loc[gpuOutBuffer].width_log;
 	// bounding box
 	unsigned b_vec, c_vec, v;
-	v = c_vec = b_vec = ctx.poly.first_vector;
+	v = c_vec = b_vec = ctx.points.first_vector;
 	do {
-		if (ctx.poly.vectors[v].c2d[1] < ctx.poly.vectors[c_vec].c2d[1]) {
+		if (ctx.points.vectors[v].c2d[1] < ctx.points.vectors[c_vec].c2d[1]) {
 			c_vec = v;
 		}
-		if (ctx.poly.vectors[v].c2d[1] > ctx.poly.vectors[b_vec].c2d[1]) {
+		if (ctx.points.vectors[v].c2d[1] > ctx.points.vectors[b_vec].c2d[1]) {
 			b_vec = v;
 		}
-		v = ctx.poly.vectors[v].next;
-	} while (v != ctx.poly.first_vector);	
-	ctx.poly.nc_declived = ctx.poly.vectors[c_vec].c2d[1];
+		v = ctx.points.vectors[v].next;
+	} while (v != ctx.points.first_vector);	
+	ctx.poly.nc_declived = ctx.points.vectors[c_vec].c2d[1];
 	ctx.trap.side[0].start_v = ctx.trap.side[0].end_v = ctx.trap.side[1].start_v = ctx.trap.side[1].end_v = c_vec;
 	// Now that all is initialized, build rasterized
 #	if defined(GP2X) || defined(TEST_RASTERIZER)
@@ -206,24 +206,24 @@ void draw_poly_nopersp(void)
 			bool dc_ok = true;
 			int32_t dnc;
 			while (1) {
-				dnc = ctx.poly.vectors[ ctx.trap.side[side].end_v ].c2d[1] - ctx.poly.nc_declived;
+				dnc = ctx.points.vectors[ ctx.trap.side[side].end_v ].c2d[1] - ctx.poly.nc_declived;
 				if (dnc > DNC_MIN) break;	// not flat
 				if (0 == ctx.poly.cmd->size--) goto end_poly;
 				ctx.trap.side[side].start_v = ctx.trap.side[side].end_v;
-				ctx.trap.side[side].end_v = 0==side ? ctx.poly.vectors[ctx.trap.side[side].end_v].prev:ctx.poly.vectors[ctx.trap.side[side].end_v].next;
-				ctx.trap.side[side].c = ctx.poly.vectors[ ctx.trap.side[side].start_v ].c2d[0];
+				ctx.trap.side[side].end_v = 0==side ? ctx.points.vectors[ctx.trap.side[side].end_v].prev:ctx.points.vectors[ctx.trap.side[side].end_v].next;
+				ctx.trap.side[side].c = ctx.points.vectors[ ctx.trap.side[side].start_v ].c2d[0];
 				dc_ok = false;
 			}
 			if (! dc_ok) {
-				int32_t const num = ctx.poly.vectors[ ctx.trap.side[side].end_v ].c2d[0] - ctx.trap.side[side].c;
+				int32_t const num = ctx.points.vectors[ ctx.trap.side[side].end_v ].c2d[0] - ctx.trap.side[side].c;
 				dnc = Fix_abs(dnc);
 				ctx.trap.side[side].dc = ((int64_t)num<<16)/dnc;	// FIXME: use Fix_div
 				// compute alpha_params used for vector parameters
 				if (ctx.poly.nb_params > 0) {
 					int32_t const inv_dalpha = Fix_inv(dnc);
 					for (unsigned p=ctx.poly.nb_params; p--; ) {
-						int32_t const P0 = ctx.poly.vectors[ ctx.trap.side[side].start_v ].cmd->u.geom.param[p];
-						int32_t const PN = ctx.poly.vectors[ ctx.trap.side[side].end_v ].cmd->u.geom.param[p];
+						int32_t const P0 = ctx.points.vectors[ ctx.trap.side[side].start_v ].cmd->u.geom.param[p];
+						int32_t const PN = ctx.points.vectors[ ctx.trap.side[side].end_v ].cmd->u.geom.param[p];
 						ctx.trap.side[side].param[p] = P0;
 						ctx.trap.side[side].param_alpha[p] = Fix_mul(PN-P0, inv_dalpha);
 					}

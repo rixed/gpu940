@@ -255,10 +255,14 @@ void glDrawArrays(GLenum mode, GLint first, GLsizei count)
 	}
 	if (count < 0) {
 		return gli_set_error(GL_INVALID_VALUE);
+	} else if (count == 0) {
+		return;
 	}
 	if (mode >= GL_TRIANGLE_STRIP) {
 		gli_facet_array(mode, first, count);
-	} else {	// lines and points
+	} else if (mode == GL_POINTS) {
+		gli_points_array(first, count);
+	} else {	// lines
 		// TODO
 	}
 }

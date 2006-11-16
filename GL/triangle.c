@@ -24,13 +24,18 @@
  */
 
 static gpuCmdFacet cmdFacet;
+static gpuCmdPoint cmdPoint;
 static gpuCmdVector cmdVec[4];
-static struct iovec const iov_triangle[] = {
+static struct iovec const iov_poly[] = {
 	{ .iov_base = &cmdFacet, .iov_len = sizeof(cmdFacet) },
 	{ .iov_base = cmdVec+0, .iov_len = sizeof(*cmdVec) },
 	{ .iov_base = cmdVec+1, .iov_len = sizeof(*cmdVec) },
 	{ .iov_base = cmdVec+2, .iov_len = sizeof(*cmdVec) },
 	{ .iov_base = cmdVec+3, .iov_len = sizeof(*cmdVec) },
+};
+static struct iovec const iov_point[] = {
+	{ .iov_base = &cmdPoint, .iov_len = sizeof(cmdPoint) },
+	{ .iov_base = &cmdVec, .iov_len = sizeof(cmdVec[0]) },
 };
 
 /*
@@ -295,7 +300,7 @@ static void send_facet(
 	cmdFacet.write_out = gli_color_mask_all && (!depth_test() || gli_depth_func != GL_NEVER);
 	cmdFacet.write_z = depth_test() && gli_depth_mask;
 	// Send to GPU
-	gpuErr const err = gpuWritev(iov_triangle, 1+size, true);
+	gpuErr const err = gpuWritev(iov_poly, 1+size, true);
 	assert(gpuOK == err);
 }
 
@@ -419,6 +424,7 @@ int gli_triangle_begin(void)
 	cmdFacet.use_key = 0;
 	cmdFacet.blend_coef = 0;
 	cmdFacet.perspective = 0;
+	cmdPoint.opcode = gpuPOINT;
 	return 0;
 }
 
@@ -431,6 +437,23 @@ void gli_facet_array(enum gli_DrawMode mode, GLint first, unsigned count)
 	} else {
 		assert(mode == GL_QUAD_STRIP || mode == GL_QUADS);
 		gli_quads_array(mode, first, count);
+	}
+}
+
+void gli_points_array(GLint first, unsigned count)
+{
+	GLfixed v[4];
+	GLint const last = first+count;
+	while (first < last) {
+		rotate_vertex(v, first);
+		cmdVec[0].u.geom.c3d[0] = v[0];
+		cmdVec[0].u.geom.c3d[1] = v[1];
+		cmdVec[0].u.geom.c3d[2] = v[2];
+		GLfixed const *c = gli_current_color();
+		cmdPoint.color = color_GL2gpu(c);
+		gpuErr const err = gpuWritev(iov_point, 2, true);
+		assert(gpuOK == err);
+		first ++;
 	}
 }
 

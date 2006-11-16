@@ -15,16 +15,10 @@
  * along with gpu940; if not, write to the Free Software
  * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
  */
-#ifndef GL_TRIANGLE_H_061012
-#define GL_TRIANGLE_H_061012
+#ifndef POINT_H_061116
+#define POINT_H_061116
+#include "../config.h"
 
-int gli_triangle_begin(void);
-static inline void gli_triangle_end(void) {}
-
-void gli_facet_array(enum gli_DrawMode mode, GLint first, unsigned count);
-void gli_points_array(GLint first, unsigned count);
-void gli_clear(gpuBufferType type, GLclampx *val);
-
-uint32_t *gli_get_texture_address(struct gpuBuf *const buf);
+void draw_point(uint32_t color);
 
 #endif

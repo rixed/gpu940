@@ -167,6 +167,12 @@ typedef struct {
 } gpuCmdFacet;
 
 typedef struct {
+	gpuOpcode opcode;
+	uint32_t color;
+} gpuCmdPoint;
+
+typedef struct {
+	// no need for opcode because this cmd always follow facet, point and line.
 	uint32_t same_as;	// x,y and z are the same that this last vector. 0 means this same as this one, which of course allways stands true.
 	// Params are : x,y,z,  r?,g?,b?|u?,v?, i?,zb?
 	union {

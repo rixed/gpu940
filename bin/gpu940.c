@@ -272,7 +272,7 @@ static void next_cmd(size_t size_) {
 
 static void do_setView(void)
 {
-	gpuCmdSetView const *setView = (gpuCmdSetView *)get_cmd();
+	gpuCmdSetView const *const setView = (gpuCmdSetView *)get_cmd();
 	ctx.view.dproj = setView->dproj;
 	ctx.view.clipMin[0] = setView->clipMin[0];
 	ctx.view.clipMin[1] = setView->clipMin[1];
@@ -287,7 +287,7 @@ static void do_setView(void)
 }
 static void do_setUsrClipPlanes(void)
 {
-	gpuCmdSetUserClipPlanes const *setCP = (gpuCmdSetUserClipPlanes *)get_cmd();
+	gpuCmdSetUserClipPlanes const *const setCP = (gpuCmdSetUserClipPlanes *)get_cmd();
 	ctx.view.nb_clipPlanes = 5 + setCP->nb_planes;
 	for (unsigned cp=0; cp<setCP->nb_planes; cp++) {
 		my_memcpy(ctx.view.clipPlanes+5+cp, setCP->planes+cp, sizeof(ctx.view.clipPlanes[0]));
@@ -296,7 +296,7 @@ static void do_setUsrClipPlanes(void)
 }
 static void do_setBuf(void)
 {
-	gpuCmdSetBuf const *setBuf = (gpuCmdSetBuf *)get_cmd();
+	gpuCmdSetBuf const *const setBuf = (gpuCmdSetBuf *)get_cmd();
 	if (setBuf->type >= GPU_NB_BUFFER_TYPES) {
 		set_error_flag(gpuEPARAM);
 		goto dsb_quit;
@@ -321,7 +321,7 @@ dsb_quit:
 }
 static void do_showBuf(void)
 {
-	gpuCmdShowBuf const *showBuf = (gpuCmdShowBuf *)get_cmd();
+	gpuCmdShowBuf const *const showBuf = (gpuCmdShowBuf *)get_cmd();
 	unsigned next_displist_end = displist_end + 1;
 	if (next_displist_end >= sizeof_array(displist)) next_displist_end = 0;
 	if (next_displist_end == displist_begin) {
@@ -336,7 +336,15 @@ static void do_showBuf(void)
 dwb_quit:
 	next_cmd(sizeof(*showBuf));
 }
-static void do_point(void) {}
+static void do_point(void)
+{
+	gpuCmdPoint const *const point = (gpuCmdPoint *)get_cmd();
+	ctx.points.vectors[0].cmd = (gpuCmdVector *)(point+1);
+	if (clip_point()) {
+		draw_point(point->color);
+	}
+	next_cmd(sizeof(*point) + sizeof(gpuCmdVector));
+}
 static void do_line(void) {}
 static void do_facet(void)
 {
@@ -344,7 +352,7 @@ static void do_facet(void)
 	ctx.poly.cmd = get_cmd();
 	// sanity checks
 	size_t to_skip = sizeof(gpuCmdFacet) + ctx.poly.cmd->size*sizeof(gpuCmdVector);	// we are about to change facet size
-	if (ctx.poly.cmd->size > sizeof_array(ctx.poly.vectors)) {
+	if (ctx.poly.cmd->size > sizeof_array(ctx.points.vectors)) {
 		set_error_flag(gpuEINT);
 		goto df_quit;
 	}
@@ -354,7 +362,7 @@ static void do_facet(void)
 	}
 	// fetch vectors informations
 	for (unsigned v=0; v<ctx.poly.cmd->size; v++) {
-		ctx.poly.vectors[v].cmd = (gpuCmdVector *)(ctx.poly.cmd+1) + v;
+		ctx.points.vectors[v].cmd = (gpuCmdVector *)(ctx.poly.cmd+1) + v;
 	}
 	if (clip_poly() && cull_poly()) {
 		ctx.code.color = ctx.poly.cmd->color;
@@ -369,7 +377,7 @@ static void do_rect(void)
 {
 	int previous_target = perftime_target();
 	perftime_enter(PERF_RECTANGLE, "rectangle");
-	gpuCmdRect const *rect = (gpuCmdRect *)get_cmd();
+	gpuCmdRect const *const rect = (gpuCmdRect *)get_cmd();
 	// TODO: add clipping against winPos ?
 	uint32_t *dst = rect->relative_to_window ?
 		location_winPos(rect->type, rect->pos[0], rect->pos[1]) :
@@ -383,7 +391,7 @@ static void do_rect(void)
 }
 static void do_zmode(void)
 {
-	gpuCmdZMode const *z_mode = (gpuCmdZMode *)get_cmd();
+	gpuCmdZMode const *const z_mode = (gpuCmdZMode *)get_cmd();
 	ctx.rendering.z_mode = z_mode->mode;
 	next_cmd(sizeof(*z_mode));
 }
