@@ -39,6 +39,7 @@ static inline int64_t Fix_scalar(int32_t v1[3], int32_t v2[3]) {
 	int64_t res = (int64_t)v1[0]*v2[0] + (int64_t)v1[1]*v2[1] + (int64_t)v1[2]*v2[2];
 	return res>>16;
 }
+int32_t Fix_norm(int32_t v[3]);
 void Fix_normalize(int32_t v[3]);
 
 static inline bool Fix_same_sign(int32_t v0, int32_t v1) {

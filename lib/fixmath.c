@@ -39,14 +39,16 @@ extern inline bool Fix_same_sign(int32_t v0, int32_t v1);
 extern inline int32_t Fix_abs(int32_t v);
 extern inline int32_t Fix_sqrt(int32_t n);
 
-void FixMat_x_Vec(int32_t dest[3], FixMat const *mat, FixVec const *src, bool translate) {
+void FixMat_x_Vec(int32_t dest[3], FixMat const *mat, FixVec const *src, bool translate)
+{
 	for (unsigned i=0; i<3; i++) {
 		dest[i] = (((int64_t)mat->rot[0][i] + src->c[1])*(mat->rot[1][i] + src->c[0])>>16) + (((int64_t)mat->rot[2][i]*src->c[2])>>16) - mat->ab[i] - src->xy;
 		if (translate) dest[i] += mat->trans[i];
 	}
 }
 
-void FixMatT_x_Vec(int32_t dest[3], FixMat const *mat, int32_t const src[3], bool translate) {
+void FixMatT_x_Vec(int32_t dest[3], FixMat const *mat, int32_t const src[3], bool translate)
+{
 	int32_t transT[3];
 	if (translate) {
 		FixMatT_x_Vec(transT, mat, mat->trans, false);
@@ -66,7 +68,8 @@ extern inline int32_t Fix_abs(int32_t v);
 extern inline int64_t Fix_abs64(int64_t v);
 extern inline int32_t Fix_inv(int32_t v);
 
-void Fix_normalize(int32_t v[3]) {
+int32_t Fix_norm(int32_t v[3])
+{
 	int32_t norm;
 	do {	// FIXME
 		int64_t scal = Fix_scalar(v, v);
@@ -78,7 +81,12 @@ void Fix_normalize(int32_t v[3]) {
 			v[c] >>= 1;
 		}
 	} while ( 1 );
-	norm = Fix_sqrt(norm);
+	return Fix_sqrt(norm);
+}
+
+void Fix_normalize(int32_t v[3])
+{
+	int32_t norm = Fix_norm(v);
 	if (norm) {
 		for (unsigned c=3; c--; ) {
 			v[c] = ((int64_t)v[c]<<16)/norm;
@@ -86,12 +94,14 @@ void Fix_normalize(int32_t v[3]) {
 	}
 }
 
-void Fix_proj(int32_t c2d[2], int32_t const c3d[3], int dproj) {
+void Fix_proj(int32_t c2d[2], int32_t const c3d[3], int dproj)
+{
 	c2d[0] = (((int64_t)c3d[0]<<16)/(-c3d[2]))<<dproj;
 	c2d[1] = (((int64_t)c3d[1]<<16)/(-c3d[2]))<<dproj;
 }
 
-int64_t Fix_mul64x64(int64_t v, int64_t w) {
+int64_t Fix_mul64x64(int64_t v, int64_t w)
+{
 	int64_t sign = 0;
 	if (v < 0) {
 		v = -v;
@@ -122,7 +132,8 @@ int64_t Fix_mul64x64(int64_t v, int64_t w) {
 		root |= 2 << (N); \
 	}
 
-int32_t my_sqrt(int32_t n) {
+int32_t my_sqrt(int32_t n)
+{
 	int32_t root = 0, try;
 	iter1(15); iter1(14); iter1(13); iter1(12);
 	iter1(11); iter1(10); iter1( 9); iter1( 8);
