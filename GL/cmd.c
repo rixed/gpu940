@@ -172,6 +172,17 @@ static bool depth_test(void)
 	return gli_with_depth_buffer && gli_enabled(GL_DEPTH_TEST);
 }
 
+static uint32_t color_GL2gpu(GLfixed const *c)
+{
+	unsigned r = c[0]>>8;
+	unsigned g = c[1]>>8;
+	unsigned b = c[2]>>8;
+	CLAMP(r, 0, 0xFF);
+	CLAMP(g, 0, 0xFF);
+	CLAMP(b, 0, 0xFF);	
+	return gpuColor(r, g, b);
+}
+
 static void point_complete(void)
 {
 	cmdPoint.color = color_GL2gpu(gli_current_color);
