@@ -81,9 +81,73 @@ void glDepthRangex(GLclampx near, GLclampx far);
 void glViewport(GLint x, GLint y, GLsizei width, GLsizei height);
 
 // Color and Lighting
-void glColor4x(GLfixed red, GLfixed green, GLfixed blue, GLfixed alpha);
-void glColor3x(GLfixed red, GLfixed green, GLfixed blue);
-void glNormal3x(GLfixed nx, GLfixed ny, GLfixed nz);
+extern GLfixed gli_current_color[4];
+extern GLfixed gli_current_normal[3];
+extern GLfixed gli_current_texcoord[4];
+static inline void glColor4x(GLfixed red, GLfixed green, GLfixed blue, GLfixed alpha)
+{
+	gli_current_color[0] = red;
+	gli_current_color[1] = green;
+	gli_current_color[2] = blue;
+	gli_current_color[3] = alpha;
+}
+static inline void glColor3x(GLfixed red, GLfixed green, GLfixed blue)
+{
+	glColor4x(red, green, blue, 1U<<16);
+}
+static inline void glColor3xv(GLfixed const *v)
+{
+	glColor4x(v[0], v[1], v[2], 1<<16);
+}
+static inline void glColor4xv(GLfixed const *v)
+{
+	glColor4x(v[0], v[1], v[2], v[3]);
+}
+static inline void glNormal3x(GLfixed nx, GLfixed ny, GLfixed nz)
+{
+	gli_current_normal[0] = nx;
+	gli_current_normal[1] = ny;
+	gli_current_normal[2] = nz;
+}
+static inline void glNormal3xv(GLfixed const *v)
+{
+	glNormal3x(v[0], v[1], v[2]);
+}
+static inline void glTexCoord4x(GLfixed s, GLfixed t, GLfixed r, GLfixed q)
+{
+	gli_current_texcoord[0] = s;
+	gli_current_texcoord[1] = t;
+	gli_current_texcoord[2] = r;
+	gli_current_texcoord[3] = q;
+}
+static inline void glTexCoord1x(GLfixed s)
+{
+	glTexCoord4x(s, 0, 0, 1<<16);
+}
+static inline void glTexCoord2x(GLfixed s, GLfixed t)
+{
+	glTexCoord4x(s, t, 0, 1<<16);
+}
+static inline void glTexCoord3x(GLfixed s, GLfixed t, GLfixed r)
+{
+	glTexCoord4x(s, t, r, 1<<16);
+}
+static inline void glTexCoord1xv(GLfixed const *v)
+{
+	glTexCoord4x(v[0], 0, 0, 1<<16);
+}
+static inline void glTexCoord2xv(GLfixed const *v)
+{
+	glTexCoord4x(v[0], v[1], 0, 1<<16);
+}
+static inline void glTexCoord3xv(GLfixed const *v)
+{
+	glTexCoord4x(v[0], v[1], v[2], 1<<16);
+}
+static inline void glTexCoord4xv(GLfixed const *v)
+{
+	glTexCoord4x(v[0], v[1], v[2], v[3]);
+}
 #define GL_LIGHT0 1
 #define GL_LIGHT1 2
 #define GL_LIGHT2 3
@@ -215,6 +279,31 @@ enum gli_ParamName {
 	GL_RED_BITS, GL_SMOOTH_LINE_WIDTH_RANGE, GL_SMOOTH_POINT_SIZE_RANGE, GL_STENCIL_BITS, GL_SUBPIXEL_BITS,
 };
 void glGetIntegerv(GLenum pname, GLint *params);
+
+// Begin/End paradigm
+void glBegin(GLenum mode);
+void glEnd(void);
+void glVertex4x(GLfixed x, GLfixed y, GLfixed z, GLfixed w);
+static inline void glVertex2x(GLfixed x, GLfixed y)
+{
+	glVertex4x(x, y, 0, 1<<16);
+}
+static inline void glVertex3x(GLfixed x, GLfixed y, GLfixed z)
+{
+	glVertex4x(x, y, z, 1<<16);
+}
+static inline void glVertex2xv(GLfixed const *v)
+{
+	glVertex4x(v[0], v[1], 0, 1<<16);
+}
+static inline void glVertex3xv(GLfixed const *v)
+{
+	glVertex4x(v[0], v[1], v[2], 1<<16);
+}
+static inline void glVertex4xv(GLfixed const *v)
+{
+	glVertex4x(v[0], v[1], v[2], v[3]);
+}
 
 // OES Extensions
 

@@ -23,8 +23,9 @@
  * Data Definitions
  */
 
-static GLfixed color[4];
-static GLfixed normal[3];
+GLfixed gli_current_color[4];
+GLfixed gli_current_normal[3];
+GLfixed gli_current_texcoord[4];
 static struct gli_light lights[GLI_MAX_LIGHTS];
 static struct gli_material material;
 static GLfixed ambient[4];
@@ -85,9 +86,11 @@ static void light_ctor(struct gli_light *light)
 
 int gli_colors_begin(void)
 {
-	color[0] = color[1] = color[2] = color[3] = 0x10000;
-	normal[0] = normal[1] = 0;
-	normal[2] = 0x10000;
+	gli_current_color[0] = gli_current_color[1] = gli_current_color[2] = gli_current_color[3] = 0x10000;
+	gli_current_normal[0] = gli_current_normal[1] = 0;
+	gli_current_normal[2] = 0x10000;
+	gli_current_texcoord[0] = gli_current_texcoord[1] = gli_current_texcoord[2] = 0;
+	gli_current_texcoord[3] = 0x10000;
 	nb_enabled_lights = 0;
 	nb_simple_lights = 0;
 	for (unsigned i=0; i<sizeof_array(lights); i++) {
@@ -114,16 +117,6 @@ int gli_colors_begin(void)
 }
 
 extern inline void gli_colors_end(void);
-
-GLfixed const *gli_current_color(void)
-{
-	return color;
-}
-
-GLfixed const *gli_current_normal(void)
-{
-	return normal;
-}
 
 void gli_light_enable(unsigned l)
 {
@@ -196,25 +189,22 @@ GLfixed gli_light_spot(unsigned l)
 	return 1<<16;	// TODO
 }
 
-void glColor4x(GLfixed red, GLfixed green, GLfixed blue, GLfixed alpha)
-{
-	color[0] = red;
-	color[1] = green;
-	color[2] = blue;
-	color[3] = alpha;
-}
+extern inline void glColor4x(GLfixed red, GLfixed green, GLfixed blue, GLfixed alpha);
+extern inline void glColor3x(GLfixed red, GLfixed green, GLfixed blue);
+extern inline void glColor3xv(GLfixed const *v);
+extern inline void glColor4xv(GLfixed const *v);
 
-void glColor3x(GLfixed red, GLfixed green, GLfixed blue)
-{
-	glColor4x(red, green, blue, 1U<<16);
-}
+extern inline void glNormal3x(GLfixed nx, GLfixed ny, GLfixed nz);
+extern inline void glNormal3xv(GLfixed const *v);
 
-void glNormal3x(GLfixed nx, GLfixed ny, GLfixed nz)
-{
-	normal[0] = nx;
-	normal[1] = ny;
-	normal[2] = nz;
-}
+extern inline void glTexCoord4x(GLfixed s, GLfixed t, GLfixed r, GLfixed q);
+extern inline void glTexCoord1x(GLfixed s);
+extern inline void glTexCoord2x(GLfixed s, GLfixed t);
+extern inline void glTexCoord3x(GLfixed s, GLfixed t, GLfixed r);
+extern inline void glTexCoord1xv(GLfixed const *v);
+extern inline void glTexCoord2xv(GLfixed const *v);
+extern inline void glTexCoord3xv(GLfixed const *v);
+extern inline void glTexCoord4xv(GLfixed const *v);
 
 void glLightx(GLenum light, GLenum pname, GLfixed param)
 {

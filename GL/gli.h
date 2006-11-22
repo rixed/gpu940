@@ -42,6 +42,8 @@
 #include "framebuf.h"
 #include "texture.h"
 #include "triangle.h"
+#include "cmd.h"
+#include "begend.h"
 
 extern bool gli_with_depth_buffer;
 

@@ -58,7 +58,8 @@ libLTLIBRARIES_INSTALL = $(INSTALL)
 LTLIBRARIES = $(lib_LTLIBRARIES)
 libGL_la_LIBADD =
 am_libGL_la_OBJECTS = arrays.lo colors.lo egl.lo framebuf.lo modes.lo \
-	raster.lo state.lo texture.lo transfo.lo triangle.lo
+	raster.lo state.lo texture.lo transfo.lo begend.lo triangle.lo \
+	cmd.lo
 libGL_la_OBJECTS = $(am_libGL_la_OBJECTS)
 DEFAULT_INCLUDES = -I. -I$(srcdir) -I$(top_builddir)
 depcomp = $(SHELL) $(top_srcdir)/depcomp
@@ -188,8 +189,8 @@ SUBDIRS = . samples
 AM_CFLAGS = -I $(top_srcdir)/include -fstrict-aliasing -D_GNU_SOURCE -std=c99 -Wall -W -pipe
 lib_LTLIBRARIES = libGL.la
 libGL_la_SOURCES = \
-	arrays.c colors.c egl.c framebuf.c modes.c raster.c state.c texture.c transfo.c triangle.c \
-	gli.h framebuf.h modes.h raster.h state.h texture.h transfo.h arrays.h colors.h triangle.h
+	arrays.c colors.c egl.c framebuf.c modes.c raster.c state.c texture.c transfo.c begend.c triangle.c cmd.c \
+	gli.h framebuf.h modes.h raster.h state.h texture.h transfo.h arrays.h colors.h begend.h triangle.h cmd.h
 
 libGL_la_LDFLAGS = -version-info 1:0:0 -Wl,--warn-common
 all: all-recursive
@@ -262,6 +263,8 @@ distclean-compile:
 	-rm -f *.tab.c
 
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/arrays.Plo@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/begend.Plo@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/cmd.Plo@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/colors.Plo@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/egl.Plo@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/framebuf.Plo@am__quote@

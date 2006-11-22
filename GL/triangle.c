@@ -103,7 +103,7 @@ static void add_vertex_color(GLfixed cpri[4], int32_t v[4], unsigned vec_idx)
 static GLfixed const *get_color(int32_t v[4], unsigned vec_idx)
 {
 	if (! gli_enabled(GL_LIGHTING)) {
-		return gli_current_color();
+		return gli_current_color;
 	}
 	static GLfixed cpri[4];
 	get_material_color(cpri);
@@ -449,8 +449,7 @@ void gli_points_array(GLint first, unsigned count)
 		cmdVec[0].u.geom.c3d[0] = v[0];
 		cmdVec[0].u.geom.c3d[1] = v[1];
 		cmdVec[0].u.geom.c3d[2] = v[2];
-		GLfixed const *c = gli_current_color();
-		cmdPoint.color = color_GL2gpu(c);
+		cmdPoint.color = color_GL2gpu(gli_current_color);
 		gpuErr const err = gpuWritev(iov_point, 2, true);
 		assert(gpuOK == err);
 		first ++;

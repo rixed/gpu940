@@ -192,9 +192,8 @@ void gli_normal_get(GLint idx, int32_t c[4])
 	if (gli_normal_array.enabled) {
 		array_get(&gli_normal_array, idx, c);
 	} else {
-		GLfixed const *n = gli_current_normal();
 		for (unsigned i=0; i<3; i++) {
-			c[i] = n[i];
+			c[i] = gli_current_normal[i];
 		}
 		c[3] = 1<<16;
 	}
@@ -287,3 +286,5 @@ void glDrawElements(GLenum mode, GLsizei count, GLenum type, GLvoid const *indic
 	}
 	gli_indices = NULL;
 }
+
+

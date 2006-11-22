@@ -50,6 +50,8 @@ GLboolean glOpen(unsigned attribs)
 		gli_framebuf_begin,
 		gli_texture_begin,
 		gli_triangle_begin,
+		gli_cmd_begin,
+		gli_begend_begin,
 	};
 	for (unsigned i=0; i<sizeof_array(begins); i++) {
 		if (0 != begins[i]()) {
@@ -82,6 +84,8 @@ void glClose(void)
 	(void)gli_framebuf_end();
 	(void)gli_texture_end();
 	(void)gli_triangle_end();
+	(void)gli_cmd_end();
+	(void)gli_begend_end();
 	for (unsigned i=0; i<sizeof_array(buffers); i++) {
 		gpuFree(buffers[i].out);
 		if (buffers[i].depth) gpuFree(buffers[i].depth);

@@ -34,8 +34,6 @@ struct gli_material {
 
 int gli_colors_begin(void);
 static inline void gli_colors_end(void) { }
-GLfixed const *gli_current_color(void);
-GLfixed const *gli_current_normal(void);
 void gli_light_enable(unsigned l);
 void gli_light_disable(unsigned l);
 bool gli_light_enabled(unsigned l);
