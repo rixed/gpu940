@@ -291,7 +291,7 @@ static void facet_complete(unsigned size, bool facet_is_inverted, unsigned color
 			cmdVec[v].u.text_params.u <<= to->mipmaps[0].width_log;
 			cmdVec[v].u.text_params.v <<= to->mipmaps[0].height_log;
 		}
-	} else if (gli_smooth && gli_enabled(GL_LIGHTING)) {
+	} else if (gli_smooth() && gli_enabled(GL_LIGHTING)) {
 		if (gli_simple_lighting()) {	// or if we use texture...
 			GLfixed c[4];
 			get_material_color(c);
@@ -330,9 +330,8 @@ void gli_cmd_prepare(enum gli_DrawMode mode_)
 	reset_facet();
 }
 
-void gli_cmd_vertex(int32_t const x, int32_t const y, int32_t const z, int32_t const w)
+void gli_cmd_vertex(int32_t const *v)
 {
-	GLfixed const v[4] = { x, y, z, w };	// please compiler, don't copy stacked arguments !
 	gli_multmatrix(GL_MODELVIEW, cmdVec[vec_idx].u.geom.c3d, v);
 	cmdVec[vec_idx].same_as = 0;	// by default (TODO: change it later)
 	unsigned z_param = 0;
@@ -388,6 +387,8 @@ void gli_cmd_vertex(int32_t const x, int32_t const y, int32_t const z, int32_t c
 				facet_complete(3, false, vec_idx);
 				vec_idx = 0;
 			} else {	// each new vertex gives a new triangle
+				cmdVec[(vec_idx+1)%3].same_as = 3;
+				cmdVec[(vec_idx+2)%3].same_as = 3;
 				facet_complete(3, ! (count & 1), vec_idx);
 				vec_idx = vec_idx+1;
 				if (vec_idx >= 3) vec_idx = 0;
@@ -400,6 +401,8 @@ void gli_cmd_vertex(int32_t const x, int32_t const y, int32_t const z, int32_t c
 				facet_complete(3, false, vec_idx);
 				vec_idx = 1;
 			} else {	// each new vertex gives a new triangle
+				cmdVec[(vec_idx+1)%3].same_as = 3;
+				cmdVec[(vec_idx+2)%3].same_as = 3;
 				facet_complete(3, ! (count & 1), vec_idx);
 				vec_idx = vec_idx+1;
 				if (vec_idx >= 3) vec_idx = 1;
@@ -424,8 +427,9 @@ void gli_cmd_vertex(int32_t const x, int32_t const y, int32_t const z, int32_t c
 				facet_complete(4, false, vec_idx);
 				vec_idx = 0;
 			} else {
+				cmdVec[(vec_idx+2)%4].same_as = 4;
 				if (! (count & 1)) {
-					facet_complete(4, ! (count & 2), vec_idx);
+					facet_complete(4, (count & 2), vec_idx);
 					vec_idx = (vec_idx + 2) & 3;
 				} else {
 					if (vec_idx == 0) vec_idx = 1;
@@ -443,4 +447,54 @@ void gli_cmd_vertex(int32_t const x, int32_t const y, int32_t const z, int32_t c
 			break;
 	}
 }
+
+void gli_points_array(GLint first, unsigned count)
+{
+	GLint const last = first+count;
+	glBegin(GL_POINTS);
+	while (first < last) {
+		gli_color_set(first);
+		gli_vertex_set(first);
+		first ++;
+	}
+	glEnd();
+}
+
+void gli_facet_array(enum gli_DrawMode mode, GLint first, unsigned count)
+{
+	GLint const last = first+count;
+	glBegin(mode);
+	while (first < last) {
+		gli_color_set(first);
+		gli_normal_set(first);
+		gli_texcoord_set(first);
+		gli_vertex_set(first);
+		first ++;
+	}
+	glEnd();
+}
+
+void gli_clear(gpuBufferType type, GLclampx *val)
+{
+	static gpuCmdRect rect = {
+		.opcode = gpuRECT,
+		.type = 0,
+		.pos = { 0, 0 },
+		.width = SCREEN_WIDTH,
+		.height = SCREEN_HEIGHT,
+		.relative_to_window = 1,
+		.value = 0,
+	};
+	rect.type = type;
+	if (type == gpuZBuffer) {
+		if (! gli_with_depth_buffer) return;
+		rect.value = *val;
+	} else {	// color
+		rect.value = gpuColor((val[0]>>8)&0xFF, (val[1]>>8)&0xFF, (val[2]>>8)&0xFF);
+	}
+	gpuErr const err = gpuWrite(&rect, sizeof(rect), true);
+	assert(gpuOK == err);
+}
+
+extern inline uint32_t *gli_get_texture_address(struct gpuBuf *const buf);
 

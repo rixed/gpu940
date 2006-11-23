@@ -62,14 +62,14 @@ void glEnd(void)
 	in_begend = false;
 }
 
-void glVertex4x(GLfixed x, GLfixed y, GLfixed z, GLfixed w)
+void glVertex4xv(GLfixed const *v)
 {
 	assert(in_begend);	// outside of begin/end -> undefined behaviour
-	gli_cmd_vertex(x, y, z, w);	// will send the command if the primitive is complete
+	gli_cmd_vertex(v);	// will send the command if the primitive is complete
 }
 extern inline void glVertex2x(GLfixed x, GLfixed y);
 extern inline void glVertex3x(GLfixed x, GLfixed y, GLfixed z);
+extern inline void glVertex4x(GLfixed x, GLfixed y, GLfixed z, GLfixed w);
 extern inline void glVertex2xv(GLfixed const *v);
 extern inline void glVertex3xv(GLfixed const *v);
-extern inline void glVertex4xv(GLfixed const *v);
 

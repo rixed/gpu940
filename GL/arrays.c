@@ -122,7 +122,7 @@ static unsigned read_index(GLint idx)
 	return 0;
 }
 
-static void array_get(struct array const *arr, GLint idx, int32_t *c)
+static void array_set(struct array const *arr, GLint idx, void (*f34v)(GLfixed const *v), int expected_size)
 {
 	void const *v_;
 	if (gli_indices) {
@@ -133,28 +133,32 @@ static void array_get(struct array const *arr, GLint idx, int32_t *c)
 		case GL_BYTE:
 			{
 				GLbyte const *v = v_;
-				c[0] = v[0]<<16;
-				c[1] = v[1]<<16;
-				c[2] = arr->size > 2 ? v[2]<<16 : 0;
-				c[3] = arr->size > 3 ? v[3]<<16 : 1<<16;
+				GLfixed c[4] = {
+					v[0]<<16, v[1]<<16, arr->size > 2 ? v[2]<<16 : 0, arr->size > 3 ? v[3]<<16 : 1<<16
+				};
+				f34v(c);
 			}
 			break;
 		case GL_SHORT:
 			{
 				GLshort const *v = v_;
-				c[0] = v[0]<<16;
-				c[1] = v[1]<<16;
-				c[2] = arr->size > 2 ? v[2]<<16 : 0;
-				c[3] = arr->size > 3 ? v[3]<<16 : 1<<16;
+				GLfixed c[4] = {
+					v[0]<<16, v[1]<<16, arr->size > 2 ? v[2]<<16 : 0, arr->size > 3 ? v[3]<<16 : 1<<16
+				};
+				f34v(c);
 			}
 			break;
 		case GL_FIXED:
 			{
 				GLfixed const *v = v_;
-				c[0] = v[0];
-				c[1] = v[1];
-				c[2] = arr->size > 2 ? v[2] : 0;
-				c[3] = arr->size > 3 ? v[3] : 1<<16;
+				if (arr->size >= expected_size) {
+					f34v(v);
+				} else {
+					GLfixed c[4] = {
+						v[0], v[1], arr->size > 2 ? v[2] : 0, arr->size > 3 ? v[3] : 1<<16
+					};
+					f34v(c);
+				}
 			}
 			break;
 		default:
@@ -182,26 +186,30 @@ int gli_arrays_begin(void)
 
 extern  inline void gli_arrays_end(void);
 
-void gli_vertex_get(GLint idx, int32_t c[4])
+void gli_vertex_set(GLint idx)
 {
-	return array_get(&gli_vertex_array, idx, c);
+	return array_set(&gli_vertex_array, idx, glVertex4xv, 4);
 }
 
-void gli_normal_get(GLint idx, int32_t c[4])
+void gli_color_set(GLint idx)
 {
-	if (gli_normal_array.enabled) {
-		array_get(&gli_normal_array, idx, c);
-	} else {
-		for (unsigned i=0; i<3; i++) {
-			c[i] = gli_current_normal[i];
-		}
-		c[3] = 1<<16;
+	if (gli_color_array.enabled) {
+		array_set(&gli_color_array, idx, glColor4xv, 4);
 	}
 }
 
-void gli_texcoord_get(GLint idx, int32_t uv[2])
+void gli_normal_set(GLint idx)
 {
-	array_get(gli_texcoord_array+gli_active_texture, idx, uv);
+	if (gli_normal_array.enabled) {
+		array_set(&gli_normal_array, idx, glNormal3xv, 3);
+	}
+}
+
+void gli_texcoord_set(GLint idx)
+{
+	if (gli_texcoord_array[gli_active_texture].enabled) {
+		array_set(gli_texcoord_array+gli_active_texture, idx, glTexCoord4xv, 4);
+	}
 }
 
 void glColorPointer(GLint size, GLenum type, GLsizei stride, GLvoid const *pointer)

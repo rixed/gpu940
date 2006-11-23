@@ -29,9 +29,10 @@ extern struct array {
 
 int gli_arrays_begin(void);
 static inline void gli_arrays_end(void) {}
-void gli_vertex_get(GLint idx, int32_t c[4]);
-void gli_normal_get(GLint idx, int32_t c[4]);
-void gli_texcoord_get(GLint idx, int32_t uv[2]);
+void gli_vertex_set(GLint idx);
+void gli_color_set(GLint idx);
+void gli_normal_set(GLint idx);
+void gli_texcoord_set(GLint idx);
 bool gli_texturing(void);
 
 #endif

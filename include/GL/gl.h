@@ -283,7 +283,12 @@ void glGetIntegerv(GLenum pname, GLint *params);
 // Begin/End paradigm
 void glBegin(GLenum mode);
 void glEnd(void);
-void glVertex4x(GLfixed x, GLfixed y, GLfixed z, GLfixed w);
+void glVertex4xv(GLfixed const *v);
+static inline void glVertex4x(GLfixed x, GLfixed y, GLfixed z, GLfixed w)
+{
+	int32_t v[4] = { x, y, z, w };
+	glVertex4xv(v);
+}
 static inline void glVertex2x(GLfixed x, GLfixed y)
 {
 	glVertex4x(x, y, 0, 1<<16);
@@ -299,10 +304,6 @@ static inline void glVertex2xv(GLfixed const *v)
 static inline void glVertex3xv(GLfixed const *v)
 {
 	glVertex4x(v[0], v[1], v[2], 1<<16);
-}
-static inline void glVertex4xv(GLfixed const *v)
-{
-	glVertex4x(v[0], v[1], v[2], v[3]);
 }
 
 // OES Extensions

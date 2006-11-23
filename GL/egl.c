@@ -49,7 +49,6 @@ GLboolean glOpen(unsigned attribs)
 		gli_modes_begin,
 		gli_framebuf_begin,
 		gli_texture_begin,
-		gli_triangle_begin,
 		gli_cmd_begin,
 		gli_begend_begin,
 	};
@@ -83,7 +82,6 @@ void glClose(void)
 	(void)gli_modes_end();
 	(void)gli_framebuf_end();
 	(void)gli_texture_end();
-	(void)gli_triangle_end();
 	(void)gli_cmd_end();
 	(void)gli_begend_end();
 	for (unsigned i=0; i<sizeof_array(buffers); i++) {
