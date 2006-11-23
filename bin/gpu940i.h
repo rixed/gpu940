@@ -129,7 +129,8 @@ extern struct ctx {
 		uint32_t sp_save;
 #		define NB_CODE_CACHE 5
 		struct jit_cache {
-#			define MAX_CODE_SIZE 87
+			// TODO: make the bu smaller, but allow a code to span severall bufs
+#			define MAX_CODE_SIZE 102 //87
 			uint32_t buf[MAX_CODE_SIZE];
 			uint32_t use_count;
 			uint64_t rendering_key;
