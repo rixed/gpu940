@@ -1,6 +1,4 @@
-* Ajouter la possibilité d'avoir un zbuffer (valeurs sur 16 bits dans un 
-buffer distinct, avec un type de rendu distinct, _z).
-* Ajouter à libgpu des fonctionnalités de tri.
+* Réécrire les array en terme de Begin/End.
 * Optimiser.
 * Optimiser encore.
 * Dans glxgears, pourtant exigeant en terme de rendu, on voit que :
