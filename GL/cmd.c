@@ -58,7 +58,7 @@ static void reset_facet(void)
 	cmdFacet.size = mode >= GL_TRIANGLE_STRIP && mode <= GL_TRIANGLES ? 3:4;
 }
 
-static int32_t get_luminosity(void)
+static int32_t get_luminosity(unsigned vidx)
 {
 	// We can use a luminosity alone instead of full color component set, if :
 	// - acm = dcm (AMBIANT_AND_DIFFUSE like setting)
@@ -81,7 +81,7 @@ static int32_t get_luminosity(void)
 		if (! gli_light_enabled(l)) continue;
 		GLfixed this_lum = 0;
 		GLfixed vl_dir[3], vl_dist;
-		gli_light_dir(l, cmdVec[vec_idx].u.geom.c3d, vl_dir, &vl_dist);
+		gli_light_dir(l, cmdVec[vidx].u.geom.c3d, vl_dir, &vl_dist);
 		GLfixed const att = gli_light_attenuation(l, vl_dist);
 		GLfixed const spot = gli_light_spot(l);
 		GLfixed const att_spot = Fix_mul(att, spot);
@@ -116,7 +116,7 @@ static void get_material_color(GLfixed cpri[4])
 }
 
 // Returns the color contribution of lights to this particular vertex
-static void add_vertex_color(GLfixed cpri[4])
+static void add_vertex_color(GLfixed cpri[4], unsigned vidx)
 {
 	GLfixed const *acm = gli_material_ambient();
 	GLfixed const *dcm = gli_material_diffuse();
@@ -126,7 +126,7 @@ static void add_vertex_color(GLfixed cpri[4])
 	for (unsigned l=0; l<GLI_MAX_LIGHTS; l++) {	// TODO: use a current_min_light, current_max_light
 		if (! gli_light_enabled(l)) continue;
 		GLfixed vl_dir[3], vl_dist;
-		gli_light_dir(l, cmdVec[vec_idx].u.geom.c3d, vl_dir, &vl_dist);
+		gli_light_dir(l, cmdVec[vidx].u.geom.c3d, vl_dir, &vl_dist);
 		GLfixed const att = gli_light_attenuation(l, vl_dist);
 		GLfixed const spot = gli_light_spot(l);
 		GLfixed const att_spot = Fix_mul(att, spot);
@@ -151,20 +151,20 @@ static void add_vertex_color(GLfixed cpri[4])
 }
 
 // Returns the color of the current vertex
-static GLfixed const *get_color(void)
+static GLfixed const *get_color(unsigned vidx)
 {
 	if (! gli_enabled(GL_LIGHTING)) {
 		return gli_current_color;
 	}
 	static GLfixed cpri[4];
 	get_material_color(cpri);
-	add_vertex_color(cpri);
+	add_vertex_color(cpri, vidx);
 	return cpri;
 }
 
-static int32_t get_vertex_depth()
+static int32_t get_vertex_depth(unsigned vidx)
 {
-	return -cmdVec[vec_idx].u.geom.c3d[2];	// we don't use depth range here, so for us depth = -z
+	return -cmdVec[vidx].u.geom.c3d[2];	// we don't use depth range here, so for us depth = -z
 }
 
 static bool depth_test(void)
@@ -190,18 +190,129 @@ static void point_complete(void)
 	assert(gpuOK == err);
 }
 
-static void triangle_complete(bool facet_is_inverted, unsigned colorer_idx)
+static void set_current_texture(void)
 {
-	(void)facet_is_inverted;
-	(void)colorer_idx;
-	// TODO
+	gpuErr err;
+	struct gli_texture_object *to = gli_get_texture_object();
+	assert(to->has_data && to->was_bound);
+	// if its not resident, load it.
+	if (! to->is_resident) {
+		to->img_res = gpuAlloc(to->mipmaps[0].width_log, 1U<<to->mipmaps[0].height_log, false);
+		if (! to->img_res) return gli_set_error(GL_OUT_OF_MEMORY);
+		err = gpuLoadImg(gpuBuf_get_loc(to->img_res), to->img_nores, 0);
+		assert(gpuOK == err);
+		free(to->img_nores);
+		to->img_nores = NULL;
+		to->is_resident = true;
+	}
+	// then, compare with actual tex buffer. if not the same, send SetBuf cmd.
+	// FIXME
+	static uint32_t last_address = 0, last_width;
+	struct buffer_loc const *loc = gpuBuf_get_loc(to->img_res);
+	if (loc->address != last_address || loc->width_log != last_width) {
+		err = gpuSetBuf(gpuTxtBuffer, to->img_res, true);
+		assert(gpuOK == err);
+		last_address = loc->address;
+		last_width = loc->width_log;
+	}
 }
 
-static void quad_complete(bool facet_is_inverted, unsigned colorer_idx)
+// Send a ZMode command if needed
+static void set_depth_mode(void)
 {
-	(void)facet_is_inverted;
-	(void)colorer_idx;
-	// TODO
+	static gpuCmdZMode cmd = {
+		.opcode = gpuZMODE,
+		.mode = gpu_z_off,
+	};
+	gpuZMode needed = gpu_z_off;
+	if (depth_test()) {
+		switch (gli_depth_func) {
+			case GL_NEVER:
+			case GL_ALWAYS:
+				needed = gpu_z_off;
+				break;
+			case GL_LESS:
+				needed = gpu_z_lt;
+				break;
+			case GL_EQUAL:
+				needed = gpu_z_eq;
+				break;
+			case GL_LEQUAL:
+				needed = gpu_z_lte;
+				break;
+			case GL_GREATER:
+				needed = gpu_z_gt;
+				break;
+			case GL_NOTEQUAL:
+				needed = gpu_z_ne;
+				break;
+			case GL_GEQUAL:
+				needed = gpu_z_gte;
+				break;
+		}
+	}
+	if (needed != cmd.mode) {
+		cmd.mode = needed;
+		gpuErr const err = gpuWrite(&cmd, sizeof(cmd), true);
+		assert(gpuOK == err);
+	}
+}
+
+static void facet_complete(unsigned size, bool facet_is_inverted, unsigned colorer_idx)
+{
+	// FIXME: most of these setting shoulb be done in cmd_prepare and not for each facet
+	// Set cull_mode
+	cmdFacet.cull_mode = 0;
+#	define VIEWPORT_IS_INVERTED false
+	bool front_is_cw = gli_front_faces_are_cw() ^ facet_is_inverted ^ VIEWPORT_IS_INVERTED;
+	if (! gli_must_render_face(GL_FRONT)) cmdFacet.cull_mode |= 1<<(!front_is_cw);
+	if (! gli_must_render_face(GL_BACK)) cmdFacet.cull_mode |= 2>>(!front_is_cw);
+	if (cmdFacet.cull_mode == 3) return;
+	cmdFacet.size = size;
+	cmdFacet.use_intens = 0;
+	// Set facet rendering type and color if needed
+	if (gli_texturing()) {
+		set_current_texture();
+		cmdFacet.rendering_type = rendering_text;
+		if (gli_enabled(GL_LIGHTING)) {
+			cmdFacet.use_intens = 1;
+			if (! gli_smooth()) {	// intens was not set
+				int32_t lum = get_luminosity(colorer_idx);
+				for (unsigned v=0; v<size; v++) {
+					cmdVec[v].u.text_params.i_zb = lum;
+				}
+			}
+		} else {
+			cmdFacet.use_intens = 0;
+		}
+		// Scale UV coord to actual texture sizes
+		struct gli_texture_object *to = gli_get_texture_object();
+		for (unsigned v=0; v<size; v++) {
+			cmdVec[v].u.text_params.u <<= to->mipmaps[0].width_log;
+			cmdVec[v].u.text_params.v <<= to->mipmaps[0].height_log;
+		}
+	} else if (gli_smooth && gli_enabled(GL_LIGHTING)) {
+		if (gli_simple_lighting()) {	// or if we use texture...
+			GLfixed c[4];
+			get_material_color(c);
+			cmdFacet.color = color_GL2gpu(c);
+			cmdFacet.rendering_type = rendering_flat;
+			cmdFacet.use_intens = 1;
+		} else {
+			cmdFacet.rendering_type = rendering_smooth;
+		}
+	} else {
+		GLfixed const *c = get_color(colorer_idx);
+		cmdFacet.color = color_GL2gpu(c);
+		cmdFacet.rendering_type = rendering_flat;
+	}
+	// Optionnaly ask for z-buffer
+	set_depth_mode();
+	cmdFacet.write_out = gli_color_mask_all && (!depth_test() || gli_depth_func != GL_NEVER);
+	cmdFacet.write_z = depth_test() && gli_depth_mask;
+	// Send to GPU
+	gpuErr const err = gpuWritev(iov_poly, 1+size, true);
+	assert(gpuOK == err);
 }
 
 /*
@@ -231,9 +342,9 @@ void gli_cmd_vertex(int32_t const x, int32_t const y, int32_t const z, int32_t c
 		cmdVec[vec_idx].u.text_params.v = gli_current_texcoord[1];
 		z_param = 2;
 		// then, if some lighting is on, add intens.
-		if (1 /*FIXME gli_lighting*/) {
+		if (gli_enabled(GL_LIGHTING)) {
 			if (gli_smooth()) {
-				cmdVec[vec_idx].u.text_params.i_zb = get_luminosity();
+				cmdVec[vec_idx].u.text_params.i_zb = get_luminosity(vec_idx);
 			}
 			// else intens will be set later
 			// gpu940 can not uniformly lighten a texture (no flat intens), so
@@ -241,12 +352,12 @@ void gli_cmd_vertex(int32_t const x, int32_t const y, int32_t const z, int32_t c
 			// which intens to use for now, so it must be added later in cmd_complete.
 			z_param ++;
 		}
-	} else if (gli_smooth() /*FIXME and gli_lighting*/) {
+	} else if (gli_smooth() && gli_enabled(GL_LIGHTING)) {
 		if (gli_simple_lighting()) {
-			cmdVec[vec_idx].u.flat_params.i_zb = get_luminosity();
+			cmdVec[vec_idx].u.flat_params.i_zb = get_luminosity(vec_idx);
 			z_param ++;
 		} else {
-			GLfixed const *c = get_color();
+			GLfixed const *c = get_color(vec_idx);
 			cmdVec[vec_idx].u.smooth_params.r = Fix_gpuColor1(c[0], c[1], c[2]);
 			cmdVec[vec_idx].u.smooth_params.g = Fix_gpuColor2(c[0], c[1], c[2]);
 			cmdVec[vec_idx].u.smooth_params.b = Fix_gpuColor3(c[0], c[1], c[2]);
@@ -258,7 +369,7 @@ void gli_cmd_vertex(int32_t const x, int32_t const y, int32_t const z, int32_t c
 	}
 	// Add zb parameter if needed
 	if (depth_test()) {
-		cmdVec[vec_idx].u.geom.param[z_param] = get_vertex_depth();
+		cmdVec[vec_idx].u.geom.param[z_param] = get_vertex_depth(vec_idx);
 	}
 	count ++;
 	switch (mode) {
@@ -274,10 +385,10 @@ void gli_cmd_vertex(int32_t const x, int32_t const y, int32_t const z, int32_t c
 			if (count < 3) {
 				vec_idx ++;
 			} else if (count == 3) {
-				triangle_complete(false, vec_idx);
+				facet_complete(3, false, vec_idx);
 				vec_idx = 0;
 			} else {	// each new vertex gives a new triangle
-				triangle_complete(! (count & 1), vec_idx);
+				facet_complete(3, ! (count & 1), vec_idx);
 				vec_idx = vec_idx+1;
 				if (vec_idx >= 3) vec_idx = 0;
 			}
@@ -286,17 +397,17 @@ void gli_cmd_vertex(int32_t const x, int32_t const y, int32_t const z, int32_t c
 			if (count < 3) {
 				vec_idx ++;
 			} else if (count == 3) {
-				triangle_complete(false, vec_idx);
+				facet_complete(3, false, vec_idx);
 				vec_idx = 1;
 			} else {	// each new vertex gives a new triangle
-				triangle_complete(! (count & 1), vec_idx);
+				facet_complete(3, ! (count & 1), vec_idx);
 				vec_idx = vec_idx+1;
 				if (vec_idx >= 3) vec_idx = 1;
 			}
 			break;
 		case GL_TRIANGLES:
 			if (vec_idx == 2) {
-				triangle_complete(false, 0);
+				facet_complete(3, false, 0);
 				vec_idx = 0;
 			} else {
 				vec_idx ++;
@@ -310,11 +421,11 @@ void gli_cmd_vertex(int32_t const x, int32_t const y, int32_t const z, int32_t c
 			} else if (count == 3) {
 				vec_idx = 2;
 			} else if (count == 4) {
-				quad_complete(false, vec_idx);
+				facet_complete(4, false, vec_idx);
 				vec_idx = 0;
 			} else {
 				if (! (count & 1)) {
-					quad_complete(! (count & 2), vec_idx);
+					facet_complete(4, ! (count & 2), vec_idx);
 					vec_idx = (vec_idx + 2) & 3;
 				} else {
 					if (vec_idx == 0) vec_idx = 1;
@@ -324,7 +435,7 @@ void gli_cmd_vertex(int32_t const x, int32_t const y, int32_t const z, int32_t c
 			break;
 		case GL_QUADS:
 			if (vec_idx == 3) {
-				quad_complete(false, 0);
+				facet_complete(4, false, 0);
 				vec_idx = 0;
 			} else {
 				vec_idx ++;
