@@ -85,6 +85,9 @@ static inline int32_t Fix_mul(int32_t a, int32_t b) {
 static inline int32_t Fix_div(int32_t a, int32_t b) {
 	return (((int64_t)a)<<16)/b;
 }
+static inline uint32_t Fix_square(int32_t a) {
+	return ((int64_t)a*a)>>16;	// TODO: probably no need for int64_t here
+}
 
 void Fix_proj(int32_t c2d[2], int32_t const c3d[3], int dproj);
 
