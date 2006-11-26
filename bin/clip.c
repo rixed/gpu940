@@ -137,7 +137,7 @@ static void proj_given(unsigned v)
 			ctx.points.vectors[v].c2d[1] = Fix_mul(y<<dproj, inv_z) + (ctx.view.winHeight<<15);
 			if ((uint32_t)ctx.points.vectors[v].c2d[1] < (uint32_t)ctx.view.winHeight<<16) {
 				ctx.points.vectors[v].clipped = 0;
-				//ctx.points.vectors[v].proj = 1;	FIXME: shouldn't we ?
+				ctx.points.vectors[v].proj = 1;
 			}
 		}
 	}
@@ -267,7 +267,7 @@ int clip_poly(void)
 	v = ctx.points.first_vector;
 	do {
 		new_size ++;
-		if (v >= ctx.poly.cmd->size || (have_user_clipPlanes() && !ctx.points.vectors[v].proj)) {
+		if (! ctx.points.vectors[v].proj) {
 			proj_new_vec(v);
 		}
 		v = ctx.points.vectors[v].next;
