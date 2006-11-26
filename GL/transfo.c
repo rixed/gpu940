@@ -235,7 +235,7 @@ void glLoadMatrixx(GLfixed const *m)
 {
 	struct matrix_stack *const ms = get_ms(matrix_mode);
 	GLfixed (*const mat)[16] = ms->mat + ms->top;
-	memcpy(mat, m, sizeof(mat));
+	memcpy(mat, m, sizeof(*mat));
 }
 
 void glLoadIdentity(void)
