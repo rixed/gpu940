@@ -1,3 +1,8 @@
+* GL projection : modifier les paramètres de projection/viewport pour les
+mettre en conformité avec openGl et s'en servir dans racetest.
+* Ajouter une fonction qui teste si une sphere englobante est dans le frustum,
+et s'en servir dans race_test pour les facette d'un LOD donné.
+
 * Réécrire les array en terme de Begin/End.
 * Optimiser.
 * Optimiser encore.
