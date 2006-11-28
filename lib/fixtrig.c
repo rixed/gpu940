@@ -48,7 +48,7 @@ int32_t Fix_cos(int32_t ang) {
 	return sincos[ang&(NB_STEPS-1)];
 }
 int32_t Fix_sin(int32_t ang) {
-	return sincos[NB_STEPS/4 + (ang&(NB_STEPS-1))];
+	return -sincos[NB_STEPS/4 + (ang&(NB_STEPS-1))];
 }
 
 
