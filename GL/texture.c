@@ -230,9 +230,9 @@ void glTexSubImage2D_nocheck(struct gli_texture_object *to, GLint level, GLint x
 	struct pixel_reader reader;
 	pixel_reader_ctor(&reader, format, type, pixels);
 	for (
-		unsigned y = ((1<<to->mipmaps[level].height_log) - yoffset - 1) << to->mipmaps[level].width_log;
+		unsigned y = yoffset << to->mipmaps[level].width_log;
 		height > 0;
-		height--, y -= 1 << to->mipmaps[level].width_log
+		height--, y += 1 << to->mipmaps[level].width_log
 	) {
 		for (int x=xoffset; x < xoffset+width; x++) {
 			pixel_read_next(&reader);
