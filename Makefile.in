@@ -610,7 +610,7 @@ uninstall-info: uninstall-info-recursive
 
 
 cscope:
-	cscope -Rb -I$(topsrc)/include -Ilib -Ibin
+	cscope -Rb -I$(topsrc)/include -Ilib -Ibin -IGL
 
 dumpcodegen:
 	@for i in /tmp/codegen_*; do \
