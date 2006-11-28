@@ -13,3 +13,5 @@ state.lo
 texture.lo
 transfo.lo
 triangle.lo
+begend.lo
+cmd.lo
