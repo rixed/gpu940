@@ -35,8 +35,8 @@ static GLfixed const gli_matrix_id[16] = {
 };
 static GLfixed depth_range_near;
 static GLfixed depth_range_far;
-static GLint view_port_x, view_port_y;
-static GLsizei view_port_width, view_port_height;
+GLint gli_viewport_x, gli_viewport_y;
+GLsizei gli_viewport_width, gli_viewport_height;
 
 /*
  * Private Functions
@@ -110,32 +110,34 @@ static void frustum_ortho(int frustrum, GLfixed left, GLfixed right, GLfixed bot
 	int32_t rli = Fix_inv(right-left);
 	int32_t tbi = Fix_inv(top-bottom);
 	int32_t fni = Fix_inv(far-near);
-	mat[0] = Fix_mul(0x20000, rli);
 	mat[1] = 0;
 	mat[2] = 0;
 	mat[3] = 0;
 	mat[4] = 0;
-	mat[5] = Fix_mul(0x20000, tbi);
 	mat[6] = 0;
 	mat[7] = 0;
 	if (frustrum) {
-		mat[8] = -Fix_mul(right+left, rli);
-		mat[9] = -Fix_mul(top+bottom, tbi);
+		mat[0] = Fix_mul(near, rli) << 1;
+		mat[5] = Fix_mul(near, tbi) << 1;
+		mat[8] = Fix_mul(right+left, rli);
+		mat[9] = Fix_mul(top+bottom, tbi);
 		mat[10] = -Fix_mul(far+near, fni);
-		mat[11] = -0x10000;
+		mat[11] = -1 << 16;
 		mat[12] = 0;
 		mat[13] = 0;
 		mat[14] = -Fix_mul( Fix_mul(far, near), fni>>1);
 		mat[15] = 0;
 	} else {	// ortho
+		mat[0] = rli << 1;
+		mat[5] = tbi << 1;
 		mat[8] = 0;
 		mat[9] = 0;
-		mat[10] = -Fix_mul(0x20000, fni);
+		mat[10] = -fni << 1;
 		mat[11] = 0;
 		mat[12] = -Fix_mul(right+left, rli);
 		mat[13] = -Fix_mul(top+bottom, tbi);
 		mat[14] = -Fix_mul(far+near, fni);
-		mat[15] = 0x10000;
+		mat[15] = 1 << 16;
 	}
 	mult_matrix(mat);
 }
@@ -167,10 +169,10 @@ int gli_transfo_begin(void)
 	matrix_mode = GL_MODELVIEW;
 	depth_range_near = 0;
 	depth_range_far = 0x10000;
-	view_port_x = 0;
-	view_port_y = 0;
-	view_port_width = SCREEN_WIDTH;
-	view_port_height = SCREEN_HEIGHT;
+	gli_viewport_x = 0;
+	gli_viewport_y = 0;
+	gli_viewport_width = SCREEN_WIDTH;
+	gli_viewport_height = SCREEN_HEIGHT;
 	Fix_trig_init();
 	return 0;
 }
@@ -333,9 +335,9 @@ void glViewport(GLint x, GLint y, GLsizei width, GLsizei height)
 	}
 	if (width >= SCREEN_WIDTH) width = SCREEN_WIDTH;
 	if (height >= SCREEN_HEIGHT) height = SCREEN_HEIGHT;
-	view_port_x = x;
-	view_port_y = y;
-	view_port_width = width;
-	view_port_height = height;
+	gli_viewport_x = x;
+	gli_viewport_y = y;
+	gli_viewport_width = width;
+	gli_viewport_height = height;
 }
 

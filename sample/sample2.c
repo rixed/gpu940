@@ -197,12 +197,12 @@ int main(void) {
 				{ ((int64_t)s1*c2)>>16, -s2, ((int64_t)c1*c2)>>16 },
 			},
 			.ab = { (c1*(int64_t)(((int64_t)s1*s2)>>16))>>16, 0, (-s1*(((int64_t)c1*s2)>>16))>>16 },
-			.trans = { 0, 0, -LEN/10, },
+			.trans = { 0, 0, LEN/10, },
 		};
 		// rotate all vecs
 		for (unsigned v=0; v<sizeof_array(vectors); v++) {
 			FixMat_x_Vec(vectors[v].u.geom.c3d, &mat, vec3d+v, true);
-			vectors[v].u.text_params.i_zb = -(vectors[v].u.geom.c3d[2]-mat.trans[2]);
+			vectors[v].u.text_params.i_zb = vectors[v].u.geom.c3d[2]-mat.trans[2];
 		}
 		struct gpuBuf *outBuf;
 		gpuErr err;

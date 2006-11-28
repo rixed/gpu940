@@ -119,7 +119,7 @@ static struct {
 	int32_t acc_pos[3], acc_lookat[3], acc_Xy;
 } camera = {
 	.transf = {
-		.rot = { { 1<<16,0,0 }, { 0,1<<16,0 }, { 0,0,1<<16 } },
+		.rot = { { 1<<16,0,0 }, { 0,-1<<16,0 }, { 0,0,-1<<16 } },
 		.ab = { 0, 0, 0 },
 		.trans = { 0, 0, 0 },
 	},
@@ -154,7 +154,7 @@ static void camera_move() {
 	normalize(&lookat[0], &lookat[1], &lookat[2]);
 	for (unsigned c=3; c--; ) {
 		closer_coord(&camera.pos[c], camera.target->pos[c], camera.target->nb_steps, &camera.acc_pos[c]);
-		closer_coord(&camera.transf.rot[c][2], -lookat[c], camera.target->nb_steps, &camera.acc_lookat[c]);	// Z must points the other way round
+		closer_coord(&camera.transf.rot[c][2], lookat[c], camera.target->nb_steps, &camera.acc_lookat[c]);
 	}
 	closer_coord(&camera.transf.rot[1][0], camera.target->Xy, camera.target->nb_steps, &camera.acc_Xy);
 	// renormalize Z
@@ -236,35 +236,35 @@ static struct {
 };
 static int32_t uvs[6][4][2] = {
 	{	// facet 0
-		{   0<<16,   0<<16 },
-		{ 256<<16,   0<<16 },
+		{   0<<16, 256<<16 },
 		{ 256<<16, 256<<16 },
-		{   0<<16, 256<<16 }
+		{ 256<<16,   0<<16 },
+		{   0<<16,   0<<16 }
 	}, {	// facet 1
-		{   0<<16,   0<<16 },
-		{ 256<<16,   0<<16 },
+		{   0<<16, 256<<16 },
 		{ 256<<16, 256<<16 },
-		{   0<<16, 256<<16 }
+		{ 256<<16,   0<<16 },
+		{   0<<16,   0<<16 }
 	}, {	// facet 2
-		{   0<<16,   0<<16 },
-		{ 256<<16,   0<<16 },
+		{   0<<16, 256<<16 },
 		{ 256<<16, 256<<16 },
-		{   0<<16, 256<<16 }
+		{ 256<<16,   0<<16 },
+		{   0<<16,   0<<16 }
 	}, {	// facet 3
-		{   0<<16,   0<<16 },
-		{ 256<<16,   0<<16 },
+		{   0<<16, 256<<16 },
 		{ 256<<16, 256<<16 },
-		{   0<<16, 256<<16 }
+		{ 256<<16,   0<<16 },
+		{   0<<16,   0<<16 }
 	}, {	// facet 4
-		{   0<<16,   0<<16 },
-		{ 512<<16,   0<<16 },
+		{   0<<16, 512<<16 },
 		{ 512<<16, 512<<16 },
-		{   0<<16, 512<<16 }
+		{ 512<<16,   0<<16 },
+		{   0<<16,   0<<16 }
 	}, {	// facet 5
-		{   0<<16,   0<<16 },
-		{ 256<<16,   0<<16 },
+		{   0<<16, 256<<16 },
 		{ 256<<16, 256<<16 },
-		{   0<<16, 256<<16 }
+		{ 256<<16,   0<<16 },
+		{   0<<16,   0<<16 }
 	}
 };
 static int facet_intens[6] = { 1,1,1,1,1,1 };
@@ -282,11 +282,11 @@ static void draw_facet(unsigned f, bool ext, int32_t i_dec) {
 		}
 		cmdVec[v].u.text_params.u = uvs[f][v][0];
 		cmdVec[v].u.text_params.v = uvs[f][v][1];
-		cmdVec[v].u.text_params.i_zb = (i_dec+c3d[ cube_facet[f][v] ][2])<<6;
+		cmdVec[v].u.text_params.i_zb = (i_dec-c3d[ cube_facet[f][v] ][2])<<6;
 	}
 	Fix_normalize(normal);
 	int64_t scal = Fix_scalar(normal, c3d[ cube_facet[f][0] ]);
-	// is the facet backward ?
+	// is the facet backward ? FIXME: use cull_mode
 	if (ext && scal > 0) return;
 	if (!ext && scal < 0) return;
 	if (gpuOK != gpuSetBuf(gpuTxtBuffer, facet_text[f], true)) {
@@ -380,17 +380,17 @@ static struct target targets_scene1[] = {
 		.Xy = 10000,
 		.nb_steps = 100,
 	}, {
-		.pos = { 0, 0, (-3*LEN<<16) },	// third facet (greetz)
+		.pos = { 0, 0, -3*LEN<<16 },	// third facet (greetz)
 		.lookat = { 0, 0, 0 },
 		.Xy = 0,
 		.nb_steps = 70,
 	}, {
-		.pos = { 1*LEN<<16, 10000, (-3*LEN<<16) },
+		.pos = { 1*LEN<<16, 10000, -3*LEN<<16 },
 		.lookat = { 0, 0, -LEN<<16 },
 		.Xy = 30000,
 		.nb_steps = 100,
 	}, {
-		.pos = { -1*LEN<<16, -10000, (-3*LEN<<16) },
+		.pos = { -1*LEN<<16, -10000, -3*LEN<<16 },
 		.lookat = { 0, 0, -LEN<<16 },
 		.Xy = -30000,
 		.nb_steps = 100,
@@ -702,10 +702,10 @@ static void locate_pic(FixVec *pic_vec, int32_t ang1, int32_t ang2) {
 	int32_t s2 = Fix_sin(ang2);
 #	define R 60000
 	static FixVec vec[4] = {
-		{ .c = { -1<<15, -1<<15, -R }, .xy =  1<<14 },
-		{ .c = {  1<<15, -1<<15, -R }, .xy = -1<<14 },
-		{ .c = {  1<<15,  1<<15, -R }, .xy =  1<<14 },
-		{ .c = { -1<<15,  1<<15, -R }, .xy = -1<<14 }
+		{ .c = { -1<<15, -1<<15, R }, .xy =  1<<14 },
+		{ .c = {  1<<15, -1<<15, R }, .xy = -1<<14 },
+		{ .c = {  1<<15,  1<<15, R }, .xy =  1<<14 },
+		{ .c = { -1<<15,  1<<15, R }, .xy = -1<<14 }
 	};
 	FixMat m = {
 		.rot = {
@@ -768,9 +768,9 @@ static void transf_draw_pic(struct gpuBuf *pic_txt, FixVec *pic_vec, enum draw_w
 		pic_facet.blend_coef = 8;
 		pic_facet.perspective = 0;
 		int32_t L[3] = {
-			camera.pos[0] + camera.transf.rot[0][2] + camera.transf.rot[0][1],
-			camera.pos[1] + camera.transf.rot[1][2] + camera.transf.rot[1][1],
-			camera.pos[2] + camera.transf.rot[2][2] + camera.transf.rot[2][1]
+			camera.pos[0] - camera.transf.rot[0][2] + camera.transf.rot[0][1],
+			camera.pos[1] - camera.transf.rot[1][2] + camera.transf.rot[1][1],
+			camera.pos[2] - camera.transf.rot[2][2] + camera.transf.rot[2][1]
 		};
 		static gpuCmdSetUserClipPlanes setCpCmd = {
 			.opcode = gpuSETUSRCLIPPLANES,

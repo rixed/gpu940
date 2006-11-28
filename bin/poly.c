@@ -31,7 +31,7 @@
  * Private Functions
  */
 
-// buffers are so lower coords have lower addresses. direct coord system was just a convention, right ?
+// buffers are so lower coords have lower addresses.
 static void draw_line(void) {
 	int32_t const c_start = ctx.trap.side[ctx.trap.left_side].c >> 16;
 	ctx.line.count = (ctx.trap.side[!ctx.trap.left_side].c >> 16) - c_start;
@@ -186,13 +186,13 @@ void draw_poly_persp(void) {
 	c_vec = b_vec = ctx.points.first_vector;
 	// compute decliveness (2 DIVs)
 	// FIXME: with clipping, A can get very close from B or C.
-	// we want b = zmin, c = zmax (closer)
+	// we want b = zmax, c = zmin (closer)
 	unsigned v = ctx.points.first_vector;
 	do {
-		if (ctx.points.vectors[v].cmd->u.geom.c3d[2] < ctx.points.vectors[b_vec].cmd->u.geom.c3d[2]) {
+		if (ctx.points.vectors[v].cmd->u.geom.c3d[2] > ctx.points.vectors[b_vec].cmd->u.geom.c3d[2]) {
 			b_vec = v;
 		}
-		if (ctx.points.vectors[v].cmd->u.geom.c3d[2] >= ctx.points.vectors[c_vec].cmd->u.geom.c3d[2]) {
+		if (ctx.points.vectors[v].cmd->u.geom.c3d[2] <= ctx.points.vectors[c_vec].cmd->u.geom.c3d[2]) {
 			c_vec = v;
 		}
 		v = ctx.points.vectors[v].next;
@@ -228,7 +228,7 @@ void draw_poly_persp(void) {
 		ctx.points.vectors[v].nc_declived = ctx.points.vectors[v].c2d[!ctx.poly.scan_dir] - Fix_mul(ctx.poly.decliveness, ctx.points.vectors[v].c2d[ctx.poly.scan_dir]);
 		v = ctx.points.vectors[v].next;
 	} while (v != ctx.points.first_vector);
-	// init trapeze. start at Z min (or nc_decliv min if !dz)
+	// init trapeze. start at Z min (closer) (or nc_decliv min if !dz)
 	int32_t dz = ctx.points.vectors[b_vec].cmd->u.geom.c3d[2] - ctx.points.vectors[c_vec].cmd->u.geom.c3d[2];
 	if (0 == dz) {	// if dz is 0, b_vec and c_vec are random or not set yet, and so would be dnc
 		unsigned v = ctx.points.first_vector;

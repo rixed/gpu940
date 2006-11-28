@@ -129,9 +129,9 @@ static void proj_given(unsigned v)
 	int32_t const y = ctx.points.vectors[v].cmd->u.geom.c3d[1];
 	int32_t const z = ctx.points.vectors[v].cmd->u.geom.c3d[2];
 	ctx.points.vectors[v].clipped = 1;
-	if (z < ctx.view.clipPlanes[0].origin[2]) {
+	if (z > ctx.view.clipPlanes[0].origin[2]) {
 		int32_t const dproj = ctx.view.dproj;
-		int32_t inv_z = Fix_inv(-z);
+		int32_t inv_z = Fix_inv(z);
 		ctx.points.vectors[v].c2d[0] = Fix_mul(x<<dproj, inv_z) + (ctx.view.winWidth<<15);
 		if ((uint32_t)ctx.points.vectors[v].c2d[0] < (uint32_t)ctx.view.winWidth<<16) {
 			ctx.points.vectors[v].c2d[1] = Fix_mul(y<<dproj, inv_z) + (ctx.view.winHeight<<15);
@@ -168,7 +168,7 @@ static void proj_new_vec(unsigned v)
 	int32_t const z = ctx.points.vectors[v].cmd->u.geom.c3d[2];
 	int32_t const dproj = ctx.view.dproj;
 	int32_t c2d;
-	int32_t inv_z = Fix_inv(-z);
+	int32_t inv_z = Fix_inv(z);
 	switch (ctx.points.vectors[v].clipFlag & 0xa) {
 		case 0x2:	// right
 			c2d = ctx.view.clipMax[0]<<16;
@@ -336,7 +336,7 @@ int cull_poly(void)
 	if (a == 0) {
 		goto cull_end;
 	}
-	ret = (a > 0 && ctx.poly.cmd->cull_mode == 2) || (a < 0 && ctx.poly.cmd->cull_mode == 1);
+	ret = (a > 0 && ctx.poly.cmd->cull_mode == GPU_CW) || (a < 0 && ctx.poly.cmd->cull_mode == GPU_CCW);
 cull_end:
 	perftime_enter(previous_target, NULL);
 	return ret;

@@ -120,7 +120,7 @@ int main(void) {
 				{ ((int64_t)s1*c2)>>16, -s2, ((int64_t)c1*c2)>>16 },
 			},
 			.ab = { (c1*(int64_t)(((int64_t)s1*s2)>>16))>>16, 0, (-s1*(((int64_t)c1*s2)>>16))>>16 },
-			.trans = { 0, 0, -2*LEN, },
+			.trans = { 0, 0, 2*LEN, },
 		};
 		// rotate
 		for (unsigned v=0; v<sizeof_array(vec3d); v++) {

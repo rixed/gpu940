@@ -218,7 +218,6 @@ static void init(void)
 	glEnable(GL_LIGHT0);
 	glEnable(GL_DEPTH_TEST);
 	glEnable(GL_NORMALIZE);
-	glEnableClientState(GL_VERTEX_ARRAY);
 	
 }
 
@@ -234,14 +233,14 @@ static void make_window(void)
 		exit(1);
 	}
 //	GLfloat h = (GLfloat) height / (GLfloat) width;
-//	glViewport(0, 0, (GLint) width, (GLint) height);
-//	glMatrixMode(GL_PROJECTION);
-//	glLoadIdentity();
-//	glFrustum(-1.0, 1.0, -h, h, 5.0, 60.0);
+	glViewport(0, 0, (GLint) 320, (GLint) 240);
+	glMatrixMode(GL_PROJECTION);
+	glLoadIdentity();
+	glFrustumx(-1<<16, 1<<16, -(240<<16)/320, (240<<16)/320, 5<<16, 60<<16);
 
 	glMatrixMode(GL_MODELVIEW);
 	glLoadIdentity();
-	glTranslatex(0, 0, -14<<16); //-40<<16);
+	glTranslatex(0, 0, -40<<16);
 }
 
 static void destroy_window(void)

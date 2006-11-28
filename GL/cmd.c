@@ -98,7 +98,7 @@ static int32_t get_luminosity(unsigned vidx)
 		//GLfixed scli = gli_light_specular(l);
 	}
 	// lum is a scale factor to be applied to acm. We change this to a signed value to be added.
-	return (lum - (1<<16))<<6;	// this gives good result
+	return (lum - (1<<15))<<6;	// this gives good result
 }
 
 // Returns the color contribution of the material, which is constant for all
@@ -160,11 +160,6 @@ static GLfixed const *get_color(unsigned vidx)
 	get_material_color(cpri);
 	add_vertex_color(cpri, vidx);
 	return cpri;
-}
-
-static int32_t get_vertex_depth(unsigned vidx)
-{
-	return -cmdVec[vidx].u.geom.c3d[2];	// we don't use depth range here, so for us depth = -z
 }
 
 static bool depth_test(void)
@@ -263,7 +258,7 @@ static void facet_complete(unsigned size, bool facet_is_inverted, unsigned color
 	// FIXME: most of these setting shoulb be done in cmd_prepare and not for each facet
 	// Set cull_mode
 	cmdFacet.cull_mode = 0;
-#	define VIEWPORT_IS_INVERTED false
+#	define VIEWPORT_IS_INVERTED true
 	bool front_is_cw = gli_front_faces_are_cw() ^ facet_is_inverted ^ VIEWPORT_IS_INVERTED;
 	if (! gli_must_render_face(GL_FRONT)) cmdFacet.cull_mode |= 1<<(!front_is_cw);
 	if (! gli_must_render_face(GL_BACK)) cmdFacet.cull_mode |= 2>>(!front_is_cw);
@@ -332,8 +327,14 @@ void gli_cmd_prepare(enum gli_DrawMode mode_)
 
 void gli_cmd_vertex(int32_t const *v)
 {
-	gli_multmatrix(GL_MODELVIEW, cmdVec[vec_idx].u.geom.c3d, v);
-	cmdVec[vec_idx].same_as = 0;	// by default (TODO: change it later)
+	// TODO : precalc P*M
+	int32_t eye_coords[4], clip_coords[4];
+	gli_multmatrix(GL_MODELVIEW, eye_coords, v);
+	gli_multmatrix(GL_PROJECTION, clip_coords, eye_coords);
+	cmdVec[vec_idx].u.geom.c3d[0] = (clip_coords[0] * gli_viewport_width/2) >> 8;	// FIXME: set dproj = 1
+	cmdVec[vec_idx].u.geom.c3d[1] = -(clip_coords[1] * gli_viewport_height/2) >> 8;	// gpu940 uses Y toward bottom
+	cmdVec[vec_idx].u.geom.c3d[2] = clip_coords[3];	// we use W as Z for gpu940 (which then must use Z toward depths)
+	cmdVec[vec_idx].same_as = 0;
 	unsigned z_param = 0;
 	if (gli_texturing()) {
 		// first, set U and V
@@ -368,7 +369,7 @@ void gli_cmd_vertex(int32_t const *v)
 	}
 	// Add zb parameter if needed
 	if (depth_test()) {
-		cmdVec[vec_idx].u.geom.param[z_param] = get_vertex_depth(vec_idx);
+		cmdVec[vec_idx].u.geom.param[z_param] = clip_coords[2];	// TODO: apply perspective div and viewport transform ?
 	}
 	count ++;
 	switch (mode) {

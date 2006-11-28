@@ -31,7 +31,7 @@
  * Private Functions
  */
 
-// buffers are so lower coords have lower addresses. direct coord system was just a convention, right ?
+// buffers are so lower coords have lower addresses.
 static void draw_line(void)
 {
 	int32_t const c_start = ctx.trap.side[ctx.trap.left_side].c >> 16;
