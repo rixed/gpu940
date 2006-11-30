@@ -35,12 +35,14 @@ extern FixMat const matrix_id;
 
 void FixMat_x_Vec(int32_t dest[3], FixMat const *mat, FixVec const *src, bool translate);
 void FixMatT_x_Vec(int32_t dest[3], FixMat const *mat, int32_t const src[3], bool translate);
-static inline int64_t Fix_scalar(int32_t v1[3], int32_t v2[3]) {
+#define Fix_inner_product Fix_scalar
+static inline int64_t Fix_scalar(int32_t const v1[3], int32_t const v2[3]) {
 	int64_t res = (int64_t)v1[0]*v2[0] + (int64_t)v1[1]*v2[1] + (int64_t)v1[2]*v2[2];
 	return res>>16;
 }
 int32_t Fix_norm(int32_t v[3]);
 void Fix_normalize(int32_t v[3]);
+void Fix_outer_product(int32_t dest[3], int32_t const a[3], int32_t const b[3]);
 
 static inline bool Fix_same_sign(int32_t v0, int32_t v1) {
 	if (v0 == 0 || v1 == 0) return 1;	// 0 have both signs
@@ -86,7 +88,7 @@ static inline int32_t Fix_div(int32_t a, int32_t b) {
 	return (((int64_t)a)<<16)/b;
 }
 static inline uint32_t Fix_square(int32_t a) {
-	return ((int64_t)a*a)>>16;	// TODO: probably no need for int64_t here
+	return ((int64_t)a*a)>>16;	// TODO: probably no need for an int64_t here
 }
 
 void Fix_proj(int32_t c2d[2], int32_t const c3d[3], int dproj);

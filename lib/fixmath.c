@@ -62,7 +62,7 @@ void FixMatT_x_Vec(int32_t dest[3], FixMat const *mat, int32_t const src[3], boo
 	}
 }
  
-extern inline int64_t Fix_scalar(int32_t v1[3], int32_t v2[3]);
+extern inline int64_t Fix_scalar(int32_t const v1[3], int32_t const v2[3]);
 extern inline bool Fix_same_sign(int32_t v0, int32_t v1);
 extern inline int32_t Fix_abs(int32_t v);
 extern inline int64_t Fix_abs64(int64_t v);
@@ -91,6 +91,13 @@ void Fix_normalize(int32_t v[3])
 		for (unsigned c=3; c--; ) {
 			v[c] = ((int64_t)v[c]<<16)/norm;
 		}
+	}
+}
+
+void Fix_outer_product(int32_t dest[3], int32_t const a[3], int32_t const b[3])
+{
+	for (unsigned c=3; c--; ) {
+		dest[c] = Fix_mul(a[(c+1)%3], b[(c+2)%3]) - Fix_mul(a[(c+2)%3], b[(c+1)%3]);
 	}
 }
 
