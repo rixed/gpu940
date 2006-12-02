@@ -657,6 +657,7 @@ int main(void)
 	if (0 != SDL_Init(SDL_INIT_VIDEO)) return EXIT_FAILURE;
 	sdl_screen = SDL_SetVideoMode(SCREEN_WIDTH, SCREEN_HEIGHT, 32, SDL_SWSURFACE);
 	if (! sdl_screen) return EXIT_FAILURE;
+	SDL_WM_SetCaption("gpu940", NULL);
 	// use itimer for simulation of vertical interrupt
 	if (0 != sigaction(SIGALRM, &(struct sigaction){ .sa_handler = alrm_handler }, NULL)) {
 		perror("sigaction");
