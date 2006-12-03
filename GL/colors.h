@@ -32,6 +32,10 @@ struct gli_material {
 	bool is_simple;
 };
 
+extern GLfixed gli_current_color[4];
+extern GLfixed gli_current_normal[3];
+extern GLfixed gli_current_texcoord[4];
+
 int gli_colors_begin(void);
 static inline void gli_colors_end(void) { }
 void gli_light_enable(unsigned l);

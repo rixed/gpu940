@@ -98,7 +98,7 @@ static int32_t get_luminosity(GLfixed v_eye[4])
 		//GLfixed scli = gli_light_specular(l);
 	}
 	// lum is a scale factor to be applied to acm. We change this to a signed value to be added.
-	return (lum - (1<<15))<<6;	// this gives good result
+	return (lum - (1<<15))<<7;	// this gives good result
 }
 
 // Returns the color contribution of the material, which is constant for all
@@ -185,10 +185,9 @@ static void point_complete(void)
 	assert(gpuOK == err);
 }
 
-static void set_current_texture(void)
+static void set_current_texture(struct gli_texture_object *to)
 {
 	gpuErr err;
-	struct gli_texture_object *to = gli_get_texture_object();
 	assert(to->has_data && to->was_bound);
 	// if its not resident, load it.
 	if (! to->is_resident) {
@@ -201,7 +200,6 @@ static void set_current_texture(void)
 		to->is_resident = true;
 	}
 	// then, compare with actual tex buffer. if not the same, send SetBuf cmd.
-	// FIXME
 	static uint32_t last_address = 0, last_width;
 	struct buffer_loc const *loc = gpuBuf_get_loc(to->img_res);
 	if (loc->address != last_address || loc->width_log != last_width) {
@@ -265,10 +263,16 @@ static void facet_complete(unsigned size, bool facet_is_inverted, GLfixed colore
 	if (cmdFacet.cull_mode == 3) return;
 	cmdFacet.size = size;
 	cmdFacet.use_intens = 0;
+	cmdFacet.use_key = 0;
 	// Set facet rendering type and color if needed
 	if (gli_texturing()) {
-		set_current_texture();
+		struct gli_texture_object *to = gli_get_texture_object();
+		set_current_texture(to);
 		cmdFacet.rendering_type = rendering_text;
+		if (to->need_key) {
+			cmdFacet.use_key = 1;
+			cmdFacet.color = gpuColor(KEY_RED, KEY_GREEN, KEY_BLUE);
+		}
 		if (gli_enabled(GL_LIGHTING)) {
 			cmdFacet.use_intens = 1;
 			if (! gli_smooth()) {	// intens was not set
@@ -281,7 +285,6 @@ static void facet_complete(unsigned size, bool facet_is_inverted, GLfixed colore
 			cmdFacet.use_intens = 0;
 		}
 		// Scale UV coord to actual texture sizes
-		struct gli_texture_object *to = gli_get_texture_object();
 		for (unsigned v=0; v<size; v++) {
 			cmdVec[v].u.text_params.u <<= to->mipmaps[0].width_log;
 			cmdVec[v].u.text_params.v <<= to->mipmaps[0].height_log;
@@ -456,7 +459,7 @@ void gli_cmd_vertex(int32_t const *v)
 			}
 			break;
 	}
-#	undef SAVEVEC()
+#	undef SAVEVEC
 }
 
 void gli_points_array(GLint first, unsigned count)

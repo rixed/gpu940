@@ -36,6 +36,8 @@ struct pixel_reader {
 			uint8_t b, g, r, a;	// little endian only
 		} c;
 		uint32_t u32;
+#		define READER_KEY_COLOR ((255U<<24)|(KEY_RED<<16)|(KEY_GREEN<<8)|(KEY_BLUE))	/* FIXME: little endian only */
+#		define ALMOST_READER_KEY_COLOR ((255U<<24)|(KEY_RED<<16)|(KEY_GREEN<<8)|(KEY_BLUE-1))
 	} color;
 	uint8_t const *pixels;
 };
@@ -67,6 +69,7 @@ static int texture_object_ctor(struct gli_texture_object *to)
 	to->wrap_s = to->wrap_t = GL_REPEAT;
 	to->has_data = false;
 	to->was_bound = false;
+	to->need_key = false;
 	return 0;
 }
 
@@ -79,6 +82,7 @@ static void free_to_datas(struct gli_texture_object *to)
 		free(to->img_nores);
 	}
 	to->has_data = false;
+	to->need_key = false;
 }
 
 static void texture_object_dtor(struct gli_texture_object *to)
@@ -222,9 +226,9 @@ void glTexSubImage2D_nocheck(struct gli_texture_object *to, GLint level, GLint x
 {
 	assert(to->has_data);
 	uint32_t *dest;
-	if (to->is_resident) {	// destination is GPU memory
+	if (to->is_resident) {	// destination is GPU memory, so we must write gpuColors
 		dest = gli_get_texture_address(to->img_res);
-	} else {	// destination is malloced rgb array (which is actually YUV on GP2X)
+	} else {	// destination is malloced rgb array
 		dest = to->img_nores;
 	}
 	struct pixel_reader reader;
@@ -236,7 +240,15 @@ void glTexSubImage2D_nocheck(struct gli_texture_object *to, GLint level, GLint x
 	) {
 		for (int x=xoffset; x < xoffset+width; x++) {
 			pixel_read_next(&reader);
-			dest[y+x] = reader.color.u32;
+			if (reader.color.c.a != 255) {
+				to->need_key = true;
+				dest[y+x] = to->is_resident ? gpuColor(KEY_RED, KEY_GREEN, KEY_BLUE) : READER_KEY_COLOR;
+			} else {
+				if (reader.color.u32 == READER_KEY_COLOR) {	// don't allow the use of our key color
+					reader.color.u32 = ALMOST_READER_KEY_COLOR;
+				}
+				dest[y+x] = to->is_resident ? gpuColor(reader.color.c.r, reader.color.c.g, reader.color.c.b) : reader.color.u32;
+			}
 		}
 	}
 	pixel_reader_dtor(&reader);

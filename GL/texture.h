@@ -47,7 +47,12 @@ struct gli_texture_object {
 	bool was_bound;	// to distinguish between to we created due to genTextures but that do not account as texture obj yet for isTexture
 	uint32_t *img_nores;	// if has_data and !is_resident
 	struct gpuBuf *img_res;	// if has_data and is_resident
+	bool need_key;
 };
+// Reserve this color for the key color. I didn't like This blue anyway.
+#define KEY_RED 0
+#define KEY_GREEN 0
+#define KEY_BLUE 255
 
 int gli_texture_begin(void);
 void gli_texture_end(void);
