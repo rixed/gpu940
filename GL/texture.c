@@ -506,5 +506,5 @@ GLboolean glIsTexture(GLuint texture)
 // Tells is texturing is active for this array
 bool gli_texturing(void)
 {
-	return gli_enabled(GL_TEXTURE_2D) && gli_texcoord_array[active_texture_unit].enabled;
+	return gli_enabled(GL_TEXTURE_2D);// && gli_texcoord_array[active_texture_unit].enabled; if array is unset, use default current texcoords
 }
