@@ -1,2 +1,2 @@
-include_HEADERS = gl.h
+include_HEADERS = gl.h gl_float.h
 
