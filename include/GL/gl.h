@@ -308,5 +308,7 @@ static inline void glVertex3xv(GLfixed const *v)
 
 // OES Extensions
 
+// Quick and dirty definitions to help porting of openGl apps using floats
+#include "GL/gl_float.h"
 
 #endif
