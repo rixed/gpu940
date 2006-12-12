@@ -76,7 +76,7 @@ GLubyte const *glGetString(GLenum name)
 
 void glGetIntegerv(GLenum pname, GLint *params)
 {
-	switch (pname) {
+	switch ((enum gli_ParamName)pname) {
 		case GL_ALIASED_POINT_SIZE_RANGE:
 		case GL_ALIASED_LINE_WIDTH_RANGE:
 		case GL_SMOOTH_LINE_WIDTH_RANGE:
@@ -133,6 +133,36 @@ void glGetIntegerv(GLenum pname, GLint *params)
 		case GL_SUBPIXEL_BITS:
 			params[0] = 4;	// at least 4, not really significant nor usefull
 			return;
+		case GL_VIEWPORT:
+			params[0] = gli_viewport_x;
+			params[1] = gli_viewport_y;
+			params[2] = gli_viewport_width;
+			params[3] = gli_viewport_height;
+			return;
+		case GL_STEREO:
+			params[0] = GL_FALSE;
+			return;
+		case GL_SHADE_MODEL:
+			params[0] = gli_shade_model;
+			return;
+		default:
+			break;
 	}
 	gli_set_error(GL_INVALID_ENUM);
+}
+
+void glGetFixedv(GLenum pname, GLfixed *params)
+{
+	switch ((enum gli_ParamName)pname) {
+		case GL_LINE_WIDTH:
+			params[0] = gli_line_width;
+		default:
+			break;
+	}
+	gli_set_error(GL_INVALID_ENUM);
+}
+
+GLboolean glIsEnabled(GLenum mode)
+{
+	return gli_enabled(mode) ? GL_TRUE:GL_FALSE;
 }

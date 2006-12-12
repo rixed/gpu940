@@ -34,7 +34,9 @@
  */
 
 typedef float GLfloat;
+typedef float GLclampf;
 typedef double GLdouble;
+typedef double GLclampd;
 #define f2x(x) ((x)*65536)
 
 static inline void glVertex2f(GLfloat x, GLfloat y)
@@ -259,6 +261,45 @@ static inline void glFrustum(GLdouble l, GLdouble r, GLdouble b, GLdouble t, GLd
 static inline void glOrtho(GLdouble l, GLdouble r, GLdouble b, GLdouble t, GLdouble n, GLdouble f)
 {
 	glOrthox(f2x(l), f2x(r), f2x(b), f2x(t), f2x(n), f2x(f));
+}
+
+static inline void glLineWidth(GLfloat width)
+{
+	glLineWidthx(f2x(width));
+}
+static inline void glPointSize(GLfloat size)
+{
+	glPointSizex(f2x(size));
+}
+
+static inline void glClearDepth(GLclampd depth)
+{
+	glClearDepthx(f2x(depth));
+}
+static inline void glClearColor(GLclampf red, GLclampf green, GLclampf blue, GLclampf alpha)
+{
+	glClearColorx(f2x(red), f2x(green), f2x(blue), f2x(alpha));
+}
+
+static inline void glTexParameterf(GLenum target, GLenum pname, GLfloat param)
+{
+	glTexParameterx(target, pname, f2x(param));
+}
+static inline void glTexEnvf(GLenum target, GLenum pname, GLfloat param)
+{
+	glTexEnvx(target, pname, f2x(param));
+}
+
+#include <assert.h>
+static inline void glGetFloatv(GLenum pname, GLfloat *params_)
+{
+	GLfixed params[4];
+	glGetFixedv(pname, params);
+	if (pname == GL_LINE_WIDTH) {
+		params_[0] = params[0];
+	} else {	// TODO
+		assert(0);
+	}
 }
 
 #undef f2x

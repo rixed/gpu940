@@ -785,10 +785,11 @@ static void alloc_regs(void)
 	for (r=0; r<working_set; r++) {	// from 0 to working_set are tmp regs
 		regs[r].var = -1;
 	}
-	unsigned last_v;
+	unsigned last_v = sizeof_array(vars);
 	for (v = MAX_VARP+1; v--; ) {
 		if (needed_vars & (1<<v)) {
 			if (r >= sizeof_array(regs)) {	// we keep the last reg for tmp loading of constp
+				assert(last_v < sizeof_array(vars));
 				vars[last_v].rnum = -1;
 				regs[sizeof_array(regs)-1].var = -1;
 				break;

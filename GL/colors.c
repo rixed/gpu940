@@ -30,7 +30,7 @@ static struct gli_light lights[GLI_MAX_LIGHTS];
 static struct gli_material material;
 static GLfixed ambient[4];
 static bool scene_is_simple;	// if scene ambient is _ambient*(1,1,1)
-static enum gli_ShadeModel shade_model;
+enum gli_ShadeModel gli_shade_model;
 static enum gli_FrontFace front_face;
 static unsigned nb_simple_lights, nb_enabled_lights;
 
@@ -111,7 +111,7 @@ int gli_colors_begin(void)
 	ambient[0] = ambient[1] = ambient[2] = 13107;
 	ambient[3] = 1<<16;
 	scene_is_simple = true;
-	shade_model = GL_SMOOTH;
+	gli_shade_model = GL_SMOOTH;
 	front_face = GL_CCW;
 	return 0;
 }
@@ -342,7 +342,7 @@ void glShadeModel(GLenum mode)
 	if (mode != GL_FLAT && mode != GL_SMOOTH) {
 		return gli_set_error(GL_INVALID_ENUM);
 	}
-	shade_model = mode;
+	gli_shade_model = mode;
 }
 
 void glFrontFace(GLenum mode)
@@ -392,7 +392,7 @@ GLfixed const *gli_scene_ambient(void)
 
 bool gli_smooth(void)
 {
-	return shade_model == GL_SMOOTH;
+	return gli_shade_model == GL_SMOOTH;
 }
 
 bool gli_simple_lighting(void)

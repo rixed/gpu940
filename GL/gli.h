@@ -42,6 +42,7 @@
 #include "framebuf.h"
 #include "texture.h"
 #include "begend.h"
+#include "fog.h"
 #include "cmd.h"
 
 extern bool gli_with_depth_buffer;

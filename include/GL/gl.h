@@ -60,7 +60,7 @@ void glClientActiveTexture(GLenum texture);
 enum gli_ClientState { GL_COLOR_ARRAY, GL_NORMAL_ARRAY, GL_VERTEX_ARRAY, GL_TEXTURE_COORD_ARRAY };
 void glEnableClientState(GLenum array);
 void glDisableClientState(GLenum array);
-enum gli_DrawMode { GL_POINTS, GL_LINE_STRIP, GL_LINE_LOOP, GL_LINES, GL_TRIANGLE_STRIP, GL_TRIANGLE_FAN, GL_TRIANGLES, GL_QUAD_STRIP, GL_QUADS };	// QUADS are not required in gl-es but I found them usefull to achieve low-poly models.
+enum gli_DrawMode { GL_POINTS, GL_LINE_STRIP, GL_LINE_LOOP, GL_LINES, GL_TRIANGLE_STRIP, GL_TRIANGLE_FAN, GL_TRIANGLES, GL_QUAD_STRIP, GL_QUADS, GL_POLYGON };
 void glDrawArrays(GLenum mode, GLint first, GLsizei count);
 void glDrawElements(GLenum mode, GLsizei count, GLenum type, GLvoid const *indices);
 
@@ -178,6 +178,8 @@ void glPointSizex(GLfixed size);
 void glLineWidthx(GLfixed width);
 enum gli_CullFace { GL_FRONT, GL_BACK, GL_FRONT_AND_BACK };
 void glCullFace(GLenum mode);
+enum gli_PolyMode { GL_POINT, GL_LINE, GL_FILL };
+void glPolygonMode(GLenum face, GLenum mode);
 
 // Pixel Operations
 
@@ -202,6 +204,12 @@ void glGenTextures(GLsizei n, GLuint *textures);
 GLboolean glIsTexture(GLuint texture);
 
 // Fog
+enum gli_FogPname { GL_FOG_MODE, GL_FOG_DENSITY, GL_FOG_START, GL_FOG_END, GL_FOG_COLOR };
+enum gli_FogMode { GL_EXP=0x100 /* avoid collision with gli_TexFilter for GL_LINEAR */, GL_EXP2 };
+void glFogi(GLenum pname, GLint param);
+void glFogiv(GLenum pname, GLint const *params);
+void glFogx(GLenum pname, GLfixed param);
+void glFogxv(GLenum pname, GLfixed const *params);
 
 // Frame Buffer Operations
 void glScissor(GLint x, GLint y, GLsizei width, GLsizei height);
@@ -245,10 +253,14 @@ enum gli_Capability {
 	GL_DITHER,
 	GL_FOG,
 	GL_LIGHTING,
+	GL_POINT_SMOOTH,
 	GL_LINE_SMOOTH,
+	GL_POLYGON_SMOOTH,
+	GL_LINE_STIPPLE,
+	GL_POLYGON_STIPPLE,
 	GL_MULTISAMPLE,
 	GL_NORMALIZE,
-	GL_POINT_SMOOTH,
+	GL_AUTO_NORMAL,
 	GL_POLYGON_OFFSET_FILL,
 	GL_RESCALE_NORMAL,
 	GL_SAMPLE_ALPHA_TO_MASK,
@@ -262,7 +274,7 @@ void glEnable(GLenum cap);
 void glDisable(GLenum cap);
 void glFinish(void);
 static inline void glFlush(void) {}
-enum gli_HintTarget { GL_FOG_HINT , GL_LINE_SMOOTH_HINT , GL_PERSPECTIVE_CORRECTION_HINT, GL_POINT_SMOOTH_HINT, NB_HINT_TARGETS };
+enum gli_HintTarget { GL_PERSPECTIVE_CORRECTION_HINT, GL_POINT_SMOOTH_HINT, GL_LINE_SMOOTH_HINT, GL_POLYGON_SMOOTH_HINT, GL_FOG_HINT, NB_HINT_TARGETS };
 enum gli_HintMode { GL_FASTEST, GL_NICEST, GL_DONT_CARE };
 void glHint(GLenum target, GLenum mode);
 
@@ -272,13 +284,21 @@ GLubyte const *glGetString(GLenum name);
 enum gli_Errors { GL_NO_ERROR, GL_INVALID_ENUM, GL_INVALID_VALUE, GL_INVALID_OPERATION, GL_STACK_OVERFLOW, GL_STACK_UNDERFLOW, GL_OUT_OF_MEMORY };
 GLenum glGetError(void);
 enum gli_ParamName {
+	// those are for GetInteger
 	GL_ALIASED_POINT_SIZE_RANGE, GL_ALIASED_LINE_WIDTH_RANGE, GL_ALPHA_BITS, GL_BLUE_BITS, GL_COMPRESSED_TEXTURE_FORMATS,
 	GL_DEPTH_BITS, GL_GREEN_BITS, GL_IMPLEMENTATION_COLOR_READ_FORMAT_OES, GL_IMPLEMENTATION_COLOR_READ_TYPE_OES,
 	GL_MAX_ELEMENTS_INDICES, GL_MAX_ELEMENTS_VERTICES, GL_MAX_LIGHTS, GL_MAX_MODELVIEW_STACK_DEPTH, GL_MAX_PROJECTION_STACK_DEPTH,
 	GL_MAX_TEXTURE_SIZE, GL_MAX_TEXTURE_STACK_DEPTH, GL_MAX_TEXTURE_UNITS, GL_MAX_VIEWPORT_DIMS, GL_NUM_COMPRESSED_TEXTURE_FORMATS,
-	GL_RED_BITS, GL_SMOOTH_LINE_WIDTH_RANGE, GL_SMOOTH_POINT_SIZE_RANGE, GL_STENCIL_BITS, GL_SUBPIXEL_BITS,
+	GL_RED_BITS, GL_SMOOTH_LINE_WIDTH_RANGE, GL_SMOOTH_POINT_SIZE_RANGE, GL_STENCIL_BITS, GL_SUBPIXEL_BITS, GL_VIEWPORT, GL_STEREO,
+	GL_SHADE_MODEL,
+	// Those are for GetFixed
+	GL_LINE_WIDTH,
+	// TODO: add more
 };
 void glGetIntegerv(GLenum pname, GLint *params);
+void glGetFixedv(GLenum pname, GLfixed *params);
+
+GLboolean glIsEnabled(GLenum mode);
 
 // Begin/End paradigm
 void glBegin(GLenum mode);

@@ -53,11 +53,6 @@ static struct iovec const iov_point[] = {
  * Private Functions
  */
 
-static void reset_facet(void)
-{
-	cmdFacet.size = mode >= GL_TRIANGLE_STRIP && mode <= GL_TRIANGLES ? 3:4;
-}
-
 static int32_t get_luminosity(GLfixed v_eye[4])
 {
 	// We can use a luminosity alone instead of full color component set, if :
@@ -325,7 +320,6 @@ void gli_cmd_prepare(enum gli_DrawMode mode_)
 	mode = mode_;
 	vec_idx = 0;
 	count = 0;
-	reset_facet();
 }
 
 void gli_cmd_vertex(int32_t const *v)
@@ -390,6 +384,7 @@ void gli_cmd_vertex(int32_t const *v)
 		case GL_LINE_STRIP:
 		case GL_LINE_LOOP:
 		case GL_LINES:
+		case GL_POLYGON:
 			assert(0);	// TODO
 		case GL_TRIANGLE_STRIP:
 			if (count < 3) {

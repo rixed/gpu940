@@ -15,14 +15,14 @@
  * along with gpu940; if not, write to the Free Software
  * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
  */
-#ifndef GL_RASTER_H_061010
-#define GL_RASTER_H_061010
+#ifndef FOG_H_061212
+#define FOG_H_061212
 
-extern GLfixed gli_point_size, gli_line_width;
-extern enum gli_PolyMode gli_polygon_mode;
+extern enum gli_FogMode gli_fog_mode;
+extern GLfixed gli_fog_density, gli_fog_start_param, gli_fog_end_param;
+extern GLfixed gli_fog_color[4];
 
-int gli_raster_begin(void);
-static inline void gli_raster_end(void) { }
-bool gli_must_render_face(enum gli_CullFace face);
+int gli_fog_begin(void);
+static inline void gli_fog_end(void) {}
 
 #endif

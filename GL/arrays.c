@@ -184,7 +184,7 @@ int gli_arrays_begin(void)
 	return 0;
 }
 
-extern  inline void gli_arrays_end(void);
+extern inline void gli_arrays_end(void);
 
 void gli_vertex_set(GLint idx)
 {
@@ -257,7 +257,7 @@ void glDisableClientState(GLenum array)
 
 void glDrawArrays(GLenum mode, GLint first, GLsizei count)
 {
-	if (/* mode < GL_POINTS ||*/ mode > GL_QUADS) {
+	if (/* mode < GL_POINTS ||*/ mode > GL_POLYGON) {
 		return gli_set_error(GL_INVALID_ENUM);
 	}
 	if (count < 0) {
@@ -276,7 +276,7 @@ void glDrawArrays(GLenum mode, GLint first, GLsizei count)
 
 void glDrawElements(GLenum mode, GLsizei count, GLenum type, GLvoid const *indices)
 {
-	if (/* mode < GL_POINTS ||*/ mode > GL_QUADS) {
+	if (/* mode < GL_POINTS ||*/ mode > GL_POLYGON) {
 		return gli_set_error(GL_INVALID_ENUM);
 	}
 	if (count < 0) {

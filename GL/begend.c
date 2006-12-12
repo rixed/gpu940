@@ -46,7 +46,7 @@ void glBegin(GLenum mode)
 	if (in_begend) {
 		return gli_set_error(GL_INVALID_OPERATION);
 	}
-	if (/*mode < GL_POINTS ||*/ mode > GL_QUADS) {
+	if (/*mode < GL_POINTS ||*/ mode > GL_POLYGON) {
 		return gli_set_error(GL_INVALID_ENUM);
 	}
 	gli_cmd_prepare(mode);

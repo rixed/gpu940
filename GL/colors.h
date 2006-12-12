@@ -35,6 +35,7 @@ struct gli_material {
 extern GLfixed gli_current_color[4];
 extern GLfixed gli_current_normal[3];
 extern GLfixed gli_current_texcoord[4];
+extern enum gli_ShadeModel gli_shade_model;
 
 int gli_colors_begin(void);
 static inline void gli_colors_end(void) { }
