@@ -37,8 +37,35 @@ typedef float GLfloat;
 typedef float GLclampf;
 typedef double GLdouble;
 typedef double GLclampd;
-#define f2x(x) ((x)*65536)
 
+#define f2x(x) ((x)*65536)
+#define i2x(x) ((x)<<16)
+#define i2x_color(x) ((x)>>15)
+
+static inline void glVertex2i(GLint x, GLint y)
+{
+	glVertex2x(i2x(x), i2x(y));
+}
+static inline void glVertex3i(GLint x, GLint y, GLint z)
+{
+	glVertex3x(i2x(x), i2x(y), i2x(z));
+}
+static inline void glVertex4i(GLint x, GLint y, GLint z, GLint w)
+{
+	glVertex4x(i2x(x), i2x(y), i2x(z), i2x(w));
+}
+static inline void glVertex2iv(GLint const *v)
+{
+	glVertex2x(i2x(v[0]), i2x(v[1]));
+}
+static inline void glVertex3iv(GLint const *v)
+{
+	glVertex3x(i2x(v[0]), i2x(v[1]), i2x(v[2]));
+}
+static inline void glVertex4iv(GLint const *v)
+{
+	glVertex4x(i2x(v[0]), i2x(v[1]), i2x(v[2]), i2x(v[3]));
+}
 static inline void glVertex2f(GLfloat x, GLfloat y)
 {
 	glVertex2x(f2x(x), f2x(y));
@@ -88,6 +115,38 @@ static inline void glVertex4dv(GLdouble const *v)
 	glVertex4x(f2x(v[0]), f2x(v[1]), f2x(v[2]), f2x(v[3]));
 }
 
+static inline void glTexCoord1i(GLint s)
+{
+	glTexCoord1x(i2x(s));
+}
+static inline void glTexCoord2i(GLint s, GLint t)
+{
+	glTexCoord2x(i2x(s), i2x(t));
+}
+static inline void glTexCoord3i(GLint s, GLint t, GLint r)
+{
+	glTexCoord3x(i2x(s), i2x(t), i2x(r));
+}
+static inline void glTexCoord4i(GLint s, GLint t, GLint r, GLint q)
+{
+	glTexCoord4x(i2x(s), i2x(t), i2x(r), i2x(q));
+}
+static inline void glTexCoord1iv(GLint const *v)
+{
+	glTexCoord1x(i2x(v[0]));
+}
+static inline void glTexCoord2iv(GLint const *v)
+{
+	glTexCoord2x(i2x(v[0]), i2x(v[1]));
+}
+static inline void glTexCoord3iv(GLint const *v)
+{
+	glTexCoord3x(i2x(v[0]), i2x(v[1]), i2x(v[2]));
+}
+static inline void glTexCoord4iv(GLint const *v)
+{
+	glTexCoord4x(i2x(v[0]), i2x(v[1]), i2x(v[2]), i2x(v[3]));
+}
 static inline void glTexCoord1f(GLfloat s)
 {
 	glTexCoord1x(f2x(s));
@@ -153,6 +212,14 @@ static inline void glTexCoord4dv(GLdouble const *v)
 	glTexCoord4x(f2x(v[0]), f2x(v[1]), f2x(v[2]), f2x(v[3]));
 }
 
+static inline void glNormal3i(GLint x, GLint y, GLint z)
+{
+	glNormal3x(i2x(x), i2x(y), i2x(z));
+}
+static inline void glNormal3iv(GLint const *v)
+{
+	glNormal3x(i2x(v[0]), i2x(v[1]), i2x(v[2]));
+}
 static inline void glNormal3f(GLfloat x, GLfloat y, GLfloat z)
 {
 	glNormal3x(f2x(x), f2x(y), f2x(z));
@@ -170,6 +237,22 @@ static inline void glNormal3dv(GLdouble const *v)
 	glNormal3x(f2x(v[0]), f2x(v[1]), f2x(v[2]));
 }
 
+static inline void glColor3i(GLint red, GLint green, GLint blue)
+{
+	glColor3x(i2x_color(red), i2x_color(green), i2x_color(blue));
+}
+static inline void glColor4i(GLint red, GLint green, GLint blue, GLint alpha)
+{
+	glColor4x(i2x_color(red), i2x_color(green), i2x_color(blue), i2x_color(alpha));
+}
+static inline void glColor3iv(GLint const *v)
+{
+	glColor3x(i2x_color(v[0]), i2x_color(v[1]), i2x_color(v[2]));
+}
+static inline void glColor4iv(GLint const *v)
+{
+	glColor4x(i2x_color(v[0]), i2x_color(v[1]), i2x_color(v[2]), i2x_color(v[3]));
+}
 static inline void glColor3f(GLfloat red, GLfloat green, GLfloat blue)
 {
 	glColor3x(f2x(red), f2x(green), f2x(blue));
@@ -300,6 +383,11 @@ static inline void glGetFloatv(GLenum pname, GLfloat *params_)
 	} else {	// TODO
 		assert(0);
 	}
+}
+
+static inline void glAlphaFunc(GLenum func, GLclampf ref)
+{
+	glAlphaFuncx(func, f2x(ref));
 }
 
 #undef f2x

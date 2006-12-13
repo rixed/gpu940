@@ -48,16 +48,6 @@ static bool check_pname(enum gli_FogPname pname)
 	return true;
 }
 
-static GLfixed i2x(GLint i)
-{
-	return i<<16;
-}
-
-static GLfixed color_i2x(GLint i)
-{
-	return i>>15;
-}
-
 /*
  * Public Functions
  */
@@ -138,7 +128,7 @@ void glFogiv(GLenum pname, GLint const *params)
 	switch ((enum gli_FogPname)pname) {
 		case GL_FOG_COLOR:
 			for (unsigned c=4; c--; ) {
-				gli_fog_color[c] = color_i2x(params[c]);
+				gli_fog_color[c] = i2x_color(params[c]);
 			}
 			break;
 		default:

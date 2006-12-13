@@ -123,7 +123,7 @@ void glDepthFunc(GLenum func)
 
 void glBlendFunc(GLenum sfactor, GLenum dfactor)
 {
-	// TODO
+	// TODO (remember to check that all values are not accepted for various parameters)
 	(void)sfactor;
 	(void)dfactor;
 }

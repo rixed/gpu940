@@ -223,7 +223,7 @@ enum gli_StencilOp {
 void glStencilOp(GLenum fail, GLenum zfail, GLenum zpass);
 void glDepthFunc(GLenum func);
 enum gli_BlendFunc {
-	GL_ZERO, GL_ONE, GL_DST_COLOR, GL_ONE_MINUS_DST_COLOR, GL_SRC_ALPHA,
+	GL_ZERO, GL_ONE, GL_DST_COLOR, GL_SRC_COLOR, GL_ONE_MINUS_DST_COLOR, GL_ONE_MINUS_SRC_COLOR, GL_SRC_ALPHA,
 	GL_ONE_MINUS_SRC_ALPHA, GL_DST_ALPHA, GL_ONE_MINUS_DST_ALPHA, GL_SRC_ALPHA_SATURATE };
 void glBlendFunc(GLenum sfactor, GLenum dfactor);
 enum gli_LogicOp { GL_CLEAR, GL_SET, GL_COPY, GL_COPY_INVERTED, GL_NOOP, GL_INVERT, GL_AND,
