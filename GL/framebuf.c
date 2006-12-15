@@ -58,7 +58,7 @@ int gli_framebuf_begin(void)
 	gli_stencil_mask = ~0;
 	gli_stencil_ops.fail = gli_stencil_ops.zfail = gli_stencil_ops.zpass = GL_KEEP;
 	gli_clear_colors[0] = gli_clear_colors[1] = gli_clear_colors[2] = gli_clear_colors[3] = 0;
-	gli_clear_depth = INT32_MAX;//0x10000;
+	gli_clear_depth = 0x10000;
 	gli_clear_stencil = 0;
 	gli_color_mask[0] = gli_color_mask[1] = gli_color_mask[2] = gli_color_mask[3] = gli_color_mask_all = GL_TRUE;
 	gli_depth_mask = GL_TRUE;

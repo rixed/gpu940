@@ -26,6 +26,7 @@ struct matrix_stack {
 
 extern GLint gli_viewport_x, gli_viewport_y;
 extern GLsizei gli_viewport_width, gli_viewport_height;
+extern GLfixed gli_depth_range_near, gli_depth_range_far;
 
 int gli_transfo_begin(void);
 static inline void gli_transfo_end(void) {}

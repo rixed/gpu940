@@ -33,8 +33,8 @@ static GLfixed const gli_matrix_id[16] = {
 	0, 0, 0x10000, 0,
 	0, 0, 0, 0x10000,
 };
-static GLfixed depth_range_near;
-static GLfixed depth_range_far;
+GLfixed gli_depth_range_near;
+GLfixed gli_depth_range_far;
 GLint gli_viewport_x, gli_viewport_y;
 GLsizei gli_viewport_width, gli_viewport_height;
 
@@ -125,7 +125,7 @@ static void frustum_ortho(int frustrum, GLfixed left, GLfixed right, GLfixed bot
 		mat[11] = -1 << 16;
 		mat[12] = 0;
 		mat[13] = 0;
-		mat[14] = -Fix_mul( Fix_mul(far, near), fni>>1);
+		mat[14] = -Fix_mul( Fix_mul(far, near), fni<<1);
 		mat[15] = 0;
 	} else {	// ortho
 		mat[0] = rli << 1;
@@ -167,8 +167,8 @@ int gli_transfo_begin(void)
 	if (0 != gli_matrix_stack_ctor(&modelview_ms, GLI_MAX_MODELVIEW_STACK_DEPTH)) return -1;
 	if (0 != gli_matrix_stack_ctor(&projection_ms, GLI_MAX_PROJECTION_STACK_DEPTH)) return -1;
 	matrix_mode = GL_MODELVIEW;
-	depth_range_near = 0;
-	depth_range_far = 0x10000;
+	gli_depth_range_near = 0;
+	gli_depth_range_far = 0x10000;
 	gli_viewport_x = 0;
 	gli_viewport_y = 0;
 	gli_viewport_width = SCREEN_WIDTH;
@@ -320,11 +320,8 @@ void glDepthRangex(GLclampx near, GLclampx far)
 {
 	CLAMP(near, 0, 0x10000);
 	CLAMP(far, 0, 0x10000);
-	depth_range_near = near;
-	depth_range_far = far;
-	// we don't rescale Z coords, which should work allright as long as :
-	// - near < far
-	// - user don't read depth buffer. If it does, it's not too late to convert the values.
+	gli_depth_range_near = near;
+	gli_depth_range_far = far;
 }
 
 void glViewport(GLint x, GLint y, GLsizei width, GLsizei height)

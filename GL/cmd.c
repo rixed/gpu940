@@ -373,7 +373,11 @@ void gli_cmd_vertex(int32_t const *v)
 	}
 	// Add zb parameter if needed
 	if (depth_test()) {
-		cmdVec[vec_idx].u.geom.param[z_param] = clip_coords[2];	// TODO: apply perspective div and viewport transform ?
+		// TODO: f-n and f+n are constant with depth_range
+		int32_t const z_scale = Fix_div(gli_depth_range_far - gli_depth_range_near, clip_coords[3]<<1);
+		int32_t const z_offset = (gli_depth_range_far + gli_depth_range_near) >> 1;
+		int32_t const z_scaled = Fix_mul(clip_coords[2], z_scale);
+		cmdVec[vec_idx].u.geom.param[z_param] = z_scaled + z_offset;
 	}
 	count ++;
 	switch (mode) {
