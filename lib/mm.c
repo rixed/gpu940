@@ -30,6 +30,11 @@
  * Data Definitions
  */
 
+#ifndef NDEBUG
+#	define MEM_DEBUG(txt, buf) do { printf("gpumm: "txt" @%u [%u]\n", (buf)->loc.address, ((buf)->loc.height << (buf)->loc.width_log)); } while (0)
+#else
+#	define MEM_DEBUG
+#endif
 #define ADDRESS_MAX sizeof_array(shared->buffers)
 
 struct gpuBuf {
@@ -58,7 +63,7 @@ static struct gpuBuf *buf_new(void) {
 	if (list_empty(&cache_list)) {	// must alloc more cache
 		unsigned new_cache_size = (cache_size + 64)*4;
 		void *new_cache = realloc(buf_cache, new_cache_size*sizeof(*buf_cache));
-		assert(new_cache);
+		assert(!buf_cache || new_cache == buf_cache);
 		// hopefully, the cache_list was empty : no need to update pointer if buf_cache moves
 		buf_cache = new_cache;
 		for (unsigned i=cache_size; i<new_cache_size; i++) {
@@ -73,6 +78,7 @@ static struct gpuBuf *buf_new(void) {
 
 static void buf_del(struct gpuBuf *buf) {
 	assert(buf);
+	MEM_DEBUG("delete", buf);
 	struct buf_cache *bc = (struct buf_cache *)((char *)buf - offsetof(struct buf_cache, buf));
 	list_add_tail(&bc->cache_list, &cache_list);
 }
@@ -114,7 +120,9 @@ struct gpuBuf *gpuAlloc_(unsigned width_log, unsigned height) {
 	new->loc.address = next_free;
 	new->loc.width_log = width_log;
 	new->loc.height = height;
+	new->free_after_fc = ~0;	// if FC never loops, we will never free this one (until requested bu Free()/FreeFC()
 	list_add_tail(&new->list, &buf->list);	// add before buf
+	MEM_DEBUG("new", new);
 	return new;
 }
 
@@ -164,7 +172,6 @@ gpuErr gpuShowBuf(struct gpuBuf *buf, bool can_wait) {
 	show.loc = buf->loc;
 	gpuErr err = gpuWrite(&show, sizeof(show), can_wait);
 	if (gpuOK != err) goto sb_quit;
-	gpuFreeFC(buf, 1);
 	my_frame_count ++;
 sb_quit:	
 	return err;

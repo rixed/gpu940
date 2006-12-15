@@ -216,6 +216,7 @@ int main(void) {
 		for (unsigned f=0; f<6; f++) send_facet(f*4);
 		err = gpuShowBuf(outBuf, false);
 		assert(gpuOK == err);
+		gpuFreeFC(outBuf, 1);
 	}
 	gpuFree(txtGenBuf);
 	gpuClose();

@@ -134,6 +134,7 @@ int main(void) {
 		err = gpuWritev(cmdvec, sizeof_array(cmdvec), true);
 		assert(gpuOK == err);
 		err = gpuShowBuf(outBuf, true);
+		gpuFreeFC(outBuf, 1);
 		assert(gpuOK == err);
 		if (shared->error_flags) printf("ERROR: %u\n", shared->error_flags);
 //		printf("frame %u, missed %u\n", shared->frame_count, shared->frame_miss);

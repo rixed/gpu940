@@ -84,6 +84,7 @@ static void next_out_buf(void) {
 static void show_out_buf(void) {
 	gpuErr err = gpuShowBuf(outBuf, true);
 	assert(gpuOK == err);
+	gpuFreeFC(outBuf, 1);
 }
 
 static void set_dproj(unsigned dproj) {
