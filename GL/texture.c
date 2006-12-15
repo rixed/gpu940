@@ -383,7 +383,7 @@ void glTexImage2D(GLenum target, GLint level, GLint internalformat, GLsizei widt
 	}
 	if (
 		border != 0 ||
-		level < 0 || level > 0 /*TODO: mapmapping*/ ||
+		level < 0 || level > 0 /*TODO: mipmapping*/ ||
 		width < 0 || height < 0 || width > GLI_MAX_TEXTURE_SIZE || height > GLI_MAX_TEXTURE_SIZE ||
 		!is_power_of_2(width) || !is_power_of_2(height)
 	) {
