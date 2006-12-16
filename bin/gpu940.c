@@ -266,6 +266,40 @@ static void next_cmd(size_t size_) {
 	flush_shared();
 }
 
+static void video_reset(void) {
+#ifdef GP2X
+	// MLC_OVLAY_CNTR
+	uint16_t v = gp2x_regs16[0x2880>>1];
+	v &= 0x0400;	// keep reserved bit
+	v |= 0x1001;	// bypath RGB gamma table and enable YUV region A
+	gp2x_regs16[0x2880>>1] = v;
+	// MLC_YUV_EFECT
+	gp2x_regs16[0x2882>>1] = 0x0;	// no division between top and bottom
+	// MLC_YUV_CNTL
+	v = gp2x_regs16[0x2884>>1];
+	v &= 0x3f;	// keep lower 10 bits, reserved
+//	v |= 0x2000;	// skip alpha blending of region A
+	gp2x_regs16[0x2884>>1] = v;
+	// H Scaling of top region A
+	gp2x_regs16[0x2886>>1] = 1024<<1;
+	// Coordinates of region A
+	gp2x_regs16[0x2896>>1] = 0;
+	gp2x_regs16[0x2898>>1] = 319;
+	gp2x_regs16[0x289a>>1] = 0;
+	gp2x_regs16[0x289c>>1] = 239;
+	gp2x_regs16[0x28e9>>1] = 239;	// not sure if it uses top's or bottom's vertical end
+	// Disable all RGB layers
+	v = gp2x_regs16[0x28da>>1];
+	v &= 0x80;
+	v |= 0x2a;
+	gp2x_regs16[0x28da>>1] = v;
+	// enable dithering
+	gp2x_regs8[0x2946] = 1;	// this does nothing (??)
+	// enhance contrast and brightness
+//	gp2x_regs16[0x2934>>1] = 0x033f;	
+#endif
+}
+
 /*
  * Command processing
  */
@@ -331,7 +365,7 @@ static void do_showBuf(void)
 	displist[displist_end] = showBuf->loc;
 	displist_end = next_displist_end;
 #ifndef GP2X
-//	vertical_interrupt();
+	vertical_interrupt();
 #endif
 dwb_quit:
 	next_cmd(sizeof(*showBuf));
@@ -399,11 +433,12 @@ static void do_reset(void)
 {
 	(void)get_cmd();
 	next_cmd(sizeof(gpuCmdReset));
-	perftime_reset();
-	perftime_enter(PERF_WAITCMD, "idle");
 	proj_cache_reset();
 	ctx_reset();
 	shared_soft_reset();
+	video_reset();
+	perftime_reset();
+	perftime_enter(PERF_WAITCMD, "idle");
 }
 static void do_rewind(void)
 {
@@ -576,35 +611,7 @@ void irq_handler(void)
 void mymain(void)
 {
 	if (-1 == perftime_begin()) goto quit;
-	// MLC_OVLAY_CNTR
-	uint16_t v = gp2x_regs16[0x2880>>1];
-	v &= 0x0400;	// keep reserved bit
-	v |= 0x1001;	// bypath RGB gamma table and enable YUV region A
-	gp2x_regs16[0x2880>>1] = v;
-	// MLC_YUV_EFECT
-	gp2x_regs16[0x2882>>1] = 0x0;	// no division between top and bottom
-	// MLC_YUV_CNTL
-	v = gp2x_regs16[0x2884>>1];
-	v &= 0x3f;	// keep lower 10 bits, reserved
-//	v |= 0x2000;	// skip alpha blending of region A
-	gp2x_regs16[0x2884>>1] = v;
-	// H Scaling of top region A
-	gp2x_regs16[0x2886>>1] = 1024<<1;
-	// Coordinates of region A
-	gp2x_regs16[0x2896>>1] = 0;
-	gp2x_regs16[0x2898>>1] = 319;
-	gp2x_regs16[0x289a>>1] = 0;
-	gp2x_regs16[0x289c>>1] = 239;
-	gp2x_regs16[0x28e9>>1] = 239;	// not sure if it uses top's or bottom's vertical end
-	// Disable all RGB layers
-	v = gp2x_regs16[0x28da>>1];
-	v &= 0x80;
-	v |= 0x2a;
-	gp2x_regs16[0x28da>>1] = v;
-	// enable dithering
-	gp2x_regs8[0x2946] = 1;	// this does nothing (??)
-	// enhance contrast and brightness
-//	gp2x_regs16[0x2934>>1] = 0x033f;	
+	video_reset();
 	// init the vertical interrupt
 	gp2x_regs32[0x0808>>2] |= 1U;	// kernel don't want these
 	gp2x_regs32[0x4504>>2] = 0;	// IRQs not FIQs
@@ -663,7 +670,7 @@ int main(void)
 		perror("sigaction");
 		return EXIT_FAILURE;
 	}
-#	if 1
+#	if 0
 	struct itimerval itimer = {
 		.it_interval = {
 			.tv_sec = 0,
