@@ -279,11 +279,6 @@ static void facet_complete(unsigned size, bool facet_is_inverted, GLfixed colore
 		} else {
 			cmdFacet.use_intens = 0;
 		}
-		// Scale UV coord to actual texture sizes
-		for (unsigned v=0; v<size; v++) {
-			cmdVec[v].u.text_params.u <<= to->mipmaps[0].width_log;
-			cmdVec[v].u.text_params.v <<= to->mipmaps[0].height_log;
-		}
 	} else if (gli_smooth() && gli_enabled(GL_LIGHTING)) {
 		if (gli_simple_lighting()) {	// or if we use texture...
 			GLfixed c[4];
@@ -335,15 +330,17 @@ void gli_cmd_vertex(int32_t const *v)
 	} while (0)
 	gli_multmatrix(GL_MODELVIEW, eye_coords, v);
 	gli_multmatrix(GL_PROJECTION, clip_coords, eye_coords);
-	cmdVec[vec_idx].u.geom.c3d[0] = (clip_coords[0] * gli_viewport_width/2) >> 8;	// FIXME: set dproj = 1
-	cmdVec[vec_idx].u.geom.c3d[1] = -(clip_coords[1] * gli_viewport_height/2) >> 8;	// gpu940 uses Y toward bottom
+	cmdVec[vec_idx].u.geom.c3d[0] = ((int64_t)clip_coords[0] * gli_viewport_width/2) >> 8;	// FIXME: set dproj = 1
+	cmdVec[vec_idx].u.geom.c3d[1] = -((int64_t)clip_coords[1] * gli_viewport_height/2) >> 8;	// gpu940 uses Y toward bottom
 	cmdVec[vec_idx].u.geom.c3d[2] = clip_coords[3];	// we use W as Z for gpu940 (which then must use Z toward depths)
 	cmdVec[vec_idx].same_as = 0;
 	unsigned z_param = 0;
 	if (gli_texturing()) {
-		// first, set U and V
-		cmdVec[vec_idx].u.text_params.u = gli_current_texcoord[0];
-		cmdVec[vec_idx].u.text_params.v = gli_current_texcoord[1];
+		// first, set U and V (scaled to actual texture size)
+		// FIXME: we should not send scaled coord to GPU. It would be simplier if GPU scale itself according to selected texture.
+		struct gli_texture_object *to = gli_get_texture_object();
+		cmdVec[vec_idx].u.text_params.u = gli_current_texcoord[0] << to->mipmaps[0].width_log;
+		cmdVec[vec_idx].u.text_params.v = gli_current_texcoord[1] << to->mipmaps[0].height_log;
 		z_param = 2;
 		// then, if some lighting is on, add intens.
 		if (gli_enabled(GL_LIGHTING)) {
