@@ -91,7 +91,7 @@ void perftime_stat(unsigned target, struct perftime_stat *s)
 	assert(target<sizeof_array(stats));
 	s->name = stats[target].name;
 	s->nb_enter = stats[target].nb_enter;
-	s->load_avg = ((uint64_t)stats[target].nb_in<<10) / nb_in_tot;
+	s->load_avg = nb_in_tot > 0 ? ((uint64_t)stats[target].nb_in<<10) / nb_in_tot : 0;
 }
 
 void perftime_stat_print(int fd, unsigned target)
