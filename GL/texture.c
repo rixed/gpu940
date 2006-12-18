@@ -70,6 +70,7 @@ static int texture_object_ctor(struct gli_texture_object *to)
 	to->has_data = false;
 	to->was_bound = false;
 	to->need_key = false;
+	to->have_mean_alpha = false;
 	return 0;
 }
 
@@ -83,6 +84,7 @@ static void free_to_datas(struct gli_texture_object *to)
 	}
 	to->has_data = false;
 	to->need_key = false;
+	to->have_mean_alpha = false;
 }
 
 static void texture_object_dtor(struct gli_texture_object *to)
@@ -233,6 +235,8 @@ void glTexSubImage2D_nocheck(struct gli_texture_object *to, GLint level, GLint x
 	}
 	struct pixel_reader reader;
 	pixel_reader_ctor(&reader, format, type, pixels);
+	uint32_t sum_alpha = 0;	// 32 bits are enought for a 1024x1024 fully opaque texture.
+	unsigned nb_alpha = 0;
 	for (
 		unsigned y = yoffset << to->mipmaps[level].width_log;
 		height > 0;
@@ -240,10 +244,12 @@ void glTexSubImage2D_nocheck(struct gli_texture_object *to, GLint level, GLint x
 	) {
 		for (int x=xoffset; x < xoffset+width; x++) {
 			pixel_read_next(&reader);
-			if (reader.color.c.a != 255) {
+			if (reader.color.c.a < 5) {	// bellow 5, we consider this is not blending but keying
 				to->need_key = true;
 				dest[y+x] = to->is_resident ? gpuColor(KEY_RED, KEY_GREEN, KEY_BLUE) : READER_KEY_COLOR;
 			} else {
+				sum_alpha += reader.color.c.a;
+				nb_alpha ++;
 				if (reader.color.u32 == READER_KEY_COLOR) {	// don't allow the use of our key color
 					reader.color.u32 = ALMOST_READER_KEY_COLOR;
 				}
@@ -251,6 +257,8 @@ void glTexSubImage2D_nocheck(struct gli_texture_object *to, GLint level, GLint x
 			}
 		}
 	}
+	to->mean_alpha = sum_alpha / nb_alpha;
+	if (to->mean_alpha < 250) to->have_mean_alpha = true;
 	pixel_reader_dtor(&reader);
 }
 

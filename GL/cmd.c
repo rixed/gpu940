@@ -27,7 +27,6 @@ static enum gli_DrawMode mode;
 static gpuCmdFacet cmdFacet = {
 	.opcode = gpuFACET,
 	.use_key = 0,
-	.blend_coef = 0,
 	.perspective = 0,
 };
 static gpuCmdPoint cmdPoint = {
@@ -52,6 +51,12 @@ static struct iovec const iov_point[] = {
 /*
  * Private Functions
  */
+
+// given the luminosity, return gpu intens
+static GLfixed lum2intens(GLfixed lum)
+{
+	return (lum - (1<<15))<<7;	// this gives good result
+}
 
 static int32_t get_luminosity(GLfixed v_eye[4])
 {
@@ -93,7 +98,7 @@ static int32_t get_luminosity(GLfixed v_eye[4])
 		//GLfixed scli = gli_light_specular(l);
 	}
 	// lum is a scale factor to be applied to acm. We change this to a signed value to be added.
-	return (lum - (1<<15))<<7;	// this gives good result
+	return lum2intens(lum);
 }
 
 // Returns the color contribution of the material, which is constant for all
@@ -259,6 +264,7 @@ static void facet_complete(unsigned size, bool facet_is_inverted, GLfixed colore
 	cmdFacet.size = size;
 	cmdFacet.use_intens = 0;
 	cmdFacet.use_key = 0;
+	GLfixed alpha = gli_current_color[3];
 	// Set facet rendering type and color if needed
 	if (gli_texturing()) {
 		struct gli_texture_object *to = gli_get_texture_object();
@@ -267,6 +273,9 @@ static void facet_complete(unsigned size, bool facet_is_inverted, GLfixed colore
 		if (to->need_key) {
 			cmdFacet.use_key = 1;
 			cmdFacet.color = gpuColor(KEY_RED, KEY_GREEN, KEY_BLUE);
+		}
+		if (to->have_mean_alpha) {
+			alpha = Fix_mul(alpha, to->mean_alpha);
 		}
 		if (gli_enabled(GL_LIGHTING)) {
 			cmdFacet.use_intens = 1;
@@ -293,6 +302,12 @@ static void facet_complete(unsigned size, bool facet_is_inverted, GLfixed colore
 		GLfixed const *c = get_color(colorer_eye);
 		cmdFacet.color = color_GL2gpu(c);
 		cmdFacet.rendering_type = rendering_flat;
+	}
+	// Use blending ?
+	if (gli_enabled(GL_BLEND) && alpha < 0xF000) {
+		cmdFacet.blend_coef = 0xF - (alpha>>12);
+	} else {
+		cmdFacet.blend_coef = 0;
 	}
 	// Optionnaly ask for z-buffer
 	set_depth_mode();
@@ -352,6 +367,22 @@ void gli_cmd_vertex(int32_t const *v)
 			// if !gli_smooth use the same i for all vertexes. But we don't know
 			// which intens to use for now, so it must be added later in cmd_complete.
 			z_param ++;
+/*		} else {	// modulate with current color
+			if (gli_smooth()) {
+				// we should modulate each color component individually, but gpu940 don't know
+				// how to do this, so we just take red as the global modulator.
+				cmdVec[vec_idx].u.text_params.i_zb = lum2intens(gli_current_color[0]);
+			}
+			// else intens will be set later (see above)
+			z_param ++;
+			FIXME: We are supposed to modulate texels with current color.
+			But we don't want to do this when all three colors are 1 (normal case),
+			ie when no modulation is required. The problem is that we don't know until
+			the primitive is complete that this will be the case. Possible fix : store the
+			gli_current_color[red] of each vertex as well as a flag that become true as soone
+			as a red component is <>1, and in facet_complete use this information to eventually
+			add an intens paramter.
+*/
 		}
 	} else if (gli_smooth() && gli_enabled(GL_LIGHTING)) {
 		if (gli_simple_lighting()) {

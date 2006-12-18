@@ -33,6 +33,7 @@ GLclampx gli_clear_colors[4];
 GLclampx gli_clear_depth;
 GLint gli_clear_stencil;
 GLboolean gli_color_mask[4], gli_color_mask_all, gli_depth_mask;
+enum gli_BlendFunc gli_sfactor, gli_dfactor;
 
 /*
  * Private Functions
@@ -62,6 +63,8 @@ int gli_framebuf_begin(void)
 	gli_clear_stencil = 0;
 	gli_color_mask[0] = gli_color_mask[1] = gli_color_mask[2] = gli_color_mask[3] = gli_color_mask_all = GL_TRUE;
 	gli_depth_mask = GL_TRUE;
+	gli_sfactor = GL_ONE;
+	gli_dfactor = GL_ZERO;
 	return 0;
 }
 
@@ -123,9 +126,26 @@ void glDepthFunc(GLenum func)
 
 void glBlendFunc(GLenum sfactor, GLenum dfactor)
 {
-	// TODO (remember to check that all values are not accepted for various parameters)
-	(void)sfactor;
-	(void)dfactor;
+	if (
+		sfactor != GL_ZERO && sfactor != GL_ONE && sfactor != GL_DST_COLOR &&
+		sfactor != GL_ONE_MINUS_DST_COLOR && sfactor != GL_SRC_ALPHA && sfactor != GL_ONE_MINUS_SRC_ALPHA &&
+		sfactor != GL_DST_ALPHA && sfactor != GL_ONE_MINUS_DST_ALPHA && sfactor != GL_SRC_ALPHA_SATURATE
+	) {
+		return gli_set_error(GL_INVALID_ENUM);
+	}
+	if (
+		dfactor != GL_ZERO && dfactor != GL_ONE && dfactor != GL_SRC_COLOR &&
+		dfactor != GL_ONE_MINUS_SRC_COLOR && dfactor != GL_SRC_ALPHA && dfactor != GL_ONE_MINUS_SRC_ALPHA &&
+		dfactor != GL_DST_ALPHA && dfactor != GL_ONE_MINUS_DST_ALPHA
+	) {
+		return gli_set_error(GL_INVALID_ENUM);
+	}
+	gli_sfactor = sfactor;
+	gli_dfactor = dfactor;
+	// Anyway, the only blending function handled by gpu940 is GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA,
+	// with a constant SRC_ALPHA (the alpha values are not stored in the framebuffer, thus we are
+	// left with src_alpha only). Also, we can make use of the key_color to clear incomming pixels
+	// with 0 alpha out, so that we have 2 possible alpha values : 0 and another one.
 }
 
 void glLogicOp(GLenum opcode)
