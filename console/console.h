@@ -19,15 +19,19 @@
 #define CONSOLE_H_060518
 
 #include <stdint.h>
+#include <stdbool.h>
 
 #ifndef GP2X
 #	include <SDL/SDL.h>
 extern SDL_Surface *sdl_console;
 #endif
 
+extern bool console_enabled;
+
 void console_begin(void);
 void console_end(void);
 void console_enable(void);
+void console_disable(void);
 
 unsigned console_width(void);
 unsigned console_height(void);

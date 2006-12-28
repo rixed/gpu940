@@ -47,7 +47,8 @@ struct gli_texture_object {
 	bool was_bound;	// to distinguish between to we created due to genTextures but that do not account as texture obj yet for isTexture
 	uint32_t *img_nores;	// if has_data and !is_resident
 	struct gpuBuf *img_res;	// if has_data and is_resident
-	bool need_key;
+	GLfixed mean_alpha;
+	bool need_key, have_mean_alpha;
 };
 // Reserve this color for the key color. I didn't like This blue anyway.
 #define KEY_RED 0

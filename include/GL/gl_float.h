@@ -38,9 +38,10 @@ typedef float GLclampf;
 typedef double GLdouble;
 typedef double GLclampd;
 
-#define f2x(x) ((x)*65536)
-#define i2x(x) ((x)<<16)
-#define i2x_color(x) ((x)>>15)
+#define F2X_LOG 16
+#define f2x(x) ((x)*(1<<F2X_LOG))
+#define i2x(x) ((x)<<F2X_LOG)
+#define i2x_color(x) ((x)>>(F2X_LOG-1))
 
 static inline void glVertex2i(GLint x, GLint y)
 {

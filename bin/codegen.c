@@ -627,7 +627,12 @@ static void write_combine(void)	// come here with previous color in r0
 	*gen_dst++ = 0xe0000400 | (vars[VARP_OUTCOLOR].rnum<<16) | (vars[VARP_OUTCOLOR].rnum<<12) | tmp3;
 	// 1110 0000 0000 rcol rcol 0100 0000 tmp3 ie "and tmp1, tmp1, tmp3, lsl #8" ie tmp1 = tmp1 & 0xff00ff00
 	*gen_dst++ = 0xe0000400 | (tmp1<<16) | (tmp1<<12) | tmp3;
-	if (ctx.poly.cmd->blend_coef<=8) {
+	if (ctx.poly.cmd->blend_coef == 8) {
+		// 1110 0000 1000 tmp4 tmp2 0000 0000 tmp2 ie "add tmp2, tmp4, tmp2" tmp2 = tmp2 + tmp4	
+		*gen_dst++ = 0xe0800000 | (tmp4<<16) | (tmp2<<12) | tmp2;
+		// 1110 0000 1001 tmp1 rcol 0000 0000 rcol ie "adds rcol, tmp1, rcol" rcol = rcol + tmp1 (with carry for higher bit)
+		*gen_dst++ = 0xe0900000 | (tmp1<<16) | (vars[VARP_OUTCOLOR].rnum<<12) | vars[VARP_OUTCOLOR].rnum;
+	} else if (ctx.poly.cmd->blend_coef < 8) {
 		// 1110 0000 1000 tmp4 tmp2 shif t010 tmp2 ie "add tmp2, tmp4, tmp2, lsr #(8-blend)" tmp2 = tmp2>>(8-blend_coef) + tmp4	
 		*gen_dst++ = 0xe0800020 | (tmp4<<16) | (tmp2<<12) | ((8-ctx.poly.cmd->blend_coef)<<7) | tmp2;
 		// 1110 0000 1001 tmp1 rcol shif t010 rcol ie "adds rcol, tmp1, rcol, lsr #(8-blend)" rcol = rcol>>(8-blend_coef) + tmp1 (with carry for higher bit)
@@ -668,7 +673,7 @@ static void combine_nopersp(void)
 	// 1110 0101 1001 varW tmp1 0000 0000 0000 ie "ldr tmp1, [varW]
 	*gen_dst++ = 0xe5900000 | (vars[VARP_W].rnum<<16) | (tmp1<<12);
 	write_combine();
-	if (!ctx.poly.cmd->use_key && !ctx.poly.cmd->write_z) {
+	if (!ctx.poly.cmd->use_key && ctx.rendering.z_mode == gpu_z_off) {
 		// 1110 0100 1000 varW rcol 0000 0000 0100 ie "str rcol, [rW], #0x4"
 		*gen_dst++ = 0xe4800004 | (vars[VARP_W].rnum<<16) | (vars[VARP_OUTCOLOR].rnum<<12);
 	} else {
@@ -764,7 +769,7 @@ static void bloc_def_func(void (*cb)(unsigned))
 		cb(NEXT_PERSP);
 	} else {
 		cb(NEXT_NOPERSP);
-		if (ctx.rendering.z_mode != gpu_z_off) {
+		if (ctx.rendering.z_mode != gpu_z_off || ctx.poly.cmd->write_z) {
 			cb(NEXT_Z);
 		}
 	}
@@ -941,7 +946,7 @@ void build_code(unsigned cache)
 	}
 	// adjust offsets
 	unsigned z_idx = ctx.poly.nb_params - 1;
-	if (ctx.rendering.z_mode == gpu_z_off) z_idx ++;
+	if (ctx.rendering.z_mode == gpu_z_off && !ctx.poly.cmd->write_z) z_idx ++;
 	unsigned i_idx = z_idx;
 	if (ctx.poly.cmd->use_intens) i_idx --;
 	vars[CONSTP_Z].offset = offsetof(struct ctx, line.dparam[z_idx]);

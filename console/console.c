@@ -11,7 +11,8 @@
 SDL_Surface *sdl_console;
 #endif
 
-uint8_t color;
+static uint8_t color;
+bool console_enabled;
 
 /*
  * Private Functions
@@ -20,7 +21,7 @@ uint8_t color;
 static inline unsigned char_width(void) { return 8; }
 static inline unsigned char_height(void) { return sizeof(consolefont[0]); }
 
-void plot_char(int x, int y, int c) {
+static void plot_char(int x, int y, int c) {
 	if (x < 0 || x >= (int)console_width() || y<0 || y>=(int)console_height()) return;
 #ifdef GP2X
 	uint8_t *w = shared->osd_data;
@@ -48,7 +49,7 @@ void plot_char(int x, int y, int c) {
 #endif
 }
 
-void console_clear_rect_(unsigned x, unsigned y, unsigned width, unsigned height) {
+static void console_clear_rect_(unsigned x, unsigned y, unsigned width, unsigned height) {
 	for (unsigned dy=0; dy<height; dy++) {
 		for (unsigned dx=0; dx<width; dx++) {
 			plot_char(x+dx, y+dy, ' ');
@@ -61,14 +62,22 @@ void console_clear_rect_(unsigned x, unsigned y, unsigned width, unsigned height
  */
 
 void console_enable(void) {
-	// enable OSD
-#ifdef GP2X
+	console_enabled = true;
+#	ifdef GP2X
 	gp2x_regs16[0x2880>>1] |= 0x80;
-#endif
+#	endif
+}
+
+void console_disable(void) {
+	console_enabled = false;
+#	ifdef GP2X
+	gp2x_regs16[0x2880>>1] &= ~0x80;
+#	endif
 }
 
 void console_begin(void) {
 	color = 1;
+	console_enabled = false;
 #ifdef GP2X
 	// set address of OSD headers
 	uint32_t osd_head = (uint32_t)&((struct gpuShared *)SHARED_PHYSICAL_ADDR)->osd_head;

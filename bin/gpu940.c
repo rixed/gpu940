@@ -91,7 +91,7 @@ static void display(struct buffer_loc const *loc) {
 		memcpy(dst, src, SCREEN_WIDTH<<2);
 	}
 	if (SDL_MUSTLOCK(sdl_screen)) SDL_UnlockSurface(sdl_screen);
-	SDL_BlitSurface(sdl_console, NULL, sdl_screen, NULL);
+	if (console_enabled) SDL_BlitSurface(sdl_console, NULL, sdl_screen, NULL);
 	SDL_UpdateRect(sdl_screen, 0, 0, SCREEN_WIDTH, SCREEN_HEIGHT);
 #endif
 	perftime_enter(previous_target, NULL);
@@ -129,6 +129,7 @@ static void console_stat(int y, int target) {
 	console_setcolor(c); console_write_uint(31, y, 5, (100*st.load_avg)>>10);
 }
 static void update_console(void) {
+	if (! console_enabled) return;
 	console_setcolor(3);
 	console_write_uint(20, 0, 3, shared->error_flags);
 	console_write_uint(9, 1, 5, shared->frame_count);
@@ -145,7 +146,6 @@ static void update_console(void) {
 	console_stat(13, PERF_DIV);
 	console_stat(14, PERF_OTHER);
 }
-
 
 static void vertical_interrupt(void) {
 	if (displist_begin == displist_end) {
@@ -365,7 +365,7 @@ static void do_showBuf(void)
 	displist[displist_end] = showBuf->loc;
 	displist_end = next_displist_end;
 #ifndef GP2X
-	vertical_interrupt();
+//	vertical_interrupt();
 #endif
 dwb_quit:
 	next_cmd(sizeof(*showBuf));
@@ -429,6 +429,16 @@ static void do_zmode(void)
 	ctx.rendering.z_mode = z_mode->mode;
 	next_cmd(sizeof(*z_mode));
 }
+static void do_dbg(void)
+{
+	gpuCmdDbg const *const dbg = (gpuCmdDbg *)get_cmd();
+	if (dbg->console_enable) {
+		console_enable();
+	} else {
+		console_disable();
+	}
+	next_cmd(sizeof(*dbg));
+}
 static void do_reset(void)
 {
 	(void)get_cmd();
@@ -483,6 +493,9 @@ static void fetch_command(void)
 			break;
 		case gpuZMODE:
 			do_zmode();
+			break;
+		case gpuDBG:
+			do_dbg();
 			break;
 		default:
 			set_error_flag(gpuEPARSE);
@@ -670,7 +683,7 @@ int main(void)
 		perror("sigaction");
 		return EXIT_FAILURE;
 	}
-#	if 0
+#	if 1
 	struct itimerval itimer = {
 		.it_interval = {
 			.tv_sec = 0,

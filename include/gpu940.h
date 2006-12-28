@@ -98,6 +98,7 @@ typedef enum {
 	gpuFACET,
 	gpuRECT,
 	gpuZMODE,
+	gpuDBG,
 } gpuOpcode;
 
 struct buffer_loc {
@@ -208,14 +209,16 @@ typedef struct {
 	gpuZMode mode;
 } gpuCmdZMode;
 
+typedef struct {
+	gpuOpcode opcode;
+	int32_t console_enable:1;
+} gpuCmdDbg;
+
 /* Client Functions */
 
 gpuErr gpuOpen(void);
 void gpuClose(void);
 
-// TODO: add function to alloc space on cmd buffer so that we do not copy commands (another command commit the commands).
-// Notice: when we are at the end of buffer and want to reserve a bigger amount of space that what's left, fill with a
-// 'Rewind Cmd' that make the GPU return to the begining of cmd buffer.
 gpuErr gpuWrite(void const *cmd, size_t size, bool can_wait);
 gpuErr gpuWritev(struct iovec const *cmdvec, size_t count, bool can_wait);
 

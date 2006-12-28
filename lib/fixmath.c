@@ -89,7 +89,7 @@ void Fix_normalize(int32_t v[3])
 	int32_t norm = Fix_norm(v);
 	if (norm) {
 		for (unsigned c=3; c--; ) {
-			v[c] = ((int64_t)v[c]<<16)/norm;
+			v[c] = ((int64_t)v[c]<<16)/norm;	// FIXME: use Fix_div
 		}
 	}
 }

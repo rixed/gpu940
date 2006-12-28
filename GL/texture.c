@@ -473,7 +473,7 @@ void glDeleteTextures(GLsizei n, GLuint const *textures)
 	}
 	for ( ; n--; ) {
 		if (0 == textures[n]) continue;	// silently ignore request to delete default texture
-		if (!binds[textures[n]]) continue;
+		if (textures[n] >= sizeof_array(binds) || !binds[textures[n]]) continue;
 		texture_object_del(binds[textures[n]]);
 		binds[textures[n]] = NULL;
 		for (unsigned i=0; i<sizeof_array(texture_units); i++) {

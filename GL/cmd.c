@@ -166,6 +166,10 @@ static bool depth_test(void)
 {
 	return gli_with_depth_buffer && gli_enabled(GL_DEPTH_TEST);
 }
+static bool z_param_needed(void)
+{
+	return depth_test() && (gli_depth_mask || (gli_depth_func != GL_ALWAYS && gli_depth_func != GL_NEVER));
+}
 
 static uint32_t color_GL2gpu(GLfixed const *c)
 {
@@ -182,7 +186,7 @@ static void point_complete(void)
 {
 	cmdPoint.color = color_GL2gpu(gli_current_color);
 	gpuErr const err = gpuWritev(iov_point, 2, true);
-	assert(gpuOK == err);
+	assert(gpuOK == err); (void)err;
 }
 
 static void set_current_texture(struct gli_texture_object *to)
@@ -194,7 +198,7 @@ static void set_current_texture(struct gli_texture_object *to)
 		to->img_res = gpuAlloc(to->mipmaps[0].width_log, 1U<<to->mipmaps[0].height_log, false);
 		if (! to->img_res) return gli_set_error(GL_OUT_OF_MEMORY);
 		err = gpuLoadImg(gpuBuf_get_loc(to->img_res), to->img_nores, 0);
-		assert(gpuOK == err);
+		assert(gpuOK == err); (void)err;
 		free(to->img_nores);
 		to->img_nores = NULL;
 		to->is_resident = true;
@@ -204,7 +208,7 @@ static void set_current_texture(struct gli_texture_object *to)
 	struct buffer_loc const *loc = gpuBuf_get_loc(to->img_res);
 	if (loc->address != last_address || loc->width_log != last_width) {
 		err = gpuSetBuf(gpuTxtBuffer, to->img_res, true);
-		assert(gpuOK == err);
+		assert(gpuOK == err); (void)err;
 		last_address = loc->address;
 		last_width = loc->width_log;
 	}
@@ -247,7 +251,7 @@ static void set_depth_mode(void)
 	if (needed != cmd.mode) {
 		cmd.mode = needed;
 		gpuErr const err = gpuWrite(&cmd, sizeof(cmd), true);
-		assert(gpuOK == err);
+		assert(gpuOK == err); (void)err;
 	}
 }
 
@@ -315,7 +319,7 @@ static void facet_complete(unsigned size, bool facet_is_inverted, GLfixed colore
 	cmdFacet.write_z = depth_test() && gli_depth_mask;
 	// Send to GPU
 	gpuErr const err = gpuWritev(iov_poly, 1+size, true);
-	assert(gpuOK == err);
+	assert(gpuOK == err); (void)err;
 }
 
 /*
@@ -400,7 +404,7 @@ void gli_cmd_vertex(int32_t const *v)
 		}
 	}
 	// Add zb parameter if needed
-	if (depth_test()) {
+	if (z_param_needed()) {
 		// TODO: f-n and f+n are constant with depth_range
 		int32_t const z_scale = Fix_div(gli_depth_range_far - gli_depth_range_near, clip_coords[3]<<1);
 		int32_t const z_offset = (gli_depth_range_far + gli_depth_range_near) >> 1;
@@ -534,7 +538,7 @@ void gli_clear(gpuBufferType type, GLclampx *val)
 		rect.value = gpuColor((val[0]>>8)&0xFF, (val[1]>>8)&0xFF, (val[2]>>8)&0xFF);
 	}
 	gpuErr const err = gpuWrite(&rect, sizeof(rect), true);
-	assert(gpuOK == err);
+	assert(gpuOK == err); (void)err;
 }
 
 extern inline uint32_t *gli_get_texture_address(struct gpuBuf *const buf);

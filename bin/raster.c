@@ -83,7 +83,7 @@ void raster_gen(void)
 		di *= 55;
 #		endif
 	}
-	if (ctx.rendering.z_mode != gpu_z_off) {
+	if (ctx.rendering.z_mode != gpu_z_off || ctx.poly.cmd->write_z) {
 		z = ctx.line.param[nbp];
 		dz = ctx.line.dparam[nbp++];
 	}
@@ -108,8 +108,8 @@ void raster_gen(void)
 				break;
 			case rendering_text:
 				color = texture_color(&ctx.location.buffer_loc[gpuTxtBuffer], u, v);
-				u += ctx.line.dparam[0];
-				v += ctx.line.dparam[1];
+				u += ctx.line.dparam[0];	// FIXME: should go in Next pixel to be done even when Z test fails
+				v += ctx.line.dparam[1];	// FIXME: idem
 				if (ctx.poly.cmd->use_key) {
 					if (color == ctx.poly.cmd->color) goto next_pixel;
 				}
@@ -121,9 +121,9 @@ void raster_gen(void)
 #				else
 					((r&0xFF00)<<8)|(g&0xFF00)|((b&0xFF00)>>8);
 #				endif
-				r += ctx.line.dparam[0];
-				g += ctx.line.dparam[1];
-				b += ctx.line.dparam[2];
+				r += ctx.line.dparam[0];	// FIXME: see above
+				g += ctx.line.dparam[1];	// FIXME: see above
+				b += ctx.line.dparam[2];	// FIXME: see above
 				break;
 		}
 		// Intens
@@ -149,10 +149,10 @@ void raster_gen(void)
 			uint32_t previous = *w_;
 			uint32_t p = (previous&0x00ff00ff)>>(ctx.poly.cmd->blend_coef<=8 ? 8-ctx.poly.cmd->blend_coef : 0);
 			uint32_t c = (color&0x00ff00ff)>>(ctx.poly.cmd->blend_coef>8 ? ctx.poly.cmd->blend_coef-8 : 0);
-			uint32_t merge = ((p + c) >> 1) & 0x00ff00ff;
+			uint32_t merge = ((p>>1) + (c>>1)) & 0x00ff00ff;
 			p = (previous&0xff00ff00)>>(ctx.poly.cmd->blend_coef<=8 ? 8-ctx.poly.cmd->blend_coef : 0);
 			c = (color&0xff00ff00)>>(ctx.poly.cmd->blend_coef>8 ? ctx.poly.cmd->blend_coef-8 : 0);
-			color = merge | (((p + c) >> 1) & 0xff00ff00);
+			color = merge | (((p>>1) + (c>>1)) & 0xff00ff00);
 		}
 		// Poke
 		if (ctx.poly.cmd->write_out) {
@@ -168,7 +168,7 @@ next_pixel:
 			decliv += ctx.poly.decliveness;
 		} else {
 			w ++;
-			if (ctx.rendering.z_mode != gpu_z_off) {
+			if (ctx.rendering.z_mode != gpu_z_off || ctx.poly.cmd->write_z) {
 				z += dz;
 			}
 		}

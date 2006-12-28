@@ -158,4 +158,3 @@ uint32_t gpuReadErr(void)
 	shared->error_flags = 0;
 	return err;
 }
-

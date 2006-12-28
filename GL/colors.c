@@ -185,7 +185,7 @@ GLfixed gli_light_attenuation(unsigned l, GLfixed dist)
 
 GLfixed gli_light_spot(unsigned l)
 {
-	assert(gli_light_enabled(l));
+	assert(gli_light_enabled(l)); (void)l;
 	return 1<<16;	// TODO
 }
 

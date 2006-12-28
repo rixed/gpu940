@@ -232,7 +232,7 @@ int clip_poly(void)
 #		endif
 		ctx.poly.nb_params++;
 	}
-	if (ctx.rendering.z_mode != gpu_z_off) ctx.poly.nb_params++;
+	if (ctx.rendering.z_mode != gpu_z_off || ctx.poly.cmd->write_z) ctx.poly.nb_params++;
 	// init vectors
 	unsigned v;
 	unsigned clipped = 0;
