@@ -11,5 +11,6 @@ do_ld_script
 gpu940.elf
 gpu940.source
 load940
+stop940
 bench940.elf
 bench940

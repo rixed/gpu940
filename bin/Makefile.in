@@ -36,7 +36,7 @@ PRE_UNINSTALL = :
 POST_UNINSTALL = :
 build_triplet = @build@
 host_triplet = @host@
-bin_PROGRAMS = gpu940$(EXEEXT) load940$(EXEEXT)
+bin_PROGRAMS = gpu940$(EXEEXT) load940$(EXEEXT) stop940$(EXEEXT)
 subdir = bin
 DIST_COMMON = $(srcdir)/Makefile.am $(srcdir)/Makefile.in
 ACLOCAL_M4 = $(top_srcdir)/aclocal.m4
@@ -59,6 +59,9 @@ gpu940_DEPENDENCIES = ../console/libconsole.a \
 am_load940_OBJECTS = load940.$(OBJEXT)
 load940_OBJECTS = $(am_load940_OBJECTS)
 load940_LDADD = $(LDADD)
+am_stop940_OBJECTS = stop940.$(OBJEXT)
+stop940_OBJECTS = $(am_stop940_OBJECTS)
+stop940_LDADD = $(LDADD)
 DEFAULT_INCLUDES = -I. -I$(srcdir) -I$(top_builddir)
 depcomp = $(SHELL) $(top_srcdir)/depcomp
 am__depfiles_maybe = depfiles
@@ -73,8 +76,8 @@ LTCOMPILE = $(LIBTOOL) --tag=CC --mode=compile $(CC) $(DEFS) \
 CCLD = $(CC)
 LINK = $(LIBTOOL) --tag=CC --mode=link $(CCLD) $(AM_CFLAGS) $(CFLAGS) \
 	$(AM_LDFLAGS) $(LDFLAGS) -o $@
-SOURCES = $(gpu940_SOURCES) $(load940_SOURCES)
-DIST_SOURCES = $(gpu940_SOURCES) $(load940_SOURCES)
+SOURCES = $(gpu940_SOURCES) $(load940_SOURCES) $(stop940_SOURCES)
+DIST_SOURCES = $(gpu940_SOURCES) $(load940_SOURCES) $(stop940_SOURCES)
 ETAGS = etags
 CTAGS = ctags
 DISTFILES = $(DIST_COMMON) $(DIST_SOURCES) $(TEXINFOS) $(EXTRA_DIST)
@@ -210,6 +213,7 @@ gpu940_SOURCES = \
 gpu940_LDADD = ../console/libconsole.a ../perftime/libperftime.a ../lib/fixmath.lo
 #AM_CFLAGS += -fno-pic -ffreestanding
 load940_SOURCES = load940.c
+stop940_SOURCES = stop940.c
 @GP2X_TRUE@OBJCOPY = $(GP2XDEVDIR)/bin/arm-linux-objcopy
 @GP2X_TRUE@OBJDUMP = $(GP2XDEVDIR)/bin/arm-linux-objdump
 all: all-am
@@ -279,6 +283,9 @@ clean-binPROGRAMS:
 load940$(EXEEXT): $(load940_OBJECTS) $(load940_DEPENDENCIES) 
 	@rm -f load940$(EXEEXT)
 	$(LINK) $(load940_LDFLAGS) $(load940_OBJECTS) $(load940_LDADD) $(LIBS)
+stop940$(EXEEXT): $(stop940_OBJECTS) $(stop940_DEPENDENCIES) 
+	@rm -f stop940$(EXEEXT)
+	$(LINK) $(stop940_LDFLAGS) $(stop940_OBJECTS) $(stop940_LDADD) $(LIBS)
 
 mostlyclean-compile:
 	-rm -f *.$(OBJEXT)
@@ -296,6 +303,7 @@ distclean-compile:
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/poly.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/poly_nopersp.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/raster.Po@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/stop940.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/text.Po@am__quote@
 
 .S.o:

@@ -1,6 +1,6 @@
 AM_CFLAGS = -I $(top_srcdir)/include -fstrict-aliasing -D_GNU_SOURCE -std=c99 -Wall -W -pedantic -pipe -DGPU
 
-bin_PROGRAMS = gpu940 load940
+bin_PROGRAMS = gpu940 load940 stop940
 gpu940_SOURCES = \
 	gpu940.c \
 	gpu940i.h \
@@ -25,6 +25,7 @@ gpu940_SOURCES = \
 gpu940_LDADD = ../console/libconsole.a ../perftime/libperftime.a ../lib/fixmath.lo
 #AM_CFLAGS += -fno-pic -ffreestanding
 load940_SOURCES = load940.c
+stop940_SOURCES = stop940.c
 
 if GP2X
 
