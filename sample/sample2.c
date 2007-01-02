@@ -163,7 +163,7 @@ static void send_facet(unsigned v0) {
 	cmdvec[3].iov_base = vectors+v0+2;
 	cmdvec[4].iov_base = vectors+v0+3;
 	gpuErr err = gpuWritev(cmdvec, sizeof_array(cmdvec), true);
-	assert(gpuOK == err);
+	assert(gpuOK == err); (void)err;
 }
 
 int main(void) {
