@@ -22,7 +22,7 @@
 #
 # You should have received a copy of the GNU General Public License
 # along with this program; if not, write to the Free Software
-# Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
+# Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
 #
 # As a special exception to the GNU General Public License, if you
 # distribute this file as part of a program that contains a
@@ -33,11 +33,11 @@
 SED="/bin/sed"
 
 # Sed that helps us avoid accidentally triggering echo(1) options like -n.
-Xsed="/bin/sed -e 1s/^X//"
+Xsed="/bin/sed -e s/^X//"
 
 # The HP-UX ksh and POSIX shell print the target directory to stdout
 # if CDPATH is set.
-(unset CDPATH) >/dev/null 2>&1 && unset CDPATH
+if test "X${CDPATH+set}" = Xset; then CDPATH=:; export CDPATH; fi
 
 # The names of the tagged configurations supported by this script.
 available_tags=" CXX"
@@ -67,12 +67,6 @@ fast_install=yes
 # The host system.
 host_alias=arm-linux
 host=arm-unknown-linux-gnu
-host_os=linux-gnu
-
-# The build system.
-build_alias=
-build=i686-pc-linux-gnu
-build_os=linux-gnu
 
 # An echo program that does not interpret backslashes.
 echo="echo"
@@ -82,22 +76,19 @@ AR="ar"
 AR_FLAGS="cru"
 
 # A C compiler.
-LTCC="/usr/local/devkitPro/devkitGP2X/bin/arm-linux-gcc"
-
-# LTCC compiler flags.
-LTCFLAGS="-O3 -DNDEBUG -DGP2X -I/usr/local/devkitPro/devkitGP2X/include -I/usr/local/include -mcpu=arm940t -DGP2X"
+LTCC="/usr/local/gp2xdev/bin/gp2x-gcc"
 
 # A language-specific compiler.
-CC="/usr/local/devkitPro/devkitGP2X/bin/arm-linux-gcc"
+CC="/usr/local/gp2xdev/bin/gp2x-gcc"
 
 # Is the compiler the GNU C compiler?
 with_gcc=yes
 
 # An ERE matcher.
-EGREP="/bin/grep -E"
+EGREP="grep -E"
 
 # The linker used to build libraries.
-LD="/usr/local/devkitPro/devkitGP2X/bin/arm-linux-ld"
+LD="/usr/local/gp2xdev/bin/gp2x-ld"
 
 # Whether we need hard or soft links.
 LN_S="ln -s"
@@ -152,7 +143,7 @@ max_cmd_len=32768
 # Does compiler simultaneously support -c and -o options?
 compiler_c_o="yes"
 
-# Must we lock files when doing compilation?
+# Must we lock files when doing compilation ?
 need_locks="no"
 
 # Do we need the lib prefix for modules?
@@ -201,7 +192,7 @@ soname_spec="\${libname}\${release}\${shared_ext}\$major"
 # Commands used to build and install an old-style archive.
 RANLIB="ranlib"
 old_archive_cmds="\$AR \$AR_FLAGS \$oldlib\$oldobjs\$old_deplibs~\$RANLIB \$oldlib"
-old_postinstall_cmds="chmod 644 \$oldlib~\$RANLIB \$oldlib"
+old_postinstall_cmds="\$RANLIB \$oldlib~chmod 644 \$oldlib"
 old_postuninstall_cmds=""
 
 # Create an old-style archive from a shared archive.
@@ -213,9 +204,9 @@ old_archive_from_expsyms_cmds=""
 # Commands used to build and install a shared archive.
 archive_cmds="\$CC -shared \$libobjs \$deplibs \$compiler_flags \${wl}-soname \$wl\$soname -o \$lib"
 archive_expsym_cmds="\$echo \\\"{ global:\\\" > \$output_objdir/\$libname.ver~
-  cat \$export_symbols | sed -e \\\"s/\\\\(.*\\\\)/\\\\1;/\\\" >> \$output_objdir/\$libname.ver~
-  \$echo \\\"local: *; };\\\" >> \$output_objdir/\$libname.ver~
-	  \$CC -shared \$libobjs \$deplibs \$compiler_flags \${wl}-soname \$wl\$soname \${wl}-version-script \${wl}\$output_objdir/\$libname.ver -o \$lib"
+cat \$export_symbols | sed -e \\\"s/\\\\(.*\\\\)/\\\\1;/\\\" >> \$output_objdir/\$libname.ver~
+\$echo \\\"local: *; };\\\" >> \$output_objdir/\$libname.ver~
+        \$CC -shared \$libobjs \$deplibs \$compiler_flags \${wl}-soname \$wl\$soname \${wl}-version-script \${wl}\$output_objdir/\$libname.ver -o \$lib"
 postinstall_cmds=""
 postuninstall_cmds=""
 
@@ -266,7 +257,7 @@ finish_cmds="PATH=\\\"\\\$PATH:/sbin\\\" ldconfig -n \$libdir"
 finish_eval=""
 
 # Take the output of nm and produce a listing of raw symbols and C names.
-global_symbol_pipe="sed -n -e 's/^.*[ 	]\\([ABCDGIRSTW][ABCDGIRSTW]*\\)[ 	][ 	]*\\([_A-Za-z][_A-Za-z0-9]*\\)\$/\\1 \\2 \\2/p'"
+global_symbol_pipe="sed -n -e 's/^.*[ 	]\\([ABCDGIRSTW][ABCDGIRSTW]*\\)[ 	][ 	]*\\(\\)\\([_A-Za-z][_A-Za-z0-9]*\\)\$/\\1 \\2\\3 \\3/p'"
 
 # Transform the output of nm in a proper C declaration
 global_symbol_to_cdecl="sed -n -e 's/^. .* \\(.*\\)\$/extern int \\1;/p'"
@@ -319,13 +310,13 @@ hardcode_automatic=no
 
 # Variables whose values should be saved in libtool wrapper scripts and
 # restored at relink time.
-variables_saved_for_relink="PATH LD_LIBRARY_PATH LD_RUN_PATH GCC_EXEC_PREFIX COMPILER_PATH LIBRARY_PATH"
+variables_saved_for_relink="PATH  LD_RUN_PATH GCC_EXEC_PREFIX COMPILER_PATH LIBRARY_PATH"
 
 # Whether libtool must link a program against all its dependency libraries.
 link_all_deplibs=no
 
 # Compile-time system search path for libraries
-sys_lib_search_path_spec=" /usr/local/devkitPro/devkitGP2X/lib/gcc/arm-linux/4.0.2/ /usr/lib/gcc/arm-linux/4.0.2/ /usr/local/devkitPro/devkitGP2X/lib/gcc/arm-linux/4.0.2/../../../../arm-linux/lib/arm-linux/4.0.2/ /usr/local/devkitPro/devkitGP2X/lib/gcc/arm-linux/4.0.2/../../../../arm-linux/lib/ /usr/local/devkitPro/devkitGP2X/sysroot/lib/arm-linux/4.0.2/ /usr/local/devkitPro/devkitGP2X/sysroot/lib/ /usr/local/devkitPro/devkitGP2X/sysroot/usr/lib/arm-linux/4.0.2/ /usr/local/devkitPro/devkitGP2X/sysroot/usr/lib/"
+sys_lib_search_path_spec=" /usr/local/gp2xdev/lib/gcc/gp2x/4.0.2/ /usr/lib/gcc/gp2x/4.0.2/ /usr/local/gp2xdev/lib/gcc/gp2x/4.0.2/../../../../gp2x/lib/gp2x/4.0.2/ /usr/local/gp2xdev/lib/gcc/gp2x/4.0.2/../../../../gp2x/lib/"
 
 # Run-time system search path for libraries
 sys_lib_dlsearch_path_spec="/lib /usr/lib /usr/X11R6/lib /usr/lib/GNUstep/System/Library/Libraries /usr/local/lib /usr/lib/atlas "
@@ -6801,12 +6792,6 @@ fast_install=yes
 # The host system.
 host_alias=arm-linux
 host=arm-unknown-linux-gnu
-host_os=linux-gnu
-
-# The build system.
-build_alias=
-build=i686-pc-linux-gnu
-build_os=linux-gnu
 
 # An echo program that does not interpret backslashes.
 echo="echo"
@@ -6816,10 +6801,7 @@ AR="ar"
 AR_FLAGS="cru"
 
 # A C compiler.
-LTCC="/usr/local/devkitPro/devkitGP2X/bin/arm-linux-gcc"
-
-# LTCC compiler flags.
-LTCFLAGS="-O3 -DNDEBUG -DGP2X -I/usr/local/devkitPro/devkitGP2X/include -I/usr/local/include -mcpu=arm940t -DGP2X"
+LTCC="/usr/local/gp2xdev/bin/gp2x-gcc"
 
 # A language-specific compiler.
 CC="g++"
@@ -6828,10 +6810,10 @@ CC="g++"
 with_gcc=yes
 
 # An ERE matcher.
-EGREP="/bin/grep -E"
+EGREP="grep -E"
 
 # The linker used to build libraries.
-LD="/usr/local/devkitPro/devkitGP2X/bin/arm-linux-ld"
+LD="/usr/local/gp2xdev/bin/gp2x-ld"
 
 # Whether we need hard or soft links.
 LN_S="ln -s"
@@ -6886,7 +6868,7 @@ max_cmd_len=32768
 # Does compiler simultaneously support -c and -o options?
 compiler_c_o="yes"
 
-# Must we lock files when doing compilation?
+# Must we lock files when doing compilation ?
 need_locks="no"
 
 # Do we need the lib prefix for modules?
@@ -6935,7 +6917,7 @@ soname_spec="\${libname}\${release}\${shared_ext}\$major"
 # Commands used to build and install an old-style archive.
 RANLIB="ranlib"
 old_archive_cmds="\$AR \$AR_FLAGS \$oldlib\$oldobjs\$old_deplibs~\$RANLIB \$oldlib"
-old_postinstall_cmds="chmod 644 \$oldlib~\$RANLIB \$oldlib"
+old_postinstall_cmds="\$RANLIB \$oldlib~chmod 644 \$oldlib"
 old_postuninstall_cmds=""
 
 # Create an old-style archive from a shared archive.
@@ -6997,7 +6979,7 @@ finish_cmds="PATH=\\\"\\\$PATH:/sbin\\\" ldconfig -n \$libdir"
 finish_eval=""
 
 # Take the output of nm and produce a listing of raw symbols and C names.
-global_symbol_pipe="sed -n -e 's/^.*[ 	]\\([ABCDGIRSTW][ABCDGIRSTW]*\\)[ 	][ 	]*\\([_A-Za-z][_A-Za-z0-9]*\\)\$/\\1 \\2 \\2/p'"
+global_symbol_pipe="sed -n -e 's/^.*[ 	]\\([ABCDGIRSTW][ABCDGIRSTW]*\\)[ 	][ 	]*\\(\\)\\([_A-Za-z][_A-Za-z0-9]*\\)\$/\\1 \\2\\3 \\3/p'"
 
 # Transform the output of nm in a proper C declaration
 global_symbol_to_cdecl="sed -n -e 's/^. .* \\(.*\\)\$/extern int \\1;/p'"
@@ -7042,7 +7024,7 @@ hardcode_minus_L=no
 
 # Set to yes if using SHLIBPATH_VAR=DIR during linking hardcodes DIR into
 # the resulting binary.
-hardcode_shlibpath_var=unsupported
+hardcode_shlibpath_var=
 
 # Set to yes if building a shared library automatically hardcodes DIR into the library
 # and all subsequent libraries and executables linked against it.
