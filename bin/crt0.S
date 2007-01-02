@@ -9,6 +9,7 @@
 	.global my_memset_words
 	.global unsigned_divide32
 	.global unsigned_divide64
+	.global __ashldi3
 
 _start:
 	b _reset @ Reset
@@ -239,6 +240,30 @@ unsigned_divide64:
 	// } while (1);
 	b 3b
 0:	ldmia sp!, {r4-r12, pc}
+
+// Ripped from libgcc.a, used by code compiled with official devkit's gcc
+__ashldi3:
+	cmp     r2, #0
+	stmdb   sp!, {r4, r5, r6, lr}
+	rsb     ip, r2, #32
+	mov     r4, r1
+	mov     r3, r0
+	mov     r6, #0
+	mov     r5, #0
+	beq     0f
+	cmp     ip, #0
+	mov     r3, r1, lsl r2
+	rsb     lr, ip, #0
+	movle   r5, #0
+	movle   r6, r0, lsl lr
+	movgt   r5, r0, lsl r2
+	orrgt   r6, r3, r0, lsr ip
+	mov     r4, r6
+	mov     r3, r5
+0:
+	mov     r1, r4
+	mov     r0, r3
+	ldmia   sp!, {r4, r5, r6, pc}
 
 	.pool
 #endif
