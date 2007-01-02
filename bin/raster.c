@@ -108,8 +108,6 @@ void raster_gen(void)
 				break;
 			case rendering_text:
 				color = texture_color(&ctx.location.buffer_loc[gpuTxtBuffer], u, v);
-				u += ctx.line.dparam[0];	// FIXME: should go in Next pixel to be done even when Z test fails
-				v += ctx.line.dparam[1];	// FIXME: idem
 				if (ctx.poly.cmd->use_key) {
 					if (color == ctx.poly.cmd->color) goto next_pixel;
 				}
@@ -121,9 +119,6 @@ void raster_gen(void)
 #				else
 					((r&0xFF00)<<8)|(g&0xFF00)|((b&0xFF00)>>8);
 #				endif
-				r += ctx.line.dparam[0];	// FIXME: see above
-				g += ctx.line.dparam[1];	// FIXME: see above
-				b += ctx.line.dparam[2];	// FIXME: see above
 				break;
 		}
 		// Intens
@@ -163,6 +158,19 @@ void raster_gen(void)
 		}
 		// Next pixel
 next_pixel:
+		switch ((enum gpuRenderingType)ctx.poly.cmd->rendering_type) {
+			case rendering_flat:
+				break;
+			case rendering_text:
+				u += ctx.line.dparam[0];
+				v += ctx.line.dparam[1];
+				break;
+			case rendering_smooth:
+				r += ctx.line.dparam[0];
+				g += ctx.line.dparam[1];
+				b += ctx.line.dparam[2];
+				break;
+		}
 		if (ctx.poly.cmd->perspective) {
 			w += ctx.line.dw;
 			decliv += ctx.poly.decliveness;

@@ -89,7 +89,9 @@ static void ztest_persp(void);
 static void ztest_nopersp(void);
 static void peek_flat(void);
 static void peek_text(void);
+static void peek_text_cond(void);
 static void peek_smooth(void);
+static void peek_smooth_cond(void);
 static void key_test(void);
 static void intens(void);
 static void poke_persp(void);
@@ -101,6 +103,8 @@ static void combine_nopersp(void);
 static void next_persp(void);
 static void next_nopersp(void);
 static void next_z(void);
+static void next_text(void);
+static void next_smooth(void);
 
 struct {
 	unsigned working_set;	// how many regs are required for internal computations
@@ -152,66 +156,86 @@ struct {
 		.working_set = 3,
 		.needed_vars = VARP_OUTCOLOR_M|VARP_U_M|VARP_V_M|CONSTP_DU_M|CONSTP_DV_M|CONSTP_TEXT_M,
 		.write_code = peek_text,
+	}, {	// peek texel when peek is conditional
+#		define PEEK_TEXT_COND 9
+		.working_set = 3,
+		.needed_vars = VARP_OUTCOLOR_M|VARP_U_M|VARP_V_M|CONSTP_TEXT_M,
+		.write_code = peek_text_cond,
 	}, {	// test against key color
-#		define KEY_TEST 9
+#		define KEY_TEST 10
 		.working_set = 0,
 		.needed_vars = VARP_OUTCOLOR_M|CONSTP_KEY_M,
 		.write_code = key_test,
 	}, {	// peek smooth
-#		define PEEK_SMOOTH 10
+#		define PEEK_SMOOTH 11
 		.working_set = 1,	// intermediate value
 		.needed_vars = VARP_OUTCOLOR_M|VARP_R_M|VARP_G_M|VARP_B_M|CONSTP_DR_M|CONSTP_DG_M|CONSTP_DB_M,
 		.write_code = peek_smooth,
+	}, {	// peek smooth when peek is conditional
+#		define PEEK_SMOOTH_COND 12
+		.working_set = 1,
+		.needed_vars = VARP_OUTCOLOR_M|VARP_R_M|VARP_G_M|VARP_B_M,
+		.write_code = peek_smooth_cond,
 	}, {	// intens
-#		define INTENS 11
+#		define INTENS 13
 		.working_set = 1,	// intermediate value
 		.needed_vars = VARP_OUTCOLOR_M|VARP_I_M|CONSTP_DI_M,
 		.write_code = intens,
 	}, {	// combine
-#		define COMBINE_PERSP 12
+#		define COMBINE_PERSP 14
 		.working_set = 5,
 		.needed_vars = VARP_OUTCOLOR_M|VARP_W_M|VARP_DECLIV_M,
 		.write_code = combine_persp,
 	}, {
-#		define COMBINE_NOPERSP 13
+#		define COMBINE_NOPERSP 15
 		.working_set = 4,
 		.needed_vars = VARP_OUTCOLOR_M|VARP_W_M,
 		.write_code = combine_nopersp,
 	}, {
-#		define POKE_OUT_PERSP 14
+#		define POKE_OUT_PERSP 16
 		.working_set = 1,
 		.needed_vars = VARP_OUTCOLOR_M|VARP_W_M|VARP_DECLIV_M,
 		.write_code = poke_persp,
 	}, {
-#		define POKE_OUT_NOPERSP 15
+#		define POKE_OUT_NOPERSP 17
 		.working_set = 0,
 		.needed_vars = VARP_OUTCOLOR_M|VARP_W_M,
 		.write_code = poke_nopersp,
 	}, {
-#		define POKE_Z_PERSP 16
+#		define POKE_Z_PERSP 18
 		.working_set = 2,
 		.needed_vars = VARP_W_M|CONSTP_Z_M|VARP_DECLIV_M,
 		.write_code = poke_z_persp,
 	}, {
-#		define POKE_Z_NOPERSP 17
+#		define POKE_Z_NOPERSP 19
 		.working_set = 1,
 		.needed_vars = VARP_W_M|VARP_Z_M|VARP_DECLIV_M,
 		.write_code = poke_z_nopersp,
 	}, {
-#		define NEXT_PERSP 18
+#		define NEXT_PERSP 20
 		.working_set = 0,
 		.needed_vars = VARP_W_M|VARP_DECLIV_M|CONSTP_DW_M|CONSTP_DDECLIV_M,
 		.write_code = next_persp,
 	}, {
-#		define NEXT_NOPERSP 19
+#		define NEXT_NOPERSP 21
 		.working_set = 0,
 		.needed_vars = VARP_W_M,
 		.write_code = next_nopersp,
 	}, {
-#		define NEXT_Z 20
+#		define NEXT_Z 22
 		.working_set = 0,
 		.needed_vars = VARP_Z_M|CONSTP_DZ_M,
 		.write_code = next_z,
+	}, {	// next u,v
+#		define NEXT_TEXT 23
+		.working_set = 1,
+		.needed_vars = VARP_U_M|VARP_V_M|CONSTP_DU_M|CONSTP_DV_M,
+		.write_code = next_text,
+	}, {	// next r,g,b (actually, y,u,v)
+#		define NEXT_SMOOTH 24
+		.working_set = 1,
+		.needed_vars = VARP_R_M|VARP_G_M|VARP_B_M|CONSTP_DR_M|CONSTP_DG_M|CONSTP_DB_M,
+		.write_code = next_smooth,
 	}
 };
 
@@ -267,6 +291,25 @@ struct patches {
 /*
  * Private Functions
  */
+
+static bool may_skip_peek(void)
+{
+	return ctx.rendering.z_mode != gpu_z_off;
+}
+
+static bool may_skip_poke(void)
+{
+	return may_skip_peek() || ctx.poly.cmd->use_key;
+}
+
+static bool may_have_multi_pixels_per_loop(void)
+{
+	return
+		! ctx.poly.cmd->perspective && // because we do not write in scanlines then
+		! may_skip_peek() &&	// because there may be holes
+		! may_skip_poke() &&	// same
+		! ctx.poly.cmd->blend_coef;	// because it would be too hard
+}
 
 static void add_patch(enum patch_type type, enum patch_target target)
 {
@@ -462,7 +505,7 @@ static unsigned outcolor_rnum(unsigned pix)
 	return 0;
 }
 
-static void peek_text(void)
+static void peek_text(void)	// we always peek, so we can increment our params here (and must, for nb_pixels_per_loop>1)
 {
 	unsigned const tmp1 = 0, tmp2 = 1, tmp3 = 2;
 	unsigned const max_p = in_bh ? 1 : nb_pixels_per_loop;
@@ -488,6 +531,24 @@ static void peek_text(void)
 		// 1110 0000 1000 varV varV 0000 0000 _DV_ ie "add varp_v, varp_v, constp_dv"
 		*gen_dst++ = 0xe0800000 | (vars[VARP_V].rnum<<16) | (vars[VARP_V].rnum<<12) | constp_dv;
 	}
+}
+
+static void peek_text_cond(void)	// this peek is conditionnal : inc our params elsewhere
+{
+	assert(! in_bh);
+	unsigned const tmp1 = 0, tmp2 = 1, tmp3 = 2;
+	unsigned const rcol = outcolor_rnum(0);
+	write_mov_immediate(tmp2, ctx.location.txt_mask);
+	// 1110 0000 0000 tmp2 tmp1 1000 0100 varU ie "and tmp1, tmp2, varp_u, asr #16" ie tmp1 = U
+	*gen_dst++ = 0xe0000840 | (tmp2<<16) | (tmp1<<12) | vars[VARP_U].rnum;
+	// 1110 0000 0000 tmp2 tmp3 1000 0100 varV ie "and tmp3, tmp2, varp_v, asr #16" ie tmp3 = V
+	*gen_dst++ = 0xe0000840 | (tmp2<<16) | (tmp3<<12) | vars[VARP_V].rnum;
+	// 1110 0000 1000 tmp1 tmp1 txtw w000 tmp3 ie "add tmp1, tmp1, tmp3, lsl #txt_width" tmp1 = VU
+	*gen_dst++ = 0xe0800000 | (tmp1<<16) | (tmp1<<12) | (ctx.location.buffer_loc[gpuTxtBuffer].width_log<<7) | tmp3;
+	// load constp_txt, possibly in tmp2
+	unsigned const constp_txt = load_constp(CONSTP_TEXT, tmp2);
+	// 1110 0111 1001 rtxt outc 0001 0000 tmp1 ie "ldr outcolor, [constp_txt, tmp1, lsl #2]"
+	*gen_dst++ = 0xe7900100 | (constp_txt<<16) | (rcol<<12) | tmp1;
 }
 
 static void peek_smooth(void)
@@ -516,6 +577,23 @@ static void peek_smooth(void)
 		// 1110 0000 1000 varV varV 0000 0000 _DV_ ie "add varB, varB, constp_DB"
 		*gen_dst++ = 0xe0800000 | (vars[VARP_B].rnum<<16) | (vars[VARP_B].rnum<<12) | constp_db;
 	}
+}
+
+static void peek_smooth_cond(void)	// this peek is conditionnal : inc our params elsewhere
+{
+	// For GP2X, r,g,b are y,u,v, and must be stored : VYUY (that is : BRGR)
+	// we omit the second 'R', giving B0GR
+	assert(! in_bh);
+	unsigned const tmp1 = 0;
+	unsigned const rcol = outcolor_rnum(0);
+	// 1110 0010 0000 varG rcol 1100 1111 1111 ie "and rcol, varG, #0xff00"
+	*gen_dst++ = 0xe2000cff | (vars[VARP_G].rnum<<16) | (rcol<<12);
+	// 1110 0001 1000 rcol rcol 0100 0010 varR ie "orr rcol, rcol, varR, lsr #8"
+	*gen_dst++ = 0xe1800420 | (rcol<<16) | (rcol<<12) | vars[VARP_R].rnum;
+	// 1110 0010 0000 varG rcol 1100 1111 1111 ie "and tmp1, varB, #0xff00"
+	*gen_dst++ = 0xe2000cff | (vars[VARP_B].rnum<<16) | (tmp1<<12);
+	// 1110 0001 1000 rcol rcol 1000 0000 tmp1 ie "orr rcol, rcol, tmp1, lsl #16"
+	*gen_dst++ = 0xe1800800 | (rcol<<16) | (rcol<<12) | tmp1;
 }
 
 static void key_test(void)
@@ -712,6 +790,35 @@ static void next_z(void)
 	*gen_dst++ = 0xe0800000 | (vars[VARP_Z].rnum<<16) | (vars[VARP_Z].rnum<<12) | constp_dz;
 }
 
+static void next_text(void)	// we did not inc our params. Do it now.
+{
+	assert(! in_bh);
+	unsigned const tmp1 = 0;
+	// load constp_du, possibly in tmp1
+	unsigned const constp_du = load_constp(CONSTP_DU, tmp1);
+	// 1110 0000 1000 varU varU 0000 0000 _DU_ ie "add varp_u, varp_u, constp_du"
+	*gen_dst++ = 0xe0800000 | (vars[VARP_U].rnum<<16) | (vars[VARP_U].rnum<<12) | constp_du;
+	// load constp_dv, possibly in tmp1
+	unsigned const constp_dv = load_constp(CONSTP_DV, tmp1);
+	// 1110 0000 1000 varV varV 0000 0000 _DV_ ie "add varp_v, varp_v, constp_dv"
+	*gen_dst++ = 0xe0800000 | (vars[VARP_V].rnum<<16) | (vars[VARP_V].rnum<<12) | constp_dv;
+}
+
+static void next_smooth(void)	// we did not inc our params. Do it now.
+{
+	assert(! in_bh);
+	unsigned const tmp1 = 0;
+	unsigned const constp_dr = load_constp(CONSTP_DR, tmp1);
+	// 1110 0000 1000 varV varV 0000 0000 _DV_ ie "add varR, varR, constp_DR"
+	*gen_dst++ = 0xe0800000 | (vars[VARP_R].rnum<<16) | (vars[VARP_R].rnum<<12) | constp_dr;
+	unsigned const constp_dg = load_constp(CONSTP_DG, tmp1);
+	// 1110 0000 1000 varV varV 0000 0000 _DV_ ie "add varG, varG, constp_DG"
+	*gen_dst++ = 0xe0800000 | (vars[VARP_G].rnum<<16) | (vars[VARP_G].rnum<<12) | constp_dg;
+	unsigned const constp_db = load_constp(CONSTP_DB, tmp1);
+	// 1110 0000 1000 varV varV 0000 0000 _DV_ ie "add varB, varB, constp_DB"
+	*gen_dst++ = 0xe0800000 | (vars[VARP_B].rnum<<16) | (vars[VARP_B].rnum<<12) | constp_db;
+}
+
 static void bloc_def_func(void (*cb)(unsigned))
 {	
 	if (
@@ -734,11 +841,17 @@ static void bloc_def_func(void (*cb)(unsigned))
 			if (ctx.poly.cmd->write_out && ctx.poly.cmd->use_intens) cb(PEEK_FLAT);
 			break;
 		case rendering_text:
-			if (ctx.poly.cmd->write_out || ctx.poly.cmd->use_key) cb(PEEK_TEXT);
+			if (ctx.poly.cmd->write_out || ctx.poly.cmd->use_key) {
+				if (may_skip_peek()) cb(PEEK_TEXT_COND);
+				else cb(PEEK_TEXT);
+			}
 			if (ctx.poly.cmd->use_key) cb(KEY_TEST);
 			break;
 		case rendering_smooth:
-			if (ctx.poly.cmd->write_out) cb(PEEK_SMOOTH);
+			if (ctx.poly.cmd->write_out) {
+				if (may_skip_peek()) cb(PEEK_SMOOTH_COND);
+				else cb(PEEK_SMOOTH);
+			}
 			break;
 	}
 	// Intens
@@ -772,6 +885,16 @@ static void bloc_def_func(void (*cb)(unsigned))
 		if (ctx.rendering.z_mode != gpu_z_off || ctx.poly.cmd->write_z) {
 			cb(NEXT_Z);
 		}
+	}
+	switch (ctx.poly.cmd->rendering_type) {
+		case rendering_flat:
+			break;
+		case rendering_text:
+			if (ctx.poly.cmd->write_out && may_skip_peek()) cb(NEXT_TEXT);
+			break;
+		case rendering_smooth:
+			if (ctx.poly.cmd->write_out && may_skip_peek()) cb(NEXT_SMOOTH);
+			break;
 	}
 	cb(END_WRITE_LOOP);
 }
@@ -811,7 +934,7 @@ static void alloc_regs(void)
 	outz_mask = vars[VARP_Z].rnum != -1 ? 1U<<vars[VARP_Z].rnum:0;
 	if (r < sizeof_array(regs)) {
 		// use remaining regs to write several pixels in the loop
-		if (!ctx.poly.cmd->perspective && !ctx.poly.cmd->use_key && ctx.rendering.z_mode == gpu_z_off && !ctx.poly.cmd->blend_coef) {
+		if (may_have_multi_pixels_per_loop()) {
 			// we can read several values and poke them all at once
 			// notice : that z_mode is off does not mean that we do not want to write Z !
 			while (r + ctx.poly.cmd->write_out + ctx.poly.cmd->write_z <= sizeof_array(regs)) {
