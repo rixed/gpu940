@@ -33,7 +33,7 @@
 #ifndef NDEBUG
 #	define MEM_DEBUG(txt, buf) do { printf("gpumm: "txt" @%u [%u]\n", (buf)->loc.address, ((buf)->loc.height << (buf)->loc.width_log)); } while (0)
 #else
-#	define MEM_DEBUG
+#	define MEM_DEBUG(txt, buf) do { (void)(txt); (void)(buf); } while (0)
 #endif
 #define ADDRESS_MAX sizeof_array(shared->buffers)
 
