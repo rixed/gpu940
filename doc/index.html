@@ -1,0 +1,416 @@
+<html>
+<head>
+	<title>gpu940 documentation</title>
+</head>
+<body>
+<h1>gpu940 documentation</h1>
+<p>
+	gpu940 is a soft 3D renderer that can perform true perspective texture 
+mapping, lighting, blending, depth tests... Primitives are not limited to 
+triangles, and are clipped in 3D before remaining vertexes are projected. It 
+was targeted against GPH's GP2X (http://www.gp2x.com) but could probably be of 
+some use on other platforms as well.
+</p><p>
+	This document gives some details about the internals of gpu940, in order to 
+ease it's use by others as well as to helps new contributors in joining the 
+project.
+</p>
+<h2>Table of content</h2>
+<ul>
+	<li>
+		<a href="#Presentation">Presentation</a>
+		<ul>
+			<li><a href="#History">History</a></li>
+			<li><a href="#Design">Overall design</a></li>
+			<li><a href="#SourceCode">Source code structure</a></li>
+			<li><a href="#GLRrequirements">OpenGL requirements</a></li>
+		</ul>
+	</li><li>
+		<a href="#GPU">GPU implementation</a>
+		<ul>
+			<li><a href="#Comm">Communication between CPU and GPU</a></li>
+			<li><a href="#Commands">GPU commands</a></li>
+			<li><a href="#PolyPersp">True perspective polygon drawing</a></li>
+			<li><a href="#PolyNoPersp">No perspective polygon drawing</a></li>
+			<li><a href="#YUV">Handling YUV color model</a></li>
+			<li><a href="#JIT">"Just In Time" code generation</a></li>
+		</ul>
+	</li><li>
+		<a href="#libgpu">Helper library</a>
+		<ul>
+			<li><a href="#need4lib">The need for a client library</a></li>
+			<li><a href="initialization">Initialization</a></li>
+			<li><a href="commandbuffer">Handling the command buffer</a></li>
+			<li><a href="videobuffer">Handling the video buffer</a></li>
+		</ul>
+	</li><li>
+		<a href="#OpenGL">OpenGL implementation</a>
+		<ul>
+			<li><a href="#GLMachine">Overall OpenGL machine</a></li>
+			<li><a href="#GL2GPU">Binding to the GPU</a></li>
+			<li><a href="#GLswap">Swapping buffers</a></li>
+			<li><a href="#GLfloats">Other types than GLfixed</a></li>
+		</ul>
+	</li><li>
+		<a href="#AppA">Appendix : how to port OpenGL apps</a>
+	</li>
+</ul>
+</h2>
+<h2><a name="Presentation">Presentation</a></h2>
+<p>
+	This part covers the design of gpu940, starting with a time line of the
+project that can help understand some design outcome.
+</p>
+<h3><a name="History">History</a></h3>
+<p>
+	At first, no OpenGL library was planned. I just wanted to code a polygon
+renderer like the many ones we wrote in the good old days of software 
+rendering.
+</p><p>
+	For the occasion, I wanted to give a try to the rendering technique called
+"Z-const mapping". More on this later, but the idea is to trade writing
+sequentially (cache friendliness) for true perspective.
+</p><p>
+	Most of the time spent on the whole project was spent on this true
+perspective mapping routine. Not that the source code is very big but it
+was not easy to debug (rendering glitches in general are hard to debug,
+because the glitch often does not belong to a given pixel in isolation
+but to the whole set of pixels that gives a picture, and if you are unlucky
+even a single picture is not false by itself but the animated polygons are
+still wrong).
+</p><p>
+	This true perspective mapping routine seemed to suit perfectly the GP2X's
+940 CPU because of it's little data cache. This is when the project grown
+from a draw_polygon function to a complete software GPU (that I will call
+"GPU" from now on for short).
+</p><p>
+	Also, an option was added to lighten or darken each pixels according to
+a per-vertex light parameter. Notice how this is different from OpenGL
+lighting, which computes resulting colors of vertexes first, then interpolate
+this colors through the polygon. OpenGL lighting allows for more complex
+lighting (colored light sources, complex lighting model) but requires to
+interpolate the three color components, where my little technique needed only
+one parameter, but permitted only the simplest of all lighting model (color +
+light). If I had though that I was about to implement an OpenGl layer on top
+of this set of functions, of course, I would have made other choices.
+</p><p>
+	After some run of the test programs on the GP2X (most of the tests were
+run on the PC version), it appeared that lighting in the 16 bits RGB model
+was not satisfactory : large light strips could be seen where the lighting
+parameter flipped a color bit. That's when I envisaged YUV mode, which is 24 
+bits. The strips almost vanished so that change was kept despite there is no
+YUV mode in SDL for the PC version. It was then required to convert all
+individual RGB colors and textures to the color model used by the GPU (RGB
+on PC, YUV on GP2X).
+</p><p>
+	The "Code alone" little demo was done at that point, to prove the usability
+of the GPU. It also revealed that accessing the memory is not as fast as
+expected. It was discovered then that accessing the RAM with big gaps between
+addresses, which is exactly how the true perspective renderer writes its 
+pixels, leads to very long RAM delays. This seems to be specific to the GP2X 
+design rather that to the ARM architecture. Z-constant mapping was no more 
+adapted to every polygons, but should be reserved for large textured polygons 
+when the perspective matter. For all others, a simpler, traditional rasterizer 
+should be used, which writes pixels sequentially in a scan line. This, also, 
+would offer another source of optimisation : writing several pixels in one go 
+with the ARM stm instruction, which further reduces RAM latency.
+</p><p>
+	After some bench, it appeared that only half the time spent in drawing a
+polygon is spent "productively" inside the function that actually writes
+pixels. The rest is spent evaluating input parameters, computing rendering
+parameters, etc... For a quick and dirty (and hopefully, temporary) 
+improvement on this, the polygon function was split between perspective and 
+no-perspective (thus we avoid many of the if/else tests), although initially 
+only the writing functions were different.
+</p><p>
+	Then came the idea of an OpenGL-ES implementation, at first as a way to
+allow homebrew coders to create new apps that they could then keep with them
+as they move on other platforms. In addition, OpenGL-ES has a well-known API
+that would dispense gpu940 of a proper documentation. Of course this require
+z-buffer, which was not implemented by then, but was planned anyway. And this
+API would prevent the use of some fancy features of gpu940 (like mixing
+all buffers indifferently).
+</p><p>
+	While adding an OpenGL-ES library, I looked for a simple OpenGL-ES 
+application to port on GP2X for testing purpose. I then realized how small 
+OpenGL-ES audience is compared to mere OpenGL.  Also, many OpenGL programs 
+these days are really not demanding much to the GL driver : feature them with 
+a z-buffered triangle mapping function, and most of there needs are fed 
+(because this is what is actually optimized by the cheap hardware available).
+That's when I decided to give a try to plain OpenGL : to find an app to port
+on the GP2X to test gpu940's OpenGL-ES implementation, which was there to
+help coders to port their apps out to other platforms. How strange.
+</p><p>
+	Implementing OpenGL means that instead of having 5 or 6 pre-defined 
+rendering functions to choose from, the user has access to a whole set of 
+parameters that together define a rendering functions : z-test modes, write bit 
+mask, texture, texture modes, color, alpha tests, blending, interpolation 
+modes, etc... A general purpose function implementing all the possible cases 
+would be crowded with tests and thus would be very slow. A better approach 
+consist of generating the rendering function corresponding to these parameters 
+values. Vincent-gl does the same thing, and probably MESA too in some extents. 
+I decided to do the same, so I removed all the pre-defined rendering 
+functions and replaced them by a kind of "just in time compiler" for ARM (very 
+presumptuous name for a routine that almost merely concatenate predefined 
+assembly snipets), and a general purpose C function for the PC.
+</p><p>
+	At the same time, I started to realize that the real value of gpu940 was 
+to implement OpenGL, so I modified several specific rendering methods which 
+were unusable from OpenGL, and added some more costly rendering modes needed 
+by OpenGL (eg. shadows rendering became blending).
+</p><p>
+	I also started to look for a proof of concept to demonstrate the ability 
+of the GPU. I had to port something, preferably a well known OpenGL game, 
+simple enough to not knock down the GPU on its knees, because the only 
+OpenGL application I ported thus far, glxgears, run only at around 15 fps. I 
+first tried glBattalion, but despite being visually poor, this game make use 
+of a large amount of distinct OpenGL API services that are seldom used and 
+that I didn't want to implement just for this demonstration. That's when I 
+had a look to Egoboo's source code. Like recent games, Egoboo is designed to 
+use only the bare minimum of OpenGL (actually, it's a Direct3D port), that is 
+a polygon mapping rasterizer with z-buffer and blend. It only took minutes to 
+obtain the first version compiled with gpu940's libGl. Of course it revealed 
+many bugs and required many other modifications than just linking with 
+gpu940, but this is another story.
+</p><p>
+	From this, the future of gpu940 appears to be closer and closer from 
+OpenGL requirements. Rendering commands should match OpenGL commands in order 
+to minimize libGL wrapping task on the client (the 920), for example for blending 
+and alpha support. In parallel, polygon shaper must be made more accurate. In 
+the speed front (speed also means power saving), the polygon shaper must be 
+made faster, as it can eat as much as 20% of the rendering time.
+</p><p>
+	When those objectives will be met, well, what should be done would have 
+been done.
+</p>
+<h3><a name="Design">Overall design</a></h3>
+<p>
+	The software is designed to operate in the background, in a distinct 
+thread of control than its client, much like a hardware GPU. It's not, 
+however, designed to serve several clients (an OpenGL feature we really won't 
+need). On PC, this means running on a distinct process, using IPC mechanisms 
+to communicate with client. On the GP2X, this means running on the 940.
+</p><p>
+	Commands are sent to the GPU using a cyclic buffer. On PC, this buffer is 
+mmapped and shared by the GPU and the client. On the GP2X, the buffer is 
+located on a dedicated portion of the upper 32Mb. This design free us from 
+the need to synchronize the two threads of controls with complex semaphore, 
+as the client only writes to the buffer and to the end pointer and only reads 
+the begin pointer, and the GPU only reads the buffer and end pointer and 
+writes the begin pointer. The only other information shared by the GPU and 
+its client are some error flags and statistical counters that are atomically 
+written by GPU and read by the client. Also, the video buffers are accessible 
+by both the GPU and the client, which can then upload directly textures or 
+read previously rendered pictures. The whole used memory is sized according 
+to the GP2X, and spawn along the whole 32 Mb of upper memory, minus 64Kb for 
+gpu940's code and stack. Amongst that, 1 Mb is used for the command buffer : 
+this is enough to store approximately 5000 polygon commands, which is more 
+than most frames require to be rendered.
+</p><p>
+	To render 3D pictures, you need computing vertexes in the camera space,
+projecting, clipping, and drawing. One must choose what's performed by the 
+GPU, and what's left for the client. The choice is a matter of trading 
+simplicity of use for freedom for the client to do what it wants the way it 
+wants to. It's also, for a soft renderer, a matter of sharing the load on two 
+equivalent processor so that no one has to continuously waits for the other. 
+Because it seemed not necessary to constraint the client to use some given 
+method to compute it's geometry positions, and because I know and enjoy many 
+cheats for that, and because there exists many different arguable methods to 
+handle primitive transformations, I decided to let the client handle the 
+camera and vertex positioning. Otherwise, the GPU needs to handle matrix 
+stacks, space partitionning, different spaces scales, characters skinning, 
+and many things that's not the business of a renderer (in addition, the client 
+will need the resulting positions for it's own stuff). However, for 
+true-perspective and z-tests, the GPU needs to know those resulting positions, 
+so it was better to let it project and clip the polygons itself. So the client 
+must send 3D vertexs in camera space, and the gpu940 handle all the 3D to 2D 
+projection and clipping. The drawback is that it's no more possible for the 
+GPU to share a vertex between several polygons ; each vertex is then 
+projected each time it's encountered. To minimize this cost, which still 
+remains important, the GPU maintain a cache of projected vertexes and the 
+client has a way to tell it that a given vertex is the same than a previously 
+sent
+one.
+</p><p>
+	For clipping, you can choose to clip the 3d coordinates against the view 
+frustum, or the 2D coordinates against the border of the rendering window.  
+Clipping in 3D means you only need to project the vertex you will use for 
+rendering, while clipping in 2D is generally considered simpler. gpu940 clips 
+in 3D, in order to minimize the amount of required divisions and because its 
+actually simpler. Clipping in 3D also offer the possibility to have user 
+clip-planes. Actually, the frustum is just a set of predefined clip-planes 
+(the code alone demo uses this to clip the "gpu940" logo shadow against the 
+border of the surrounding cube, which is much faster than using a z-test).
+</p><p>
+	Hardware GPU often have different kind of RAM, one which is read for texel 
+values, and another one where pixels, Z values or alpha values are written.  
+For a software renderer we do not have to distinguish between the two. It 
+seemed simpler and more powerful to treat the whole video buffer indifferently 
+from the GPU, and let the client decide where the GPU should draw its pixels, 
+where it should read texels, where it should read and write Z values, etc...  
+The drawback is that the client must then handle the video buffer itself, 
+allocating space for textures, pictures and Z-bufers, freeing them when 
+necessary. But it allow the client, for example, to simply render-to-texture, 
+or use a previously rendered picture or a texture as a Z-buffer, etc... It 
+also allow it to use more than two video buffer (the code alone demo uses this 
+to render many frames in advance when the GPU is faster than the frame rate, 
+so that it can save some time to render more demanding frames).  Hopefully, a 
+library helps the client to manage the video buffer.
+</p><p>
+	ARM940 comes with no FPU (nor does ARM920). We then must use fixed point 
+arithmetic all along (which is a good thing for a 3D renderer anyway, because 
+all manipulated values have the same scale). The simplest fixed point format 
+possible on a 32bit machine is 16.16 (16 bits for integer part and 16 bits for 
+decimal part). That's what will be used. A helper library will provide the GPU 
+with arithmetic helper functions (most of them inline), also linkable to the 
+client. These includes multiplication, division, sign comparison and
+absolute value, division being the one that must be avoided at all cost. For 
+convenience for the client, we also added square root,
+sine and cosine, although not required by the GPU.
+</p><p>
+	A word on true-perspective. Perspective distortion is mainly a problem for 
+texture mapping, but this issue affects all rendering techniques other than 
+constant color ("flat") rendering. The same z-constant technique can be 
+applied to any parameter that must be interpolated in 3D space along the 
+polygon at no cost : once the z-constant "scanline" is found, any parameter 
+can be linearly interpolated, not only texture coordinates U and V. From this 
+remarks, we can deduce that no parameter play a special role in the polygon 
+shaper. Parameters are only meaningful for the rasterizer (the function that 
+draw a "scanline"). Until there, parameters are just a set of values we want 
+to interpolate on 3d space. In all other places of GPU code, we only need to 
+know how many parameters we have, which is given by the polygon command sent 
+by the client.
+</p><p>
+	Finally, 3D renderers comes in two flavors : the clumsy ones that can draw 
+only triangles, and the ones that can draw any (convex) polygons. I can think 
+of no valid reason why the GPU should be limited to triangles.
+</p>
+<h3><a name="SourceCode">Source code structure</a></h3>
+<p>
+	The GPU and the user application share a common data structure in memory 
+named <i>shared</i> of type <i>struct gpuShared</i>, which main members are 
+the <i>uint32_t</i> arrays <i>cmds</i>, the command buffer, and 
+<i>buffers</i>, the video buffers. This structure, as well as all available 
+commands and helper library calls, are defined in <i>gpu940.h</i>.
+</p><p>
+	Commands are small data structures of which the first word gives the operation 
+code. The main command is the <i>draw polygon</i> command, which gives all 
+rendering information and the 3D coordinates of all involved vertexes.  When 
+it encounters this command, the GPU first clips the polygon, projects vertexes 
+and draws the polygon onto the current <i>out</i> buffer. There are no camera nor 
+<i>modelview</i> matrix stack as far as the GPU is concerned ; all 3D 
+transformations must have been performed by the user application before 
+sending the draw command. Other commands do change viewer window coordinates, 
+z-test mode, define buffers, etc...
+</p><p>
+	Buffers are defined by the <i>struct buffer_loc</i> data type, which 
+consist of the buffer starting address (offset, in words, into video 
+buffers), width (constrained to a power of two) and height. This struct is 
+sent within the command that sets GPU buffers.
+</p><p>
+	GPU uses three distinct buffers :
+<ul>
+	<li>the <i>out</i> buffer, into which everything is drawn ;</li>
+	<li>the <i>txt</i> buffer, from which texels are fetched ;</li>
+	<li>the <i>z</i> buffer, where z values are stored and read to perform z filtering ;</li>
+</ul>
+</p><p>
+	When all commands of a frame are sent, the user application send a <i>show 
+buffer</i> command to publish the frame. This command, when executed by the 
+GPU, means to push the designated buffer to the list of displayable buffers 
+(<i>struct buffer_loc</i> array named <i>displist</i>). Each time a vertical 
+interrupt occur (or, on PC, a timer interrupt), the GPU takes the next buffer 
+from this list and make it the current displayed buffer. If the list is empty, 
+the interrupt is <i>missed</i> (missed frame count is maintained in the 
+<i>shared</i> structure, and displayed on the OSD), meaning that there were 
+too many commands to perform in one frame time. When, at the contrary, more 
+than one frames are published during one frame time, the GPU will display them 
+one at a time, synchronized with the vertical interrupt ; in other words, it 
+will not skip frames. For synchronisation purposes, the user application can 
+read the frame counters <i>frame_count</i> and <i>frame_miss</i> in 
+the <i>shared</i> structure that account for each displayed frame and missed 
+interrupt.
+</p><p>
+	There is a distinct header file named <i>fixmath.h</i> where are grouped 
+all fixed point maths functions. Both <i>gpu940.h</i> and <i>fixmath.h</i> 
+are used by the GPU code and the client code, and thus are located in 
+the <i>include</i> directory.
+</p><p>
+	gpu940 code is located in the <i>bin</i> directory. <i>crt0.S</i> is the 
+only assembly file, and holds the interrupt vector, the initial setup code, 
+and some functions like division. Its main purpose is to setup the ARM940 
+protection unit ; it is not used when building for PC. The protection unit is 
+configured for cache everything except the command buffer (and, of course, 
+MMSP's IO register set).
+</p><p>
+	gpu940 code flow then follows in <i>gpu940.c</i>, which handle command 
+reading main loop, MMSP settings, vertical IRQ, and serve all commands but
+the draw polygon command.
+</p><p>
+	This one is split into various files. First, clipping and projection is 
+done in <i>clip.c</i>, and if something is left to be displayed, polygon 
+shaping is performed in <i>poly.c</i>, or <i>poly_nopersp.c</i> if the client 
+asked for linear interpolation of all parameters. Then each scan line (or 
+z-const line) is drawn in <i>raster.c</i> on PC, and by the code generated by 
+<i>codegen.c</i> on ARM.
+</p><p>
+	The <i>lib</i> directory holds all source files that form the helper 
+library.
+</p><p>
+	The <i>GL</i> lib stores all source code for the <i>libGL</i>, while the 
+GL header files are located in <i>include/GL</i>. Notice that 
+<i>include/GL/gl_float.h</i> defines many inline functions converting
+the most useful floating OpenGL calls to fixed point version.
+</p>
+<h3><a name="GLRrequirements">OpenGL requirements</a></h3>
+<h2><a name="GPU">GPU Implementation</a></h2>
+<p>
+	This chapter gives more details about the GPU implementation.
+</p>
+<h3><a name="Comm">Communication between CPU and GPU</a></h3>
+<p>
+	Variable size commands to reduce size. Opcode as the first uint32_t.
+</p><p>
+	Polygon command in depth.
+</p><p>
+	Rewind command to remove the need to copy commands on the GPU side.
+</p><p>
+	Command loop.
+</p>
+<h3><a name="Commands">GPU commands</a></h3>
+<p>
+	List of all available commands and what/how they do.
+</p>
+<h3><a name="PolyPersp">True perspective polygon drawing</a></h3>
+<p>
+	How z-const mapping works.
+</p>
+<h3><a name="PolyNoPersp">No perspective polygon drawing</a></h3>
+<p>
+	Difference in polygon shaper for no-persp polygons.
+</p>
+<h3><a name="YUV">Handling YUV color model</a></h3>
+<p>
+	Consequences o using YUV.
+</p>
+<h3><a name="JIT">"Just In Time" code generation</a></h3>
+<p>
+	JIT cache.
+</p><p>
+	Code generation : code blocks, and registers allocation.
+</p><p>
+	writing several pixels per loop, and bottom halves.
+</p>
+<h2><a name="libgpu">Helper library</a></h2>
+<h3><a name="need4lib">The need for a client library</a></h3>
+<h3><a name="initialization">Initialization</a></h3>
+<h3><a name="commandbuffer">Handling the command buffer</a></h3>
+<h3><a name="videobuffer">Handling the video buffer</a></h3>
+<h2><a name="OpenGL">OpenGL Implementation</a></h2>
+<h3><a name="GLMachine">Overall OpenGL machine</a></h3>
+<h3><a name="GL2GPU">Binding to the GPU</a></h3>
+<h3><a name="GLswap">Swapping buffers</a></h3>
+<h3><a name="GLfloats">Other types than GLfixed</a></h3>
+<h2><a name="AppA">Appendix : how to port OpenGL apps</a></h2>
+</body>
+</html>
