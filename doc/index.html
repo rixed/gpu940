@@ -8,8 +8,8 @@
 	gpu940 is a soft 3D renderer that can perform true perspective texture 
 mapping, lighting, blending, depth tests... Primitives are not limited to 
 triangles, and are clipped in 3D before remaining vertexes are projected. It 
-was targeted against GPH's GP2X (http://www.gp2x.com) but could probably be of 
-some use on other platforms as well.
+was targeted against GPH's <a href="http://wiki.gp2x.org">GP2X</a> but could 
+probably be of some use on other platforms as well.
 </p><p>
 	This document gives some details about the internals of gpu940, in order to 
 ease it's use by others as well as to helps new contributors in joining the 
@@ -23,7 +23,6 @@ project.
 			<li><a href="#History">History</a></li>
 			<li><a href="#Design">Overall design</a></li>
 			<li><a href="#SourceCode">Source code structure</a></li>
-			<li><a href="#GLRrequirements">OpenGL requirements</a></li>
 		</ul>
 	</li><li>
 		<a href="#GPU">GPU implementation</a>
@@ -143,39 +142,39 @@ help coders to port their apps out to other platforms. How strange.
 </p><p>
 	Implementing OpenGL means that instead of having 5 or 6 pre-defined 
 rendering functions to choose from, the user has access to a whole set of 
-parameters that together define a rendering functions : z-test modes, write bit 
-mask, texture, texture modes, color, alpha tests, blending, interpolation 
+parameters that together define a rendering functions : z-test modes, write 
+bit mask, texture, texture modes, color, alpha tests, blending, interpolation 
 modes, etc... A general purpose function implementing all the possible cases 
 would be crowded with tests and thus would be very slow. A better approach 
 consist of generating the rendering function corresponding to these parameters 
-values. Vincent-gl does the same thing, and probably MESA too in some extents. 
-I decided to do the same, so I removed all the pre-defined rendering 
-functions and replaced them by a kind of "just in time compiler" for ARM (very 
+values. Vincent-gl does the same thing, and probably MESA too in some extents.  
+I decided to do the same, so I removed all the pre-defined rendering functions 
+and replaced them by a kind of "just in time compiler" for ARM (very 
 presumptuous name for a routine that almost merely concatenate predefined 
 assembly snipets), and a general purpose C function for the PC.
 </p><p>
-	At the same time, I started to realize that the real value of gpu940 was 
-to implement OpenGL, so I modified several specific rendering methods which 
-were unusable from OpenGL, and added some more costly rendering modes needed 
-by OpenGL (eg. shadows rendering became blending).
+	At the same time, I started to realize that the real value of gpu940 was to 
+implement OpenGL, so I modified several specific rendering methods which were 
+unusable from OpenGL, and added some more costly rendering modes needed by 
+OpenGL (eg. shadows rendering became blending).
 </p><p>
-	I also started to look for a proof of concept to demonstrate the ability 
-of the GPU. I had to port something, preferably a well known OpenGL game, 
-simple enough to not knock down the GPU on its knees, because the only 
-OpenGL application I ported thus far, glxgears, run only at around 15 fps. I 
-first tried glBattalion, but despite being visually poor, this game make use 
-of a large amount of distinct OpenGL API services that are seldom used and 
-that I didn't want to implement just for this demonstration. That's when I 
-had a look to Egoboo's source code. Like recent games, Egoboo is designed to 
-use only the bare minimum of OpenGL (actually, it's a Direct3D port), that is 
-a polygon mapping rasterizer with z-buffer and blend. It only took minutes to 
-obtain the first version compiled with gpu940's libGl. Of course it revealed 
-many bugs and required many other modifications than just linking with 
-gpu940, but this is another story.
+	I also started to look for a proof of concept to demonstrate the ability of 
+the GPU. I had to port something, preferably a well known OpenGL game, simple 
+enough to not knock down the GPU on its knees, because the only OpenGL 
+application I ported thus far, glxgears, run only at around 15 fps. I first 
+tried glBattalion, but despite being visually poor, this game make use of a 
+large amount of distinct OpenGL API services that are seldom used and that I 
+didn't want to implement just for this demonstration. That's when I had a look 
+to Egoboo's source code. Like recent games, Egoboo is designed to use only the 
+bare minimum of OpenGL (actually, it's a Direct3D port), that is a polygon 
+mapping rasterizer with z-buffer and blend. It only took minutes to obtain the 
+first version compiled with gpu940's libGl. Of course it revealed many bugs 
+and required many other modifications than just linking with gpu940, but this 
+is another story.
 </p><p>
-	From this, the future of gpu940 appears to be closer and closer from 
-OpenGL requirements. Rendering commands should match OpenGL commands in order 
-to minimize libGL wrapping task on the client (the 920), for example for blending 
+	From this, the future of gpu940 appears to be closer and closer from OpenGL 
+requirements. Rendering commands should match OpenGL commands in order to 
+minimize libGL wrapping task on the client (the 920), for example for blending 
 and alpha support. In parallel, polygon shaper must be made more accurate. In 
 the speed front (speed also means power saving), the polygon shaper must be 
 made faster, as it can eat as much as 20% of the rendering time.
@@ -185,51 +184,50 @@ been done.
 </p>
 <h3><a name="Design">Overall design</a></h3>
 <p>
-	The software is designed to operate in the background, in a distinct 
-thread of control than its client, much like a hardware GPU. It's not, 
-however, designed to serve several clients (an OpenGL feature we really won't 
-need). On PC, this means running on a distinct process, using IPC mechanisms 
-to communicate with client. On the GP2X, this means running on the 940.
+	The software is designed to operate in the background, in a distinct thread 
+of control than its client, much like a hardware GPU. It's not, however, 
+designed to serve several clients (an OpenGL feature we really won't need). On 
+PC, this means running on a distinct process, using IPC mechanisms to 
+communicate with client. On the GP2X, this means running on the 940.
 </p><p>
 	Commands are sent to the GPU using a cyclic buffer. On PC, this buffer is 
 mmapped and shared by the GPU and the client. On the GP2X, the buffer is 
-located on a dedicated portion of the upper 32Mb. This design free us from 
-the need to synchronize the two threads of controls with complex semaphore, 
-as the client only writes to the buffer and to the end pointer and only reads 
-the begin pointer, and the GPU only reads the buffer and end pointer and 
-writes the begin pointer. The only other information shared by the GPU and 
-its client are some error flags and statistical counters that are atomically 
-written by GPU and read by the client. Also, the video buffers are accessible 
-by both the GPU and the client, which can then upload directly textures or 
-read previously rendered pictures. The whole used memory is sized according 
-to the GP2X, and spawn along the whole 32 Mb of upper memory, minus 64Kb for 
-gpu940's code and stack. Amongst that, 1 Mb is used for the command buffer : 
-this is enough to store approximately 5000 polygon commands, which is more 
-than most frames require to be rendered.
+located on a dedicated portion of the upper 32Mb. This design free us from the 
+need to synchronize the two threads of controls with complex semaphore, as the 
+client only writes to the buffer and to the end pointer and only reads the 
+begin pointer, and the GPU only reads the buffer and end pointer and writes 
+the begin pointer. The only other information shared by the GPU and its client 
+are some error flags and statistical counters that are atomically written by 
+GPU and read by the client. Also, the video buffers are accessible by both the 
+GPU and the client, which can then upload directly textures or read previously 
+rendered pictures. The whole used memory is sized according to the GP2X, and 
+spawn along the whole 32 Mb of upper memory, minus 64Kb for gpu940's code and 
+stack. Amongst that, 1 Mb is used for the command buffer : this is enough to 
+store approximately 5000 polygon commands, which is more than most frames 
+require to be rendered.
 </p><p>
 	To render 3D pictures, you need computing vertexes in the camera space,
 projecting, clipping, and drawing. One must choose what's performed by the 
 GPU, and what's left for the client. The choice is a matter of trading 
 simplicity of use for freedom for the client to do what it wants the way it 
 wants to. It's also, for a soft renderer, a matter of sharing the load on two 
-equivalent processor so that no one has to continuously waits for the other. 
+equivalent processor so that no one has to continuously waits for the other.  
 Because it seemed not necessary to constraint the client to use some given 
 method to compute it's geometry positions, and because I know and enjoy many 
 cheats for that, and because there exists many different arguable methods to 
 handle primitive transformations, I decided to let the client handle the 
 camera and vertex positioning. Otherwise, the GPU needs to handle matrix 
-stacks, space partitionning, different spaces scales, characters skinning, 
-and many things that's not the business of a renderer (in addition, the client 
+stacks, space partitionning, different spaces scales, characters skinning, and 
+many things that's not the business of a renderer (in addition, the client 
 will need the resulting positions for it's own stuff). However, for 
 true-perspective and z-tests, the GPU needs to know those resulting positions, 
 so it was better to let it project and clip the polygons itself. So the client 
 must send 3D vertexs in camera space, and the gpu940 handle all the 3D to 2D 
 projection and clipping. The drawback is that it's no more possible for the 
-GPU to share a vertex between several polygons ; each vertex is then 
-projected each time it's encountered. To minimize this cost, which still 
-remains important, the GPU maintain a cache of projected vertexes and the 
-client has a way to tell it that a given vertex is the same than a previously 
-sent
+GPU to share a vertex between several polygons ; each vertex is then projected 
+each time it's encountered. To minimize this cost, which still remains 
+important, the GPU maintain a cache of projected vertexes and the client has a 
+way to tell it that a given vertex is the same than a previously sent
 one.
 </p><p>
 	For clipping, you can choose to clip the 3d coordinates against the view 
@@ -293,26 +291,27 @@ the <i>uint32_t</i> arrays <i>cmds</i>, the command buffer, and
 <i>buffers</i>, the video buffers. This structure, as well as all available 
 commands and helper library calls, are defined in <i>gpu940.h</i>.
 </p><p>
-	Commands are small data structures of which the first word gives the operation 
-code. The main command is the <i>draw polygon</i> command, which gives all 
-rendering information and the 3D coordinates of all involved vertexes.  When 
-it encounters this command, the GPU first clips the polygon, projects vertexes 
-and draws the polygon onto the current <i>out</i> buffer. There are no camera nor 
-<i>modelview</i> matrix stack as far as the GPU is concerned ; all 3D 
-transformations must have been performed by the user application before 
-sending the draw command. Other commands do change viewer window coordinates, 
-z-test mode, define buffers, etc...
+	Commands are small data structures of which the first word gives the 
+operation code. The main command is the <i>draw polygon</i> command, which 
+gives all rendering information and the 3D coordinates of all involved 
+vertexes.  When it encounters this command, the GPU first clips the polygon, 
+projects vertexes and draws the polygon onto the current <i>out</i> buffer. 
+There are no camera nor <i>modelview</i> matrix stack as far as the GPU is 
+concerned ; all 3D transformations must have been performed by the user 
+application before sending the draw command. Other commands do change viewer 
+window coordinates, z-test mode, define buffers, etc...
 </p><p>
 	Buffers are defined by the <i>struct buffer_loc</i> data type, which 
-consist of the buffer starting address (offset, in words, into video 
-buffers), width (constrained to a power of two) and height. This struct is 
-sent within the command that sets GPU buffers.
+consist of the buffer starting address (offset, in words, into video buffers), 
+width (constrained to a power of two) and height. This struct is sent within 
+the command that sets GPU buffers.
 </p><p>
 	GPU uses three distinct buffers :
 <ul>
 	<li>the <i>out</i> buffer, into which everything is drawn ;</li>
 	<li>the <i>txt</i> buffer, from which texels are fetched ;</li>
-	<li>the <i>z</i> buffer, where z values are stored and read to perform z filtering ;</li>
+	<li>the <i>z</i> buffer, where z values are stored and read to perform z 
+filtering ;</li>
 </ul>
 </p><p>
 	When all commands of a frame are sent, the user application send a <i>show 
@@ -327,14 +326,14 @@ too many commands to perform in one frame time. When, at the contrary, more
 than one frames are published during one frame time, the GPU will display them 
 one at a time, synchronized with the vertical interrupt ; in other words, it 
 will not skip frames. For synchronisation purposes, the user application can 
-read the frame counters <i>frame_count</i> and <i>frame_miss</i> in 
-the <i>shared</i> structure that account for each displayed frame and missed 
+read the frame counters <i>frame_count</i> and <i>frame_miss</i> in the 
+<i>shared</i> structure that account for each displayed frame and missed 
 interrupt.
 </p><p>
 	There is a distinct header file named <i>fixmath.h</i> where are grouped 
-all fixed point maths functions. Both <i>gpu940.h</i> and <i>fixmath.h</i> 
-are used by the GPU code and the client code, and thus are located in 
-the <i>include</i> directory.
+all fixed point maths functions. Both <i>gpu940.h</i> and <i>fixmath.h</i> are 
+used by the GPU code and the client code, and thus are located in the 
+<i>include</i> directory.
 </p><p>
 	gpu940 code is located in the <i>bin</i> directory. <i>crt0.S</i> is the 
 only assembly file, and holds the interrupt vector, the initial setup code, 
@@ -354,32 +353,216 @@ asked for linear interpolation of all parameters. Then each scan line (or
 z-const line) is drawn in <i>raster.c</i> on PC, and by the code generated by 
 <i>codegen.c</i> on ARM.
 </p><p>
-	The <i>lib</i> directory holds all source files that form the helper 
-library.
+	The <i>lib</i> directory holds all source files that together form the 
+helper library.
 </p><p>
-	The <i>GL</i> lib stores all source code for the <i>libGL</i>, while the 
-GL header files are located in <i>include/GL</i>. Notice that 
+	The <i>GL</i> directory stores all source code for the <i>libGL</i>, while 
+the GL header files are located in <i>include/GL</i>. Notice that 
 <i>include/GL/gl_float.h</i> defines many inline functions converting
 the most useful floating OpenGL calls to fixed point version.
 </p>
-<h3><a name="GLRrequirements">OpenGL requirements</a></h3>
 <h2><a name="GPU">GPU Implementation</a></h2>
 <p>
 	This chapter gives more details about the GPU implementation.
 </p>
 <h3><a name="Comm">Communication between CPU and GPU</a></h3>
 <p>
-	Variable size commands to reduce size. Opcode as the first uint32_t.
+	The various commands sent to the GPU by the CPU (the communication from
+GPU to CPU is limited to some flags and atomic integers for counting frames)
+are small messages copied to a command buffer. We do not directly call GPU
+functions from CPU programs, because we want two threads working in parallel 
+(to match both GP2X design and today's taste for dual cores, SMP, etc). We do 
+not neither use UNIX inter-process communication mechanisms (System V message 
+queues, pipes, sockets...) because GP2X's 940 have no access to such 
+mechanisms. So the only option left is to code a simple cyclic buffer, located 
+in upper 32Mbytes and thus available from both CPU (mmapping /dev/mem from 
+Linux, or direct access from the 940), large enough to holds thousands of 
+commands. The buffer is located with various other data in the <i>shared</i>
+structure at address <i>SHARED_PHYSICAL_ADDR</i>.
+</p>
+	We follow two objectives :
+	<ul>
+		<li>The commands must be the smallest possible so that we can holds many
+in the buffer and the 920 does not spare to much time writing them ;</li>
+		<li>The commands must be representable by simple C structures and must 
+no be packed in order for the 940 to use them in place without the need to copy
+the data out of the buffer ;</li>
+	</ul>
+	The chosen trade-off is as follow : we define a C structure for each 
+command, composed only of 32 bits words (bit fields allowed for flags). Each 
+of these structure starts with an opcode.
 </p><p>
-	Polygon command in depth.
+	Only the polygon command needs to be more polished, because a polygon can 
+comes with three to many vertexes (although seldom more than 5), and with 
+various parameters depending on the rendering mode (and we want the parameters 
+to be in the same place on the command buffer, whatever the rendering mode, to 
+be able to process all polygons the same until the draw-a-scanline function). 
+Thus, the polygon function is split in two parts : a fixed part, the 
+<i>gpuCmdFacet</i> structure which is 4 words long and tells how many vertexes 
+are following and how to draw them, and then a variable part
+consisting of as many <i>gpuCmdVector</i> as there are vertexes.
 </p><p>
-	Rewind command to remove the need to copy commands on the GPU side.
+	This <i>gpuCmdVector</i> command which must always follow a 
+<i>gpuCmdFacet</i> command (and thus has no opcode) holds 8 parameters (apart 
+from the <i>same_as</i> member that we will see later when we look at 
+projections). Those parameters appears in many shapes in a union, because 
+depending on the rendering mode
+the various parameters are located in different places. The important thing is 
+that the first 3 parameters are the vertex coordinates, and then follow
+some rendering parameters (how many depends on the rendering mode set in the 
+<i>gpuCmdFacet</i>). So, the polygon function only have to know how many 
+parameters there are, until drawing scan lines where those parameters are 
+meaningful.
 </p><p>
-	Command loop.
+	Some troubles can arise when we met the end of the command buffer. A cyclic 
+buffer is supposed to wrap at offset zero once the end is reached, but as we 
+want the GPU to use the commands without copying them out of the buffer, we do 
+not want a command to be split in half due to crossing buffer's end. So, when 
+a whole command do not fit into what's left of the command buffer, we write a 
+special command a single word length, opcode <i>gpuREWIND</i> telling the GPU 
+to return to the beginning of buffer before reading next command. For the user 
+application, the gpu940 library handle this wrapping automatically.
+</p><p>
+	The command buffer reading loop is in <i>bin/gpu940.c</i>, function 
+<i>run()</i>. When no more command is waiting to be processed, the GP2X do a 
+busy loop, while the PC yield the CPU to another process. On the GP2X, if the 
+spinning longs too much (several seconds), the CPU speed is lowered to save 
+batteries.
 </p>
 <h3><a name="Commands">GPU commands</a></h3>
 <p>
-	List of all available commands and what/how they do.
+	All command structures are defined <i>include/gpu940.h</i>. When some 
+command is invalid, the GPU can set the <i>gpuEPARAM</i> error flag.
+</p><p>
+	<b>gpuREWIND</b> is a one word length command that inform the GPU that the 
+next command is waiting at offset 0 of the command buffer. This is useful to 
+avoid commands being cut by the end of the command buffer. The only effect is 
+then to reset <i>cmds_begin</i> to 0. The user library handle this 
+automatically.
+</p><p>
+	<b>gpuRESET</b> is used to reset GPU internal state (projection cache, 
+JIT cache, buffers, window position, clip planes, perspective, frame 
+counters, error flags, OSD state, performence counters, and all settable 
+parameters). This should be used at the beginning of a program. The user 
+library handle this automatically.
+</p><p>
+	<b>gpuSETVIEW</b> is used to configure the rendering window : its 
+position, clipping borders, and perspective. The fourth first clip planes are 
+updated to reflect the new clipping borders. The first cLip plane is the 
+z-near clip plane, and is set to a very low value just to avoid division by 
+zero during projection. OpenGl require this z-near clip plane to be 
+user-defined, but for now it's constant.
+</p><p>
+	<b>gpuSETUSRCLIPPLANES</b> allow the user application to define 
+additional clip planes (up to five user clip planes are supported, to a total 
+of 10 clip planes).
+</p><p>
+	<b>gpuSETBUF</b> command allow the user to define the location of the 
+buffers used in rendering. GPU uses up to three buffers, which types are 
+defined in the <i>gpuBufferType</i> enumeration :
+</p><ul>
+	<li><i>gpuOutBuffer</i>, where the graphics are drawn,</li>
+	<li><i>gpuTxtBuffer</i>, where the texels are fetched,</li>
+	<li>and <i>gpuZBuffer</i>, where the Z values are read and writen for 
+depth-tests.</li>
+</ul><p>
+	Each buffer is given a location (<i>struct buffer_loc</i>) made of it's 
+offset from <i>shared-&gt;buffers</i>, its width (expressed in power of two) 
+and its height. For texture buffer, height is required to be a power of two, 
+but is not necessarily the same as width (although OpenGL enforces this). 
+Width are not allowed to be greater than 18 (that is, 2<sup>18</sup> word 
+values). Some parameters (a bit mask for texture size, and the address of 
+rendering buffer) that are used internally by the generated rendering code 
+depends on these values, so the JIT cache is flushed when this command is 
+received.
+</p><p>
+	<b>gpuSHOWBUF</b> also gives a buffer position to GPU, but this buffer is 
+not used for rendering. The address given with this command is used as the 
+next buffer to display. More precisely, the buffer is queued on the 
+<i>displist</i> list, which contains all the displayable buffers that were 
+not already shown. The list act as a LIFO, so all buffers given are displayed 
+sequencialy in the order received. Each time a vertical IRQ (or a periodic 
+timer on PC) arise, a buffer is shifted of this list and displayed 
+(configured on the MMSP display registers on the GP2X, slowly copied onto SDL 
+buffers on PC), and the <i>frame_count</i> is incremented. If no buffers are 
+available on the <i>displist</i> when the IRQ is raised, the 
+<i>frame_miss</i> is incremented instead. The GPU never skips a published 
+frame, so it's the responsibility of the application to use the frame 
+counters to detect frame misses and react accordingly.
+</p><p>
+	<b>gpuPOINT</b> simply draws a pixel in a given color, at location given 
+by a following <b>gpuCmdVector</b>. As this feature is merely used for 
+debuging, no fancy rendering are available (like OpenGl width, antialias, or 
+even light or textured (!) point).
+</p><p>
+	<b>gpuLINE</b> is nor implemented yet.
+</p><p>
+	<b>gpuFACET</b> is the more complex command, and the heart of GPU. It 
+draw a (convex) polygon of any size (from 3 to 16 vertexes). It can do many 
+different renderings :
+</p><ul>
+	<li>flat rendering,</li>
+	<li>rendering with luminosity, with true or linear perspective,</li>
+	<li>textured rendering, with true or linear perspective,</li>
+	<li>textured rendering with luminosity, with true or linear 
+perspective,</li>
+	<li>keyed rendering (that is textured with a special color value meaning 
+to skip output of the pixel), with or without luminosity, with true or linear 
+perspective,</li>
+	<li>smooth rendering (color interpolation) with true or linear 
+perspective,</li>
+</ul><p>
+	all this with or without depth-tests, with optional blending. Also, two 
+flags can mask the writing of pixel or depth values (all these &quot;with or 
+without&quot; made a code generator mandatory). Also, a <i>cull_mode</i> 
+parameter sets the culling mode for the facet. All this made this command 4 
+words long, thanks to C bit fields. This command must be followed by as many 
+<i>gpuCmdVector</i> as defined in the facet's <i>size</i>.
+</p><p>
+	Note that keyed rendering is an unknown feature for OpenGL. Instead, 
+OpenGL can use an alpha component in the texture, which is far more 
+expensive. Textures defined with an alpha channel are transformed by the 
+OpenGL layer to keyed textures : when alpha channel is below an arbitrary 
+limit (which is 5/256), we replace the texel color by a key color are mark 
+the texture as requiring a key test. Also, the GPU only supports constant 
+blending, that is to use a constant blending ratio for all polygon, when 
+OpenGL requires a dedicated component for alpha value. Anyway, using key color 
+in conjunction with constant blending proved enough for Egoboo, wich is not 
+that bad. Adding a dedicated alpha value could be done, though, and probably 
+will in a near future : it will not cost much CPU cycles, and will 
+considerably simplify OpenGL layer code.
+</p><p>
+	Not really a command by itself, the <i>gpuCmdVector</i> structure needs a 
+proper explanation. The first field of this structure, <i>same_as</i>, can be 
+used to skip the projection if the very same vertex position was used 
+previously. If <i>same_as</i> is 1, it means that this vertex share the same 
+position (and so, also the same 2D coordinates) than the just previously sent 
+vertex. If it's 2, it means that this vertex share the same position than the 
+vertex that was sent 2 vertexes ago, and so on. If <i>same_as</i> is 0, it 
+means that this vertex is to be projected again. This value is automatically 
+handled by the OpenGL library, and can save about one third of the required 
+projections, with a very small cache of 8 positions.
+</p><p>
+	Next in the <i>gpuCmdVector</i> follow a union or parameters, the first 
+three being the 3D coordinates, and next ones depending of the rendering mode 
+set in the facet command. Notice that when depth test are enabled, or when 
+the <i>write_z</i> flag is set in facet command, the Z coordinate compared to 
+or written in the depth buffer is <i>not</i> the third 3D coordinate, but a 
+separate parameter. This is so that it's possible to normalize depth 
+parameters, as required by OpenGl (and common sense).
+</p><p>
+	<b>gpuRECT</b> command tells the GPU to fill a rectangle in one of its 
+buffer. The rectangle position is given in pixels coordinates relative to 
+buffer or to the clipping window. Notice that this is performed with regular 
+<i>memset</i>, not using GP2X's fancy blitter.
+</p><p>
+	<b>gpuZMODE</b> sets the depth test mode. All OpenGL operators are 
+available, plus the special <i>gpu_z_off</i> which disable depth test (and is 
+the default).
+</p><p>
+	The last command is <b>gpuDBG</b>, which enable or disable (default) the 
+OSD debugging console. The debugging console displays various performance 
+counters, frame counters, GPU speed and error flags.
 </p>
 <h3><a name="PolyPersp">True perspective polygon drawing</a></h3>
 <p>
@@ -391,7 +574,7 @@ the most useful floating OpenGL calls to fixed point version.
 </p>
 <h3><a name="YUV">Handling YUV color model</a></h3>
 <p>
-	Consequences o using YUV.
+	Consequences of using YUV.
 </p>
 <h3><a name="JIT">"Just In Time" code generation</a></h3>
 <p>
