@@ -566,13 +566,88 @@ counters, frame counters, GPU speed and error flags.
 </p>
 <h3><a name="PolyPersp">True perspective polygon drawing</a></h3>
 <p>
-	How z-const mapping works.
+	This chapter briefly explain how true-perspective mapping works, and how it 
+is implemented in gpu940.
+</p><p>
+	When rendering 3D polygons, one should take care of rendering closer pixels 
+&quot;bigger&quot; than farther ones. This is true for every rendering 
+algorithm but the simpler one when all pixels share the same colour, but the 
+perspective question generally raise only when texture mapping is concerned, 
+because for gouraud rendering, for example, the eye is very tolerant to 
+approximations in this area. But when texture mapping enter the scene one must 
+take perspective into account. Most of the time, to lower the amount of 
+computation, one simply compute the true <i>(u,v)</i> coordinates once in a 
+while and keep linearly interpolating these parameters between these computed 
+values. This correction gives good results, but still require expensive 
+divisions every 8 or 16 pixels. And ARM processors really hate divisions.
+</p><p>
+	The technique known as &quot;z-constant mapping&quot; works differently.
+Instead of rendering scan-lines, which are distorted by perspective, one looks 
+for the slope of constant depth on the polygon, and render along that slope. 
+Mapping coordinates (as well as any other rendering parameters) can then be 
+linearly interpolated without commiting any approximation.
+</p><p>
+	This technique is seldom used because it suffers from several drawbacks and 
+misconceptions :
+</p><u>
+	<li>It's hard to determine the z-constant &quot;scan-line&quot; ;</li>
+	<li>It's hard/impossible to perform advanced rendering tricks such as subpixel rendering ;</li>
+	<li>It's hard to draw slopped &quot;scan-lines&quot; ;</li>
+	<li>It's hard to avoid empty gaps between congruent polygons ;</li>
+	<li>The cost of writting non-sequential pixels are overwhelming ;</li>
+	<li>etc ...</li>
+</u><p>
+	Finding the slope of constant depth is not very difficult and can be 
+achieved with only two divides. Drawing sloped lines is not very complex 
+because it basically consists of adding a constant slopping factor to 
+every pixel's X or Y coordinate, factor which is proportional to this 
+coordinate. Apart from that (finding this slope parameter and adding it to 
+the 2D coordinate of each pixels), there are no more difference between this 
+true perspective polygon routine and a polygon routine unaware of 
+perspective. That's why it's not impossible at all to perform sub-pixel 
+accuracy (notice that there are no sub-pixel accuracy rendering in gpu940).
+</p><p>
+	Filling gaps between polygons, at the contrary, is a real difficulty, but 
+can be solved. Also, writing non sequential pixels can have terrible 
+consequences for performance. But not for GP2X's ARM940, because :
+</p><ul>
+	<li>each pixel is 32 bits in YUV format ;
+	<li>data cache is not used for writes in the out-buffer ;
+</ul><p>
+	In theory, then, the GP2X was a perfect fit for this technique. Anyway, 
+it was later discovered than, even if data cache is unused, writing words far 
+away from each other is much slower than writing words that are close from 
+each other, so the true-perspective mapping must be reserved for when it's 
+really needed, that is for big polygons that covers a large portion of the 
+screen. That's why the true-perspective functionality can be switched off on 
+a polygon by polygon basis. Hopefully, because z-constant routine is very close 
+to no-perspective routine, its almost the same in both cases : enabling true 
+perspective just adds the slope computation and the addition of the sloping
+factor to one of the 2D coordinates of every pixels.
+</p><p>
+	The true perspective polygon &quot;shaper&quot; can be found in 
+<i>bin/poly.c</i>, while its no-perspective counterpart lie in
+<i>bin/poly_nopersp.c</i>. Currently, the OpenGL layer does never enable
+true perspective rendering. Its result can only be seen in the
+<i>code alone</i> demo or other sample programs under <i>sample</i>
+directory.
 </p>
 <h3><a name="PolyNoPersp">No perspective polygon drawing</a></h3>
 <p>
-	Difference in polygon shaper for no-persp polygons.
+	The fact that there exists two distinct source files for perspective and
+no-perspective rendering is just a matter of performance : the few avoided
+<i>if</i>s made a significant speed improvement ; but both files are still
+mostly identical. Also, the routines that render the pixels along a scan-line
+(sloped or not) are exactly the same. It surely is problematic to have such
+similar code being duplicated, and this is one of the objectives for future 
+release to have both polygon &quot;shaper&quot; merged into one back again.
+</p><p>
+	Anyway, the fact that we do not always draw sequential pixels must be 
+taken into account in the &quot;Just In Time&quot; (JIT) code generator. 
+As we will see shortly, when true perspective is disabled the JIT code 
+generator can sometime exploit an ARM-related trick to build faster code.
 </p>
-<h3><a name="YUV">Handling YUV color model</a></h3>
+<h3><a name="YUV">Handling YUV colour model</a></h3>
 <p>
 	Consequences of using YUV.
 </p>
