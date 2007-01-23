@@ -571,7 +571,7 @@ is implemented in gpu940.
 </p><p>
 	When rendering 3D polygons, one should take care of rendering closer pixels 
 &quot;bigger&quot; than farther ones. This is true for every rendering 
-algorithm but the simpler one when all pixels share the same colour, but the 
+algorithm but the simpler one when all pixels share the same color, but the 
 perspective question generally raise only when texture mapping is concerned, 
 because for gouraud rendering, for example, the eye is very tolerant to 
 approximations in this area. But when texture mapping enter the scene one must 
@@ -589,14 +589,14 @@ linearly interpolated without commiting any approximation.
 </p><p>
 	This technique is seldom used because it suffers from several drawbacks and 
 misconceptions :
-</p><u>
+</p><ul>
 	<li>It's hard to determine the z-constant &quot;scan-line&quot; ;</li>
 	<li>It's hard/impossible to perform advanced rendering tricks such as subpixel rendering ;</li>
 	<li>It's hard to draw slopped &quot;scan-lines&quot; ;</li>
 	<li>It's hard to avoid empty gaps between congruent polygons ;</li>
 	<li>The cost of writting non-sequential pixels are overwhelming ;</li>
 	<li>etc ...</li>
-</u><p>
+</ul><p>
 	Finding the slope of constant depth is not very difficult and can be 
 achieved with only two divides. Drawing sloped lines is not very complex 
 because it basically consists of adding a constant slopping factor to 
@@ -614,13 +614,13 @@ consequences for performance. But not for GP2X's ARM940, because :
 	<li>each pixel is 32 bits in YUV format ;
 	<li>data cache is not used for writes in the out-buffer ;
 </ul><p>
-	In theory, then, the GP2X was a perfect fit for this technique. Anyway, 
-it was later discovered than, even if data cache is unused, writing words far 
+	In theory, then, the GP2X was a perfect fit for this technique. Anyway, it 
+was later discovered than, even if data cache is unused, writing words far 
 away from each other is much slower than writing words that are close from 
 each other, so the true-perspective mapping must be reserved for when it's 
 really needed, that is for big polygons that covers a large portion of the 
-screen. That's why the true-perspective functionality can be switched off on 
-a polygon by polygon basis. Hopefully, because z-constant routine is very close 
+screen. That's why the true-perspective functionality can be switched off on a 
+polygon by polygon basis. Hopefully, because z-constant routine is very close 
 to no-perspective routine, its almost the same in both cases : enabling true 
 perspective just adds the slope computation and the addition of the sloping
 factor to one of the 2D coordinates of every pixels.
@@ -642,22 +642,116 @@ mostly identical. Also, the routines that render the pixels along a scan-line
 similar code being duplicated, and this is one of the objectives for future 
 release to have both polygon &quot;shaper&quot; merged into one back again.
 </p><p>
-	Anyway, the fact that we do not always draw sequential pixels must be 
-taken into account in the &quot;Just In Time&quot; (JIT) code generator. 
-As we will see shortly, when true perspective is disabled the JIT code 
-generator can sometime exploit an ARM-related trick to build faster code.
+	Anyway, the fact that we do not always draw sequential pixels must be taken 
+into account in the &quot;Just In Time&quot; (JIT) code generator.  As we will 
+see shortly, when true perspective is disabled the JIT code generator can 
+sometime exploit an ARM-related trick to build faster code.
 </p>
-<h3><a name="YUV">Handling YUV colour model</a></h3>
+<h3><a name="YUV">Handling YUV color model</a></h3>
 <p>
-	Consequences of using YUV.
+	Because it was found that having 32 bits per pixels leads to better 
+graphics and simpler code, we use YUV mode on the GP2X. This is supposed to be 
+transparent for the user, though, so that the PC version can still use 
+customary RGB colors and so that OpenGL color model can be easily handled.  
+Thus, each time a color is given to the GPU, its supposed to be filtered by a 
+host to GPU converter, which convert from RGB to YUV on GP2X and which does 
+nothing on PC. Similarly, all textures given to the helper library (atop of 
+which the OpenGL layer is build) is converted from RGB color to GPU color 
+model.
+</p><p>
+	Many inline functions are defined in <i>include/gpu940.h</i> that perform 
+this conversion. Often, inside gpu940's code, color components are named 
+<i>r</i>, <i>g</i> and <i>b</i>. These names really should be 
+<i>color_component_0</i>, <i>color_component_1</i> and 
+<i>color_component_2</i> for they are really just that, and may be YUV instead 
+of RGB.
+</p><p>
+	Only in the lighting code does the distinction between YUV and RGB matters.  
+In YUV mode, lighting is done by modification of the Y (luminosity) component 
+alone, while in RGB color model lighting imply modification of the three 
+components.
 </p>
 <h3><a name="JIT">"Just In Time" code generation</a></h3>
 <p>
-	JIT cache.
+	To face the exponentially growing number of rendering inner loops since the 
+addition of an OpenGL layer, a code generator was added to gpu940. To call 
+this code generator a &quot;Just In Time&quot; <i>compiler</i> is certainly 
+presumptuous, but they call it like this in the <a 
+href="http://ogl-es.sourceforge.net/">Vincent GL-ES</a> library, where I 
+borrowed the name from.
 </p><p>
-	Code generation : code blocks, and registers allocation.
+	What the code generator does is simply to assemble code fragments that does 
+simple things like reading a texel, adding linear coefficient to parameters, 
+testing depth, writing pixel, etc, in a way that the resulting code block 
+performs the required rendering of a (optionally sloppy) scan line.
 </p><p>
-	writing several pixels per loop, and bottom halves.
+	First, have a look at the <i>raster_gen()</i> function (here, <i>_gen</i> 
+is for &quot;generic&quot;) in <i>bin/raster.c</i>. This function is used when 
+the JIT is not used (for the PC version). This can draw a scan line in any of 
+the available rendering model. Of course, it's crowded with tests and 
+conditional branching, so has very poor performance. But it gives the skeleton 
+of what the correct routine must do. It's counter part with JIT is
+the <i>bloc_def_func()</i> function in <i>bin/codegen.c</i>. This later 
+function have the same flow than <i>raster_gen()</i>, but instead of 
+performing the operations needed to render the scan line it merely calls a 
+user supplied function with a tag identifying the spot reached in the flow and 
+the action that's supposed to be carried there. Instead of performing this 
+operation, the call back job is to generate the code that will performs
+it. So that when <i>bloc_def_func()</i> exit we have a minimal, branch free
+routine that draws a scan line in the current context's rendering mode.
+</p><p>
+	Doing this efficiently is not that simple, though. First, you have to list 
+all needed parameters, and affect them to registers (hopefully, ARM 
+processors comes with many of those). It's not possible to have a fixed 
+mapping here because we can need many many different parameters. Those 
+registers will be loaded with parameters value at the beginning of the 
+function, and will serve no other purpose in the inner loop. So you have to 
+know this mapping between parameters and registers before starting to output 
+code (actually, the first code to be output is this loading of parameters 
+values into those registers). Also, you have to know how many registers will 
+be needed for temporary computations. For example, you may need two temporary 
+registers to compute texel address, then later three temporary registers to 
+compute a blending effect, so that you need, in total, three temporary 
+registers (if you though five I caught you - they are <u>temporary</u> 
+registers, and can be reused).
+</p><p>
+	This is why the <i>bloc_def_func()</i> function takes a callback function 
+as parameter : it's called several times to generate a code block : the first 
+time to allocate registers, the second time to actually write the code.
+</p><p>
+	In fact, it can be called a third time, for what I call the <i>bottom 
+half</i> of the code block (I lacked a name for this, so I used the BSD kernel 
+&quot;bottom half&quot; designation, meaning &quot;another piece of code that 
+needs to be executed after, for which no better name came to mind&quot;).
+</p><p>
+	To understand what JIT's &quot;bottom halves&quot; are good for, you need 
+to remember a previous remark : ARM processors know a clocking trick to 
+access RAM faster when they know in advance that the accessed addresses will 
+be sequential. In other words, the <i>stm/ldm</i> instructions can write and 
+read memory faster than several distinct otherwise equivalent <i>str/ldr</i> 
+instructions (this has to do with RAM bank selection IIRC). So, when we know 
+that we are going to write sequential values, it pays to prepare several 
+pixels first and then write them to the out buffer with a single <i>stm</i>. 
+So, the register allocator try to compute how much pixels we can hold in 
+remaining registers and write in a single burst, then we have to handle this 
+case in all functions that output the code. But this is not enough : when the 
+scan line length is not a multiple of this number of pixels, we have to rely 
+on the simpler, pixel by pixel version of the code to end the scan line. This 
+is what's called the bottom half in the JIT compiler.
+</p><p>
+	So, in the general case, the <i>bloc_def_func()</i> function is called 
+three times : one to allocate registers, one to output the code that draw 
+pixels in &quot;burst mode&quot;, and another time to output the code that 
+completes the scan line one pixel at a time.
+</p><p>
+	Of course, all this machinery cannot be called each time we need to draw a 
+scan-line (not even each time we need to draw a polygon). That's why the JIT 
+compiler keeps up to 5 generated routines, each identified by a key build from 
+the rendering context (a combination of the various parameters that are used 
+to build the drawing routine). New needed routines take the place of the 
+last recently used ones when necessary. Also, to keep the JIT cache reasonably 
+small, each routine is limited to about 100 instructions (which proved 
+enough empirically).
 </p>
 <h2><a name="libgpu">Helper library</a></h2>
 <h3><a name="need4lib">The need for a client library</a></h3>
