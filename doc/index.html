@@ -750,11 +750,35 @@ compiler keeps up to 5 generated routines, each identified by a key build from
 the rendering context (a combination of the various parameters that are used 
 to build the drawing routine). New needed routines take the place of the 
 last recently used ones when necessary. Also, to keep the JIT cache reasonably 
-small, each routine is limited to about 100 instructions (which proved 
-enough empirically).
+small, each routine is limited to about 100 instructions (which proved enough 
+empirically).
 </p>
 <h2><a name="libgpu">Helper library</a></h2>
+<p>
+	This chapter gives details about the gpu940 library, build in <i>lib/</i>, 
+and whose API is defined at the end of <i>include/gpu940.h</i>. 
+<i>libgpu940.so</i> is the user interface the the GPU shared memory, and 
+provides many useful functions.
+</p>
 <h3><a name="need4lib">The need for a client library</a></h3>
+<p>
+	Gpu940 comes with a little library that helps clients to send commands 
+and, more importantly, to manage the video buffer. As the client must 
+provides every buffers location by address, it's up to the client to allocate 
+space for textures, depth buffer, output buffers, and to free them when they 
+are not used anymore - which can be tricky for the output buffer, since it's 
+used for rendering <u>and</u> for displaying, and thus must not be recycled until 
+the <i>next</i> frame is displayed (not only published with <b>gpuSHOWBUF</b> but 
+actually displayed on the screen).
+</p><p>
+	Also, the <b>gpuREWIND</b> command add complexity to the command buffer, 
+and this library provide a simple API for sending commands that is similar to 
+the familiar <i>write()</i> and <i>writev()</i> UNIX functions.
+</p><p>
+	So you are encouraged to use this library even if you plan to not use 
+the OpenGL layer for performance reason. OpenGL library uses it. Even the 
+<i>Code Alone</i> demo uses it.
+</p>
 <h3><a name="initialization">Initialization</a></h3>
 <h3><a name="commandbuffer">Handling the command buffer</a></h3>
 <h3><a name="videobuffer">Handling the video buffer</a></h3>
