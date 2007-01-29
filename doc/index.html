@@ -41,6 +41,7 @@ project.
 			<li><a href="initialization">Initialization</a></li>
 			<li><a href="commandbuffer">Handling the command buffer</a></li>
 			<li><a href="videobuffer">Handling the video buffer</a></li>
+			<li><a href="synchro">Synchronization with GPU</a></li>
 		</ul>
 	</li><li>
 		<a href="#OpenGL">OpenGL implementation</a>
@@ -752,6 +753,11 @@ to build the drawing routine). New needed routines take the place of the
 last recently used ones when necessary. Also, to keep the JIT cache reasonably 
 small, each routine is limited to about 100 instructions (which proved enough 
 empirically).
+</p><p>
+	Notice : on PC, although the JIT code is not executed, it's still 
+generated and written to files in <i>/tmp/codegen_*</i>, so that one can have 
+a look at the resulting code. <i>make  dumpcodegen</i> in <i>gpu940/</i> 
+directory disassemble all the code to standard output.
 </p>
 <h2><a name="libgpu">Helper library</a></h2>
 <p>
@@ -780,8 +786,139 @@ the OpenGL layer for performance reason. OpenGL library uses it. Even the
 <i>Code Alone</i> demo uses it.
 </p>
 <h3><a name="initialization">Initialization</a></h3>
+<p>
+	The <i>gpuOpen()</i> function, located in <i>lib/gpu940.c</i>, needs to be 
+called before anything else to ensure proper communication with GPU : it 
+mmaps <i>/dev/mem</i>, sends a <b>gpuRESET</b> command to the GPU then waits 
+until the frame count in <i>struct shared</i> is zero. This is important 
+because further memory allocation functions can make use of this frame counter.
+</p><p>
+	What this initialization function does not perform, though, is loading the 
+gpu940 code into the ARM940, nor even ensuring that the gpu940 software is 
+correctly loaded onto the 940 (or that the x86 gpu940 binary is running). 
+There is currently no way for the client program to find out if the GPU is 
+loaded or not.
+</p><p>
+	<i>gpuClose()</i> function should be called at the end of the client 
+program to close the mmaped file. Notice that it does not &quot;unload&quot; 
+(what would that mean ?) gpu940 from the ARM940 memory, nor stop it in any 
+way. The GPU will enter standby mode by itself (ie. reducing it's clock speed 
+as low as 50MHz). To stops the ARM940 from executing some code, the stop940 
+program must be run (this apparently does not work, see <a 
+href="https://gna.org/bugs/index.php?8404">bug description</a>).
+</p>
 <h3><a name="commandbuffer">Handling the command buffer</a></h3>
+<p>
+	To send commands to the GPU, the helper library offer two functions that 
+are the equivalent of the UNIX <i>write</i> and <i>writev</i> :
+</p><ul>
+	<li><i>gpuWrite();</i></li>
+	<li><i>gpuWritev();</i></li>
+</ul><p>
+	Sent commands must be word aligned, and all sizes are given in bytes despite 
+they are constrained to 4 bytes multiples. These functions handle 
+<b>gpuREWIND</b> properly, and guaranty that all writes are atomic (ie. the 
+GPU will see all or none).
+</p><p>
+	Also, these functions takes a boolean <i>can_wait</i> parameter, which, 
+when true, allow the library to block until enough space is available in the 
+command buffer. When the library must wait, is busy loop over a call to the 
+<i>sched_yield()</i> function, which will yield CPU to another ready to run 
+task. If no such other task is running, this is equivalent to a busy loop, 
+which is not friendly for GP2X batteries. A client application should be 
+aware that it's waiting for the GPU, and lower it's CPU clock accordingly.
+</p>
 <h3><a name="videobuffer">Handling the video buffer</a></h3>
+<p>
+	All video buffer handling takes place in <i>lib/mm.c</i>. The simplest 
+functions are <i>gpuAlloc()</i> and <i>gpuFree()</i> which are equivalent to 
+the standard libc <i>malloc()</i> and <i>free()</i> except that they do not 
+operate on <i>void *</i> pointers, but on a <i>struct gpuBuf</i> structure, 
+which describe more precisely the video buffer segments that are allocated. 
+All these <i>gpuBuf</i> objects are chained together in two lists :
+</p><ul>
+	<li><i>list</i> : which is the list of all allocated <i>gpuBuf</i> in 
+increasing addresses order (addresses in video buffer) ;</li>
+	<li><i>fc_list</i> : which is list of all buffers that will automatically 
+be freed when the frame count will reach a given value (more on that below) 
+;</li>
+</ul><p>
+	Objects of that type are created on a dynamically allocated cache 
+(<i>buf_cache</i>). They are kept distinct from the video buffer because as 
+the list is often sequentially scanned by the allocator, it's better to have 
+it in the ARM920 data cache (plus, it lowers the amount of needed pointer 
+arithmetic). The <i>cache_list</i> list chains together all free 
+<i>buf_cache</i> objects.
+</p><p>
+	The opaque <i>struct gpuBuf</i> type holds the <i>struct buffer_loc</i> type 
+that is needed by the buffer manipulation GPU commands. The <i>buffer_loc</i> 
+value can be obtained from a <i>gpuBuf</i> object with the 
+<i>gpuBuf_get_loc()</i> function.
+</p><p>
+	<i>gpuAlloc()</i> takes its sizes with two parameters : <i>width_log</i> 
+and <i>height</i>. So, the width is constrained to a power of two, as all 
+buffers given to the GPU share this constraint.
+</p><p>
+	More strangely, it also takes a boolean parameter named <i>can_wait</i>. 
+This is because in some circumstances the library can free some allocated 
+buffers from within <i>gpuAlloc()</i> : when those buffers were 
+&quot;freed&quot; with the special <i>gpuFreeFC()</i> function. This one does 
+not free the buffer at once, but rather takes a number of frames and add the 
+buffer onto the <i>fc_list</i> for later removal when that number of frame 
+counts will be ellapsed. This strange semantic has two purposes.
+</p><p>
+	First, it allow the client application to say something like 
+&quot;free this buffer when the current frame is done&quot; (with 
+<i>gpuFreeFC(buffer, 1)</i>). To understand why this is required, imagine the 
+following program, that wants to :
+<p><ol>
+	<li>allocate a buffer B1, then load a texture in it ;</li>
+	<li>draw some polygons using texture B1 ;</li>
+	<li>load another texture into B1 ;</li>
+	<li>draw some other polygons that use this other texture ;</li>
+	<li>publish the frame ;</li>
+	<li>free buffer B1 ;</li>
+</ol><p>
+	This buggy application may end up with all polygons mapped with the second 
+texture, because nothing prevents the GPU to start drawing the polygons only 
+once the client program published the frame, or worse freed it (if it was still rendering 
+previous frame for example) ! Don't forget that there are <u>no</u> 
+synchronisation between CPU and GPU, even at the point when the CPU send a 
+<b>gpuSHOWBUF</b> (&quot;publish&quot; the frame). The above program 
+can only work if it uses two distinct buffers for the two textures, and if it 
+ask the helper library to wait until next frame was displayed before freeing 
+the buffers. So, most of the time, you will use <i>gpuFreeFC()</i> instead of 
+<i>gpuFree()</i>.
+</p><p>
+	The other reason why this delayed free is useful is to allow the user 
+program to work several frames in the future : when a frame is published, all 
+the buffers required to build this frame can be freed at once, some other may 
+be useful only until next frame (eg. the display buffer, which must not be 
+reused before another frame is displayed), and in some cases (blur motion 
+effects&nbsp;...) some buffers may be needed longer.
+</p><p>
+	This feature can only work if the helper library know when the user 
+publish a frame. That's why a special <i>gpuShowBuf()</i> function is there. 
+Don't ever use <i>gpuWrite()</i> to send a <b>gpuSHOWBUF</b> command, or the 
+library internal frame count would be wrong.
+</p><p>
+	For convenience, a <i>gpuSetBuf()</i> function is available that sends a 
+<b>gpuSETBUF</b> command corresponding to a <i>gpuBuf</i> object.
+</p>
+<h3><a name="synchro">Synchronization with GPU</a></h3>
+<p>
+	The same library source file hosts the <i>gpuWaitDisplay()</i> function. 
+It simply waits until the GPU frame counter (available in <i>shared</i>) gets 
+equal to or greater than the internal frame counter (minus 1). That is, it waits 
+until the second last published frame's address is set in the display 
+controller (where <i>shared->frame_count</i> is incremented).
+</p><p>
+	Why not waiting until the last published frame is displayed ? Because 
+then, if the vertical IRQ occurs faster than the GPU do render frames, the 
+GPU is hold idle between the time when it add the last frame to the display 
+list and the time next IRQ occurs and displays it ; and having the GPU idle 
+when it's late is not a good idea.
+</p>
 <h2><a name="OpenGL">OpenGL Implementation</a></h2>
 <h3><a name="GLMachine">Overall OpenGL machine</a></h3>
 <h3><a name="GL2GPU">Binding to the GPU</a></h3>
