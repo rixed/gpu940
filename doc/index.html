@@ -48,6 +48,10 @@ project.
 		<ul>
 			<li><a href="#GLMachine">Overall OpenGL machine</a></li>
 			<li><a href="#GL2GPU">Binding to the GPU</a></li>
+			<ul>
+				<li><a href="#GL2GPU">Binding to the GPU</a></li>
+				<li><a href="#GLcoord">Vertex coordinates</a></li>
+			</ul>
 			<li><a href="#GLswap">Swapping buffers</a></li>
 			<li><a href="#GLfloats">Other types than GLfixed</a></li>
 		</ul>
@@ -212,7 +216,7 @@ projecting, clipping, and drawing. One must choose what's performed by the
 GPU, and what's left for the client. The choice is a matter of trading 
 simplicity of use for freedom for the client to do what it wants the way it 
 wants to. It's also, for a soft renderer, a matter of sharing the load on two 
-equivalent processor so that no one has to continuously waits for the other.  
+equivalent processors so that no one has to continuously waits for the other.  
 Because it seemed not necessary to constraint the client to use some given 
 method to compute it's geometry positions, and because I know and enjoy many 
 cheats for that, and because there exists many different arguable methods to 
@@ -223,7 +227,7 @@ many things that's not the business of a renderer (in addition, the client
 will need the resulting positions for it's own stuff). However, for 
 true-perspective and z-tests, the GPU needs to know those resulting positions, 
 so it was better to let it project and clip the polygons itself. So the client 
-must send 3D vertexs in camera space, and the gpu940 handle all the 3D to 2D 
+must send 3D vertexes in camera space, and the gpu940 handle all the 3D to 2D 
 projection and clipping. The drawback is that it's no more possible for the 
 GPU to share a vertex between several polygons ; each vertex is then projected 
 each time it's encountered. To minimize this cost, which still remains 
@@ -235,7 +239,7 @@ one.
 frustum, or the 2D coordinates against the border of the rendering window.  
 Clipping in 3D means you only need to project the vertex you will use for 
 rendering, while clipping in 2D is generally considered simpler. gpu940 clips 
-in 3D, in order to minimize the amount of required divisions and because its 
+in 3D, in order to minimize the amount of required divisions and because it's 
 actually simpler. Clipping in 3D also offer the possibility to have user 
 clip-planes. Actually, the frustum is just a set of predefined clip-planes 
 (the code alone demo uses this to clip the "gpu940" logo shadow against the 
@@ -249,9 +253,9 @@ from the GPU, and let the client decide where the GPU should draw its pixels,
 where it should read texels, where it should read and write Z values, etc...  
 The drawback is that the client must then handle the video buffer itself, 
 allocating space for textures, pictures and Z-bufers, freeing them when 
-necessary. But it allow the client, for example, to simply render-to-texture, 
+necessary. But it allows the client, for example, to simply render-to-texture, 
 or use a previously rendered picture or a texture as a Z-buffer, etc... It 
-also allow it to use more than two video buffer (the code alone demo uses this 
+also allows it to use more than two video buffers (the code alone demo uses this 
 to render many frames in advance when the GPU is faster than the frame rate, 
 so that it can save some time to render more demanding frames).  Hopefully, a 
 library helps the client to manage the video buffer.
@@ -262,7 +266,7 @@ all manipulated values have the same scale). The simplest fixed point format
 possible on a 32bit machine is 16.16 (16 bits for integer part and 16 bits for 
 decimal part). That's what will be used. A helper library will provide the GPU 
 with arithmetic helper functions (most of them inline), also linkable to the 
-client. These includes multiplication, division, sign comparison and
+client. These include multiplication, division, sign comparison and
 absolute value, division being the one that must be avoided at all cost. For 
 convenience for the client, we also added square root,
 sine and cosine, although not required by the GPU.
@@ -920,8 +924,92 @@ list and the time next IRQ occurs and displays it ; and having the GPU idle
 when it's late is not a good idea.
 </p>
 <h2><a name="OpenGL">OpenGL Implementation</a></h2>
+<p>
+	This chapter will try to help you understand how (some of) the OpenGL API 
+calls were mapped onto the GPU commands. You are probably already familiar 
+with legacy <a href="www.opengl.org">OpenGL</a>.
+</p>
 <h3><a name="GLMachine">Overall OpenGL machine</a></h3>
+<p>
+	At first, OpenGL appears as a client-server state machine. For our 
+purpose, there are no need to distinguish between client and server states. 
+No such slient-server design is planned, although it would be possible in 
+theory.
+</p><p>
+	The OpenGL library was implemented in a straightforward manner. As a 
+result, most of the source code in <i>GL/</i> directory only maintain the 
+state variables without consideration for the actual renderer. Sometimes, 
+this can gives the impression that OpenGL features are implemented while they 
+in fact produce no visible result. Thus, most o the code in the GL library 
+will not be discussed here. 
+</p><p>
+	The mapping between the GL state and the renderer is done mainly in 
+<i>GL/cmd.c</i>. Each time a vector is submitted to the GL in a way or 
+another, the <i>gli_cmd_vertex()</i> function is called, which send a 
+<b>gpuFACET</b> command when necessary. This function is the narrow bridge 
+between an idealized GL state machine and the GPU, and will be detailed 
+hereafter.
+</p>
 <h3><a name="GL2GPU">Binding to the GPU</a></h3>
+<h4><a name="GLcoord">Vertex coordinates</a></h4>
+<p>
+	The <i>gli_cmd_vertex()</i> function, which is only given a pointer to the 
+fixed point complete vertex coordinate set (4 components : x<sub>0</sub>, 
+y<sub>0</sub>, z<sub>0</sub> and w<sub>0</sub>), first computes the required 
+coordinate sets. Here are the coordinates used in the transformation pipeline 
+of the GL library, in order of appearance (refer to your OpenGL 
+specifications, "Coordinate Transformations") :
+</p><ol>
+	<li>
+		<u>eye coordinates</u> (x<sub>e</sub>, y<sub>e</sub>, z<sub>e</sub>, 
+w<sub>e</sub>). They are the incoming vertex coordinates transformed by the 
+<i>modelview</i> matrix, ie. the vertex coordinates in the camera space.  
+These coordinates are further needed to compute colors when lighting is on.
+	</li><li>
+		<u>clip coordinates</u> (x<sub>c</sub>, y<sub>c</sub>, z<sub>c</sub>, 
+w<sub>c</sub>). They are computed from the eye coordinates transformed by the 
+projection matrix, which &quot;scale&quot; this position according to desired 
+frustrum. These are <i>almost</i> the 3D coordinates that will be sent to the 
+GPU. Notice that most of the time w<sub>c</sub> is simply -z<sub>e</sub>.
+	</li><li>
+		<u>normalized device coordinates</u> (x<sub>d</sub>, y<sub>d</sub>, 
+z<sub>d</sub>). These are supposed to be the 3D clip coordinates divided by 
+w<sub>c</sub> (perspective division). This leads to coordinates ranging from 
+-1 to 1, thus the name. We do not compute these, because we want this 
+perspective division to be performed by the GPU (remember&nbsp;?).
+	</li><li>
+		<u>window coordinates</u> (x<sub>w</sub>, y<sub>w</sub>, z<sub>w</sub>).  
+These are simply the previous coordinates scaled to the window size (width and 
+height) and desired depth range. This is done by the GPU, which by the way 
+uses it's own set of parameters to define the window position (compared to GL 
+window coordinates, GPU window coordinates have Y toward the bottom, and 
+accordingly Z increasing as depths increase).</li>
+</ol><p>
+	A little maths is needed here to split these computations between the GL 
+library and the GPU (where we want the divisions to take place). First, we are 
+supposed to divide by w<sub>c</sub> despite the GPU actually divides by the Z 
+vertex coordinate : so we give w<sub>c</sub> for Z. Before doing this 
+division, the GPU multiplies the X and Y coordinates by it's <i>dproj</i> 
+(defaulting to 256). Thus we must divide the given X and Y coordinates by this 
+<i>dproj</i>.  Finally, the GPU does not scale vertex coordinates to match 
+window size, so we must do this in the GL library, by multiplying clip 
+coordinates by the viewport width and height. The vertex projected position 
+will then be located according to GL specifications.
+</p><p>
+	The only case left is z<sub>w</sub>. We already saw that the GPU performs 
+depth testing with a dedicated parameter instead of the Z vertex coordinate, 
+which comes in handy : this corresponds to GL's z<sub>w</sub>. Notice how the 
+two Zs have slighty different meanings : one is a perspective divisor while the 
+other is a depth. z<sub>w</sub> is supposed to be equal to 
+(z<sub>c</sub>&nbsp;/&nbsp;w<sub>c</sub>)&nbsp;&times;&nbsp;((f-n)&nbsp;/&nbsp;2)&nbsp;+&nbsp;((f+n)&nbsp;/&nbsp;2).
+This expensive computation is performed only if depth parameter is 
+required (depending mainly on the <i>GL_DEPTH_TEST</i> state).
+</p><p>
+	Now all our vertex coordinates are properly set.
+</p>
+<h4><a name="GLcolor">Vertex colors</a></h4>
+<p>
+</p>
 <h3><a name="GLswap">Swapping buffers</a></h3>
 <h3><a name="GLfloats">Other types than GLfixed</a></h3>
 <h2><a name="AppA">Appendix : how to port OpenGL apps</a></h2>
