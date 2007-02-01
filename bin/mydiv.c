@@ -40,7 +40,6 @@ static uint32_t unsigned_divide32(uint32_t R, uint32_t D)
 		next_normD <<= 1U;
 		next_e <<= 1U;
 	} while (next_normD <= R);
-	// TODO: on ARM, unroll this loop (32 times) and use temp e and normD that are conditionnaly set to 0 if normD > R.
 	do {
 		// can not be done more than 32 times
 		if (normD <= R) {

@@ -82,7 +82,20 @@ static inline int32_t Fix_inv(int32_t v) {
 }
 
 static inline int32_t Fix_mul(int32_t a, int32_t b) {
+#	ifdef GP2X
+	int32_t ret;
+	__asm__(
+		"smull %[lo], r1, %[a], %[b]\n"
+		"mov %[lo], %[lo], lsr #16\n"
+		"orr %[lo], %[lo], r1, lsl #16\n"
+		: [lo] "=&r" (ret)	// rhi, rlo and rm must be distinct registers
+		: [a] "r" (a), [b] "r" (b)
+		: "r1"
+	);
+	return ret;
+#	else
 	return ((int64_t)a*b)>>16;
+#	endif
 }
 static inline int32_t Fix_div(int32_t a, int32_t b) {
 	return (((int64_t)a)<<16)/b;

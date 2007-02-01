@@ -54,7 +54,7 @@ static unsigned new_vec(unsigned prev, unsigned next, unsigned p)
 	for (unsigned u=ctx.poly.nb_params+3; u--; ) {
 		ctx.points.vectors[ctx.points.nb_vectors].cmd->u.all_params[u] =
 			ctx.points.vectors[prev].cmd->u.all_params[u] +
-			(((int64_t)ratio*(ctx.points.vectors[next].cmd->u.all_params[u]-ctx.points.vectors[prev].cmd->u.all_params[u]))>>16);
+			Fix_mul(ratio, (ctx.points.vectors[next].cmd->u.all_params[u]-ctx.points.vectors[prev].cmd->u.all_params[u]));
 	}
 	ctx.points.vectors[ctx.points.nb_vectors].prev = prev;
 	ctx.points.vectors[ctx.points.nb_vectors].next = next;

@@ -35,6 +35,7 @@ FixMat const matrix_id = {
  * Public Functions
  */
 
+extern inline int32_t Fix_mul(int32_t a, int32_t b);
 extern inline bool Fix_same_sign(int32_t v0, int32_t v1);
 extern inline int32_t Fix_abs(int32_t v);
 extern inline int32_t Fix_sqrt(int32_t n);
