@@ -22,7 +22,7 @@
 #include <stdbool.h>
 #include <stdlib.h>
 #include <sys/uio.h>
-#include "gcc.h"
+#include <gcc.h>
 #include <fixmath.h>
 #ifndef GP2X
 #	define CMDFILE "/tmp/gpu940_buf"
