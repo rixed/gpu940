@@ -109,7 +109,7 @@ static void next_smooth(void);
 struct {
 	unsigned working_set;	// how many regs are required for internal computations
 	uint32_t needed_vars;	// which vars are needed
-	void (*write_code)(void);	// write the code to addr, return size
+	void (*write_code)(void);	// write the code
 } const code_bloc_defs[] = {
 	{	// preload definitive colors in some rare case
 #		define PRELOAD_FLAT 0

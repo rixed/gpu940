@@ -74,7 +74,7 @@ extern struct ctx {
 	struct {
 		struct buffer_loc buffer_loc[GPU_NB_BUFFER_TYPES];
 		uint32_t txt_mask;
-		uint32_t *out_start;	// addres (in words) of the first pixel of the window.
+		uint32_t *out_start;	// address (in words) of the first pixel of the window.
 	} location;
 	// Current trapeze
 	struct {
