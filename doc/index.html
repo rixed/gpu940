@@ -49,14 +49,18 @@ project.
 			<li><a href="#GLMachine">Overall OpenGL machine</a></li>
 			<li><a href="#GL2GPU">Binding to the GPU</a></li>
 			<ul>
-				<li><a href="#GL2GPU">Binding to the GPU</a></li>
 				<li><a href="#GLcoord">Vertex coordinates</a></li>
+				<li><a href="#GLcolor">Pixel colors</a></li>
 			</ul>
 			<li><a href="#GLswap">Swapping buffers</a></li>
 			<li><a href="#GLfloats">Other types than GLfixed</a></li>
 		</ul>
 	</li><li>
-		<a href="#AppA">Appendix : how to port OpenGL apps</a>
+		<a href="#App">Appendix</a>
+		<ul>
+			<li><a href="#AppBrew">How to write new OpenGL apps</a></li>
+			<li><a href="#AppPort">How to port OpenGL apps</a></li>
+		</ul>
 	</li>
 </ul>
 </h2>
@@ -969,7 +973,7 @@ These coordinates are further needed to compute colors when lighting is on.
 		<u>clip coordinates</u> (x<sub>c</sub>, y<sub>c</sub>, z<sub>c</sub>, 
 w<sub>c</sub>). They are computed from the eye coordinates transformed by the 
 projection matrix, which &quot;scale&quot; this position according to desired 
-frustrum. These are <i>almost</i> the 3D coordinates that will be sent to the 
+frustum. These are <i>almost</i> the 3D coordinates that will be sent to the 
 GPU. Notice that most of the time w<sub>c</sub> is simply -z<sub>e</sub>.
 	</li><li>
 		<u>normalized device coordinates</u> (x<sub>d</sub>, y<sub>d</sub>, 
@@ -1007,11 +1011,183 @@ required (depending mainly on the <i>GL_DEPTH_TEST</i> state).
 </p><p>
 	Now all our vertex coordinates are properly set.
 </p>
-<h4><a name="GLcolor">Vertex colors</a></h4>
+<h4><a name="GLcolor">Pixel colors</a></h4>
 <p>
+	Here is schematically where pixels colors came from with OpenGL : first, 
+each vertex is given a color (from the current color given with 
+<i>glColor()</i> or a material color). These colors are modified by lights if 
+lighing is enabled. These resulting colors (3 R,B,G components and an 
+additional alpha component per vertex) are then interpolated through the 
+polygon. Then, if texturing is enabled, a texel if fetched and the vertex 
+color and texel color are mixed according to some environment parameter (by 
+default, they are multiplied). This gives the final color, which is then 
+written straight to the frame buffer or mixed with the previously stored 
+color if blending is enabled.
+</p><p>
+	This leads to potentially mixing colors two times per pixel, that is 4 
+multiplications per pixel and per color component : 12 multiplications per 
+pixel if implemented straightforwardly.
+</p><p>
+	Of course we can not afford this, so several tricks are used.
+</p><p>
+	First, like already state, most of the time the vertex colors are the same for 
+all vertexes of a polygon, and lighting does only affect the luminosity (when 
+using white light). So we do not need to interpolate 4 coefficients but only 
+one, the luminosity (which can be merely written in the frame buffer in YUV 
+mode). gpu940's libGL try to recognize these cases with the 
+<i>gli_simple_lighting()</i> function. When it seams possible, the GPU flat 
+shading is used with a custom luminosity parameter. Otherwise it uses the 
+full R,G,B mode, when all three color components are interpolated.
+</p><p>
+	Then comes texturing. Most of the time when texturing is on, vertex colors are 
+not used or are used only to light the texture. Then again it is sufficient to 
+write the texel with modified Y component. Actually gpu940 GL library does 
+not try to recognize when mixing texel and vertex colors is necessary, and 
+always assume no lighting (which is why Egoboo2x lighting effects appears to 
+be disabled). In the future, the library should try to use the luminosity 
+parameter to render lighted textures. Full color and texel mixing seams out 
+of reach for now.
+</p><p>
+	Then comes blending. Blending is mainly used for two purposes :
+</p><ul>
+	<li>render translucent primitives ;</li>
+	<li>achieve texture transparency (some part of the texture are fully 
+transparent while the remaining texels are fully opaque) ;</li>
+</ul><p>
+	For both, it's not necessary to store resulting alpha values in the frame 
+buffer (actually, even some hardware implementations do not store alpha 
+components, and the OpenGL standard seams to allow this).
+</p><p>
+	The eye is very tolerant with translucency : in fact, one can hardly tell 
+the difference between two levels of blend if they are close together.
+So that it's enough to have only, say, 8 possibles blending levels, and that 
+this blending level can be constant through a whole polygon. Gpu940 avoids 
+the required multiplication by using a color mixing routine based on a 
+constant amount of shifts. The <i>blend_coef</i> polygon parameter choose the 
+amount of shift between the old and new color components : the previous 
+components are shifted in one direction and the new components in the other 
+direction, then both a summed and the result written to the frame buffer. The 
+libGL tries to map the GL mean alpha value to this <i>blend_coef</i> 
+parameter.
+</p><p>
+	When alpha value is supposed to be fetched from the texture, this is 
+another story. When a texture with an alpha component is uploaded, all texels 
+alpha values are examined and if the mean alpha value is below a threshold, 
+it's assumed the user want translucency (as describer above). In addition, if 
+some alpha values are very low, it's then also assumed that the user want to 
+achieve transparency. Gpu940 have a distinct parameter for this : texture key 
+color. When a texture with an alpha component is uploaded, all texels that 
+have their alpha component below a threshold are replaced with the key color, 
+and the texture is tagged with a flag (<i>need_key</i>) that will lead to 
+the GPU using the key-color rendering mode.
+</p><p>
+	Both transparency and translucency are then feasible without the need to 
+multiply color components with alpha components, at the expense of additional 
+guess-work in the library side (and some visual imperfections).
 </p>
 <h3><a name="GLswap">Swapping buffers</a></h3>
 <h3><a name="GLfloats">Other types than GLfixed</a></h3>
-<h2><a name="AppA">Appendix : how to port OpenGL apps</a></h2>
+<h2><a name="App">Appendix</a></h2>
+<p>
+	The following notes are some advices on how to use gpu940 to write or port 
+OpenGl applications. If you followed everything until there it's likely 
+that everything will just sound like common sense to you.
+</p>
+<h3><a name="AppBrew">How to write new OpenGL apps</a></h3>
+<p>
+	First of all, you should be aware that if you do not pay extra attention to 
+what you ask for, the performance will be very deceiving. With the growing 
+availability of very fast hardware accelerated 3D renderer, most of people 
+that happen to develop new 3d applications tends to think that drawing a 
+polygon is free, when actually even the simplest <i>glClear()</i> call is not 
+free&mnsp;:&nbsp;it requires the GPU to write several thousands of  words onto 
+uncached memory. So most of younger developers that are not familiar with 
+software renderers will have to learn what are the consequences of the 
+library functions they use. This is a good training anyway, since even when 
+it's for the latest high-end 3D graphic card it never helps to waste power.
+</p><p>
+	So lets see how one can optimize an OpenGL program, especially when it's 
+for gpu940.
+</p>
+<h4>Don't clear too much</h4>
+<p>
+	Like said in introduction, clearing the buffers can be time consuming and 
+is not always useful. First, you may need to clear only the color buffer or 
+the depth buffer.
+</p><p>
+	Then, always ask yourself what proportion of the frame will show the 
+clear color once the whole picture will be rendered ? Most of the time, not 
+much, if at all ; so that it's often better to add some clearing polygons (for 
+example a sky box) than to clear the whole screen and redraw it completely.
+</p>
+<h4>Don't abuse depth tests</h4>
+<p>
+	Z-buffer was an evil invention. It's required for some pathological cases, 
+when sorting polygons cannot, locally, give correct results. Most of the time 
+the faster painter algorithm just works, so use it. Also, you often have 
+something like a background with object in front of it : no need for any 
+sorting nor depth testing for rendering these cases properly (in Egoboo2x for 
+example, all walls and characters are always in front of all floors). It also 
+helps to fight rendering inaccuracies that leads to make a character foot 
+appears as if it is cut by the floor if its Z coordinate is a little too far. 
+It also avoid to need the ugly z-offset when rendering wall-marks, etc...
+</p><p>
+	Using Z-depth does not imply you need resulting depths. For example when 
+you render an object with depth tests enabled, you may not need this object 
+depth values if you do not render another object against this one. In these 
+situations, masking out z writing (with <i>glDepthMask()</i>) allow the GPU 
+to skip writing a word per pixel.
+</p><p>
+	The same is true the other way round : you may need an object depth for 
+later depth filtering without the need to test this object depth again the 
+current z buffer. You can unmask depth writing and disable depth testing 
+altogether.
+</p>
+<h4>Don't send useless polygons</h4>
+<p>
+	The GPU performs clipping in order to draw only visible portions of 
+polygons. Not to dispense you from the need to implement a proper visibility 
+filter or occlusion culling algorithm. Know your frustum and skip yourself 
+trivial polygons. Implement occlusion portals, or other techniques specific to 
+your case. You know your program and its particularities, the GPU does not.
+</p><p>
+	Also, when rendering closed surfaces, don't send back face polygons. If you 
+have no special way to know that a polygon is back face (like a BSP), let the 
+libGL do this for you by enabling <i>GL_CULL_FACE</i>.
+</p>
+<h4>Use simple meshes</h4>
+<p>
+	Low poly count is an art, and some of your users will enjoy it. Don't hide 
+your geometry behind hundreds of smooth polygons. Low polygon models are nice, 
+generally more easy to animate well, and require less space.
+</p><p>
+	That said, use several level of details or your meshes if your application 
+will render them at different scales.
+</p>
+<h4>Use simple textures</h4>
+<p>
+	Low pixel count is an art, and some of your users will enjoy it (OK, maybe 
+not that many, but I will :-)). Textures can be accessed much faster when 
+they are small. Experimentally, it was found that on gpu940 it is noticeably 
+faster to use a texture of 64&times;64 pixels than one of 128&times;128 pixels.
+</p><p>
+	That said, OpenGL provide mipmapping which have the double advantage of 
+making textured polygons better looking and using smaller texture.
+</p><p>
+	That said, mipmapping is not implemented in the helper library yet.
+</p>
+<h4>Use fixed points everywhere</h4>
+<p>
+	This may not be the case in many OpenGL renderer, but the GP2X really does 
+prefer integers to floating point values. So, use preferably fixed point 
+arithmetic for all your vertexes and internal computations.
+</p><p>
+	Floating values are like z buffer : a necessary evil in some rare cases, 
+an expensive and useless luxury most of the time. Integer arithmetic is 
+simpler, faster, more accurate and more predictable. Only when you have no 
+clue about the scale of a value do you want floating point types. This is 
+probably not the case anywhere in your application.
+</p>
+<h3><a name="AppPort">How to port OpenGL apps</a></h3>
 </body>
 </html>
