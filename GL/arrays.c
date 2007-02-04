@@ -255,6 +255,14 @@ void glDisableClientState(GLenum array)
 	set_enable(array, 0);
 }
 
+void glArrayElement(int i)
+{
+	gli_color_set(i);
+	gli_normal_set(i);
+	gli_texcoord_set(i);
+	gli_vertex_set(i);
+}
+
 void glDrawArrays(GLenum mode, GLint first, GLsizei count)
 {
 	if (/* mode < GL_POINTS ||*/ mode > GL_POLYGON) {
@@ -294,5 +302,3 @@ void glDrawElements(GLenum mode, GLsizei count, GLenum type, GLvoid const *indic
 	}
 	gli_indices = NULL;
 }
-
-
