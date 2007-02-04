@@ -253,12 +253,12 @@ static void event_loop(void)
 	unsigned nbf = 100000;
 	while (nbf--) {
 
-		view_roty += 51;
-		view_rotx -= 37;
-		view_rotz += 53;
+		view_roty += 35100;
+		view_rotx -= 23700;
+		view_rotz += 15300;
 
 		/* next frame */
-		angle += 1<<8;
+		angle += 1<<16;
 
 		draw();
 		glSwapBuffers();

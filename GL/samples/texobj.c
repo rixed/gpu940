@@ -92,7 +92,7 @@ static void idle( void )
    t = gettime();
    dt = t - t0;
    t0 = t;
-   Angle += dt;
+   Angle += dt<<7;
    //glutPostRedisplay();
 }
 

@@ -248,6 +248,7 @@ void glLoadIdentity(void)
 
 void glRotatex(GLfixed angle, GLfixed x, GLfixed y, GLfixed z)
 {
+	angle = Fix_mul(angle >> 3, 1456);
 	int32_t const c = Fix_cos(angle);
 	int32_t const s = Fix_sin(angle);
 	int32_t v[3] = { x, y, z };
