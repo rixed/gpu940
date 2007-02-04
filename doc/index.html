@@ -59,11 +59,14 @@ project.
 		<a href="#App">Appendix</a>
 		<ul>
 			<li><a href="#AppBrew">How to write new OpenGL apps</a></li>
+			<ul>
+				<li><a href="#ABConf">Conformance issues</a></li>
+				<li><a href="#ABPerf">Performance issues</a></li>
+			</ul>
 			<li><a href="#AppPort">How to port OpenGL apps</a></li>
 		</ul>
 	</li>
 </ul>
-</h2>
 <h2><a name="Presentation">Presentation</a></h2>
 <p>
 	This part covers the design of gpu940, starting with a time line of the
@@ -104,9 +107,10 @@ of this set of functions, of course, I would have made other choices.
 </p><p>
 	After some run of the test programs on the GP2X (most of the tests were
 run on the PC version), it appeared that lighting in the 16 bits RGB model
-was not satisfactory : large light strips could be seen where the lighting
-parameter flipped a color bit. That's when I envisaged YUV mode, which is 24 
-bits. The strips almost vanished so that change was kept despite there is no
+was not satisfactory&nbsp;: large light strips could be seen where the 
+lighting parameter flipped a color bit. That's when I envisaged YUV mode, 
+which is 24 bits. The strips almost vanished so that change was kept despite 
+there is no
 YUV mode in SDL for the PC version. It was then required to convert all
 individual RGB colors and textures to the color model used by the GPU (RGB
 on PC, YUV on GP2X).
@@ -120,8 +124,8 @@ design rather that to the ARM architecture. Z-constant mapping was no more
 adapted to every polygons, but should be reserved for large textured polygons 
 when the perspective matter. For all others, a simpler, traditional rasterizer 
 should be used, which writes pixels sequentially in a scan line. This, also, 
-would offer another source of optimisation : writing several pixels in one go 
-with the ARM stm instruction, which further reduces RAM latency.
+would offer another source of optimisation&nbsp;: writing several pixels in 
+one go with the ARM stm instruction, which further reduces RAM latency.
 </p><p>
 	After some bench, it appeared that only half the time spent in drawing a
 polygon is spent "productively" inside the function that actually writes
@@ -142,25 +146,26 @@ all buffers indifferently).
 	While adding an OpenGL-ES library, I looked for a simple OpenGL-ES 
 application to port on GP2X for testing purpose. I then realized how small 
 OpenGL-ES audience is compared to mere OpenGL.  Also, many OpenGL programs 
-these days are really not demanding much to the GL driver : feature them with 
-a z-buffered triangle mapping function, and most of there needs are fed 
+these days are really not demanding much to the GL driver&nbsp;: feature them 
+with a z-buffered triangle mapping function, and most of there needs are fed 
 (because this is what is actually optimized by the cheap hardware available).
-That's when I decided to give a try to plain OpenGL : to find an app to port
+That's when I decided to give a try to plain OpenGL&nbsp;: to find an app to 
+port
 on the GP2X to test gpu940's OpenGL-ES implementation, which was there to
 help coders to port their apps out to other platforms. How strange.
 </p><p>
 	Implementing OpenGL means that instead of having 5 or 6 pre-defined 
 rendering functions to choose from, the user has access to a whole set of 
-parameters that together define a rendering functions : z-test modes, write 
-bit mask, texture, texture modes, color, alpha tests, blending, interpolation 
-modes, etc... A general purpose function implementing all the possible cases 
-would be crowded with tests and thus would be very slow. A better approach 
-consist of generating the rendering function corresponding to these parameters 
-values. Vincent-gl does the same thing, and probably MESA too in some extents.  
-I decided to do the same, so I removed all the pre-defined rendering functions 
-and replaced them by a kind of "just in time compiler" for ARM (very 
-presumptuous name for a routine that almost merely concatenate predefined 
-assembly snipets), and a general purpose C function for the PC.
+parameters that together define a rendering functions&nbsp;: z-test modes, 
+write bit mask, texture, texture modes, color, alpha tests, blending, 
+interpolation modes, etc... A general purpose function implementing all the 
+possible cases would be crowded with tests and thus would be very slow. A 
+better approach consist of generating the rendering function corresponding to 
+these parameters values. Vincent-gl does the same thing, and probably MESA too 
+in some extents.  I decided to do the same, so I removed all the pre-defined 
+rendering functions and replaced them by a kind of "just in time compiler" for 
+ARM (very presumptuous name for a routine that almost merely concatenate 
+predefined assembly snipets), and a general purpose C function for the PC.
 </p><p>
 	At the same time, I started to realize that the real value of gpu940 was to 
 implement OpenGL, so I modified several specific rendering methods which were 
@@ -211,8 +216,8 @@ GPU and read by the client. Also, the video buffers are accessible by both the
 GPU and the client, which can then upload directly textures or read previously 
 rendered pictures. The whole used memory is sized according to the GP2X, and 
 spawn along the whole 32 Mb of upper memory, minus 64Kb for gpu940's code and 
-stack. Amongst that, 1 Mb is used for the command buffer : this is enough to 
-store approximately 5000 polygon commands, which is more than most frames 
+stack. Amongst that, 1 Mb is used for the command buffer&nbsp;: this is enough 
+to store approximately 5000 polygon commands, which is more than most frames 
 require to be rendered.
 </p><p>
 	To render 3D pictures, you need computing vertexes in the camera space,
@@ -259,10 +264,10 @@ The drawback is that the client must then handle the video buffer itself,
 allocating space for textures, pictures and Z-bufers, freeing them when 
 necessary. But it allows the client, for example, to simply render-to-texture, 
 or use a previously rendered picture or a texture as a Z-buffer, etc... It 
-also allows it to use more than two video buffers (the code alone demo uses this 
-to render many frames in advance when the GPU is faster than the frame rate, 
-so that it can save some time to render more demanding frames).  Hopefully, a 
-library helps the client to manage the video buffer.
+also allows it to use more than two video buffers (the code alone demo uses 
+this to render many frames in advance when the GPU is faster than the frame 
+rate, so that it can save some time to render more demanding frames).  
+Hopefully, a library helps the client to manage the video buffer.
 </p><p>
 	ARM940 comes with no FPU (nor does ARM920). We then must use fixed point 
 arithmetic all along (which is a good thing for a 3D renderer anyway, because 
@@ -279,18 +284,18 @@ sine and cosine, although not required by the GPU.
 texture mapping, but this issue affects all rendering techniques other than 
 constant color ("flat") rendering. The same z-constant technique can be 
 applied to any parameter that must be interpolated in 3D space along the 
-polygon at no cost : once the z-constant "scanline" is found, any parameter 
-can be linearly interpolated, not only texture coordinates U and V. From this 
-remarks, we can deduce that no parameter play a special role in the polygon 
-shaper. Parameters are only meaningful for the rasterizer (the function that 
-draw a "scanline"). Until there, parameters are just a set of values we want 
-to interpolate on 3d space. In all other places of GPU code, we only need to 
-know how many parameters we have, which is given by the polygon command sent 
-by the client.
+polygon at no cost&nbsp;: once the z-constant "scanline" is found, any 
+parameter can be linearly interpolated, not only texture coordinates U and V.  
+From this remarks, we can deduce that no parameter play a special role in the 
+polygon shaper. Parameters are only meaningful for the rasterizer (the 
+function that draw a "scanline"). Until there, parameters are just a set of 
+values we want to interpolate on 3d space. In all other places of GPU code, we 
+only need to know how many parameters we have, which is given by the polygon 
+command sent by the client.
 </p><p>
-	Finally, 3D renderers comes in two flavors : the clumsy ones that can draw 
-only triangles, and the ones that can draw any (convex) polygons. I can think 
-of no valid reason why the GPU should be limited to triangles.
+	Finally, 3D renderers comes in two flavors&nbsp;: the clumsy ones that can 
+draw only triangles, and the ones that can draw any (convex) polygons. I can 
+think of no valid reason why the GPU should be limited to triangles.
 </p>
 <h3><a name="SourceCode">Source code structure</a></h3>
 <p>
@@ -304,7 +309,7 @@ commands and helper library calls, are defined in <i>gpu940.h</i>.
 operation code. The main command is the <i>draw polygon</i> command, which 
 gives all rendering information and the 3D coordinates of all involved 
 vertexes.  When it encounters this command, the GPU first clips the polygon, 
-projects vertexes and draws the polygon onto the current <i>out</i> buffer. 
+projects vertexes and draws the polygon onto the current <i>out</i> buffer.  
 There are no camera nor <i>modelview</i> matrix stack as far as the GPU is 
 concerned ; all 3D transformations must have been performed by the user 
 application before sending the draw command. Other commands do change viewer 
@@ -315,14 +320,13 @@ consist of the buffer starting address (offset, in words, into video buffers),
 width (constrained to a power of two) and height. This struct is sent within 
 the command that sets GPU buffers.
 </p><p>
-	GPU uses three distinct buffers :
-<ul>
+	GPU uses three distinct buffers&nbsp;:
+</p><ul>
 	<li>the <i>out</i> buffer, into which everything is drawn ;</li>
 	<li>the <i>txt</i> buffer, from which texels are fetched ;</li>
 	<li>the <i>z</i> buffer, where z values are stored and read to perform z 
 filtering ;</li>
-</ul>
-</p><p>
+</ul><p>
 	When all commands of a frame are sent, the user application send a <i>show 
 buffer</i> command to publish the frame. This command, when executed by the 
 GPU, means to push the designated buffer to the list of displayable buffers 
@@ -388,16 +392,17 @@ in upper 32Mbytes and thus available from both CPU (mmapping /dev/mem from
 Linux, or direct access from the 940), large enough to holds thousands of 
 commands. The buffer is located with various other data in the <i>shared</i>
 structure at address <i>SHARED_PHYSICAL_ADDR</i>.
-</p>
-	We follow two objectives :
-	<ul>
+</p><p>
+	We follow two objectives&nbsp;:
+</p><ul>
 		<li>The commands must be the smallest possible so that we can holds many
 in the buffer and the 920 does not spare to much time writing them ;</li>
 		<li>The commands must be representable by simple C structures and must 
-no be packed in order for the 940 to use them in place without the need to copy
+no be packed in order for the 940 to use them in place without the need to 
+copy
 the data out of the buffer ;</li>
-	</ul>
-	The chosen trade-off is as follow : we define a C structure for each 
+</ul><p>
+	The chosen trade-off is as follow&nbsp;: we define a C structure for each 
 command, composed only of 32 bits words (bit fields allowed for flags). Each 
 of these structure starts with an opcode.
 </p><p>
@@ -405,8 +410,8 @@ of these structure starts with an opcode.
 comes with three to many vertexes (although seldom more than 5), and with 
 various parameters depending on the rendering mode (and we want the parameters 
 to be in the same place on the command buffer, whatever the rendering mode, to 
-be able to process all polygons the same until the draw-a-scanline function). 
-Thus, the polygon function is split in two parts : a fixed part, the 
+be able to process all polygons the same until the draw-a-scanline function).  
+Thus, the polygon function is split in two parts&nbsp;: a fixed part, the 
 <i>gpuCmdFacet</i> structure which is 4 words long and tells how many vertexes 
 are following and how to draw them, and then a variable part
 consisting of as many <i>gpuCmdVector</i> as there are vertexes.
@@ -449,26 +454,26 @@ avoid commands being cut by the end of the command buffer. The only effect is
 then to reset <i>cmds_begin</i> to 0. The user library handle this 
 automatically.
 </p><p>
-	<b>gpuRESET</b> is used to reset GPU internal state (projection cache, 
-JIT cache, buffers, window position, clip planes, perspective, frame 
-counters, error flags, OSD state, performence counters, and all settable 
-parameters). This should be used at the beginning of a program. The user 
-library handle this automatically.
+	<b>gpuRESET</b> is used to reset GPU internal state (projection cache, JIT 
+cache, buffers, window position, clip planes, perspective, frame counters, 
+error flags, OSD state, performence counters, and all settable parameters).  
+This should be used at the beginning of a program. The user library handle 
+this automatically.
 </p><p>
-	<b>gpuSETVIEW</b> is used to configure the rendering window : its 
+	<b>gpuSETVIEW</b> is used to configure the rendering window&nbsp;: its 
 position, clipping borders, and perspective. The fourth first clip planes are 
 updated to reflect the new clipping borders. The first cLip plane is the 
 z-near clip plane, and is set to a very low value just to avoid division by 
 zero during projection. OpenGl require this z-near clip plane to be 
 user-defined, but for now it's constant.
 </p><p>
-	<b>gpuSETUSRCLIPPLANES</b> allow the user application to define 
-additional clip planes (up to five user clip planes are supported, to a total 
-of 10 clip planes).
+	<b>gpuSETUSRCLIPPLANES</b> allow the user application to define additional 
+clip planes (up to five user clip planes are supported, to a total of 10 clip 
+planes).
 </p><p>
 	<b>gpuSETBUF</b> command allow the user to define the location of the 
 buffers used in rendering. GPU uses up to three buffers, which types are 
-defined in the <i>gpuBufferType</i> enumeration :
+defined in the <i>gpuBufferType</i> enumeration&nbsp;:
 </p><ul>
 	<li><i>gpuOutBuffer</i>, where the graphics are drawn,</li>
 	<li><i>gpuTxtBuffer</i>, where the texels are fetched,</li>
@@ -478,7 +483,7 @@ depth-tests.</li>
 	Each buffer is given a location (<i>struct buffer_loc</i>) made of it's 
 offset from <i>shared-&gt;buffers</i>, its width (expressed in power of two) 
 and its height. For texture buffer, height is required to be a power of two, 
-but is not necessarily the same as width (although OpenGL enforces this). 
+but is not necessarily the same as width (although OpenGL enforces this).  
 Width are not allowed to be greater than 18 (that is, 2<sup>18</sup> word 
 values). Some parameters (a bit mask for texture size, and the address of 
 rendering buffer) that are used internally by the generated rendering code 
@@ -488,35 +493,35 @@ received.
 	<b>gpuSHOWBUF</b> also gives a buffer position to GPU, but this buffer is 
 not used for rendering. The address given with this command is used as the 
 next buffer to display. More precisely, the buffer is queued on the 
-<i>displist</i> list, which contains all the displayable buffers that were 
-not already shown. The list act as a LIFO, so all buffers given are displayed 
+<i>displist</i> list, which contains all the displayable buffers that were not 
+already shown. The list act as a LIFO, so all buffers given are displayed 
 sequencialy in the order received. Each time a vertical IRQ (or a periodic 
-timer on PC) arise, a buffer is shifted of this list and displayed 
-(configured on the MMSP display registers on the GP2X, slowly copied onto SDL 
-buffers on PC), and the <i>frame_count</i> is incremented. If no buffers are 
-available on the <i>displist</i> when the IRQ is raised, the 
-<i>frame_miss</i> is incremented instead. The GPU never skips a published 
-frame, so it's the responsibility of the application to use the frame 
-counters to detect frame misses and react accordingly.
+timer on PC) arise, a buffer is shifted of this list and displayed (configured 
+on the MMSP display registers on the GP2X, slowly copied onto SDL buffers on 
+PC), and the <i>frame_count</i> is incremented. If no buffers are available on 
+the <i>displist</i> when the IRQ is raised, the <i>frame_miss</i> is 
+incremented instead. The GPU never skips a published frame, so it's the 
+responsibility of the application to use the frame counters to detect frame 
+misses and react accordingly.
 </p><p>
-	<b>gpuPOINT</b> simply draws a pixel in a given color, at location given 
-by a following <b>gpuCmdVector</b>. As this feature is merely used for 
-debuging, no fancy rendering are available (like OpenGl width, antialias, or 
-even light or textured (!) point).
+	<b>gpuPOINT</b> simply draws a pixel in a given color, at location given by 
+a following <b>gpuCmdVector</b>. As this feature is merely used for debuging, 
+no fancy rendering are available (like OpenGl width, antialias, or even light 
+or textured (!) point).
 </p><p>
 	<b>gpuLINE</b> is nor implemented yet.
 </p><p>
-	<b>gpuFACET</b> is the more complex command, and the heart of GPU. It 
-draw a (convex) polygon of any size (from 3 to 16 vertexes). It can do many 
-different renderings :
+	<b>gpuFACET</b> is the more complex command, and the heart of GPU. It draw 
+a (convex) polygon of any size (from 3 to 16 vertexes). It can do many 
+different renderings&nbsp;:
 </p><ul>
 	<li>flat rendering,</li>
 	<li>rendering with luminosity, with true or linear perspective,</li>
 	<li>textured rendering, with true or linear perspective,</li>
 	<li>textured rendering with luminosity, with true or linear 
 perspective,</li>
-	<li>keyed rendering (that is textured with a special color value meaning 
-to skip output of the pixel), with or without luminosity, with true or linear 
+	<li>keyed rendering (that is textured with a special color value meaning to 
+skip output of the pixel), with or without luminosity, with true or linear 
 perspective,</li>
 	<li>smooth rendering (color interpolation) with true or linear 
 perspective,</li>
@@ -528,18 +533,18 @@ parameter sets the culling mode for the facet. All this made this command 4
 words long, thanks to C bit fields. This command must be followed by as many 
 <i>gpuCmdVector</i> as defined in the facet's <i>size</i>.
 </p><p>
-	Note that keyed rendering is an unknown feature for OpenGL. Instead, 
-OpenGL can use an alpha component in the texture, which is far more 
-expensive. Textures defined with an alpha channel are transformed by the 
-OpenGL layer to keyed textures : when alpha channel is below an arbitrary 
-limit (which is 5/256), we replace the texel color by a key color are mark 
-the texture as requiring a key test. Also, the GPU only supports constant 
-blending, that is to use a constant blending ratio for all polygon, when 
-OpenGL requires a dedicated component for alpha value. Anyway, using key color 
-in conjunction with constant blending proved enough for Egoboo, wich is not 
-that bad. Adding a dedicated alpha value could be done, though, and probably 
-will in a near future : it will not cost much CPU cycles, and will 
-considerably simplify OpenGL layer code.
+	Note that keyed rendering is an unknown feature for OpenGL. Instead, OpenGL 
+can use an alpha component in the texture, which is far more expensive.  
+Textures defined with an alpha channel are transformed by the OpenGL layer to 
+keyed textures&nbsp;: when alpha channel is below an arbitrary limit (which is 
+5/256), we replace the texel color by a key color are mark the texture as 
+requiring a key test. Also, the GPU only supports constant blending, that is 
+to use a constant blending ratio for all polygon, when OpenGL requires a 
+dedicated component for alpha value. Anyway, using key color in conjunction 
+with constant blending proved enough for Egoboo, wich is not that bad. Adding 
+a dedicated alpha value could be done, though, and probably will in a near 
+future&nbsp;: it will not cost much CPU cycles, and will considerably simplify 
+OpenGL layer code.
 </p><p>
 	Not really a command by itself, the <i>gpuCmdVector</i> structure needs a 
 proper explanation. The first field of this structure, <i>same_as</i>, can be 
@@ -554,9 +559,9 @@ projections, with a very small cache of 8 positions.
 </p><p>
 	Next in the <i>gpuCmdVector</i> follow a union or parameters, the first 
 three being the 3D coordinates, and next ones depending of the rendering mode 
-set in the facet command. Notice that when depth test are enabled, or when 
-the <i>write_z</i> flag is set in facet command, the Z coordinate compared to 
-or written in the depth buffer is <i>not</i> the third 3D coordinate, but a 
+set in the facet command. Notice that when depth test are enabled, or when the 
+<i>write_z</i> flag is set in facet command, the Z coordinate compared to or 
+written in the depth buffer is <i>not</i> the third 3D coordinate, but a 
 separate parameter. This is so that it's possible to normalize depth 
 parameters, as required by OpenGl (and common sense).
 </p><p>
@@ -592,15 +597,16 @@ divisions every 8 or 16 pixels. And ARM processors really hate divisions.
 </p><p>
 	The technique known as &quot;z-constant mapping&quot; works differently.
 Instead of rendering scan-lines, which are distorted by perspective, one looks 
-for the slope of constant depth on the polygon, and render along that slope. 
+for the slope of constant depth on the polygon, and render along that slope.  
 Mapping coordinates (as well as any other rendering parameters) can then be 
 linearly interpolated without commiting any approximation.
 </p><p>
 	This technique is seldom used because it suffers from several drawbacks and 
-misconceptions :
+misconceptions&nbsp;:
 </p><ul>
 	<li>It's hard to determine the z-constant &quot;scan-line&quot; ;</li>
-	<li>It's hard/impossible to perform advanced rendering tricks such as subpixel rendering ;</li>
+	<li>It's hard/impossible to perform advanced rendering tricks such as 
+	subpixel rendering ;</li>
 	<li>It's hard to draw slopped &quot;scan-lines&quot; ;</li>
 	<li>It's hard to avoid empty gaps between congruent polygons ;</li>
 	<li>The cost of writting non-sequential pixels are overwhelming ;</li>
@@ -608,20 +614,20 @@ misconceptions :
 </ul><p>
 	Finding the slope of constant depth is not very difficult and can be 
 achieved with only two divides. Drawing sloped lines is not very complex 
-because it basically consists of adding a constant slopping factor to 
-every pixel's X or Y coordinate, factor which is proportional to this 
-coordinate. Apart from that (finding this slope parameter and adding it to 
-the 2D coordinate of each pixels), there are no more difference between this 
-true perspective polygon routine and a polygon routine unaware of 
-perspective. That's why it's not impossible at all to perform sub-pixel 
-accuracy (notice that there are no sub-pixel accuracy rendering in gpu940).
+because it basically consists of adding a constant slopping factor to every 
+pixel's X or Y coordinate, factor which is proportional to this coordinate.  
+Apart from that (finding this slope parameter and adding it to the 2D 
+coordinate of each pixels), there are no more difference between this true 
+perspective polygon routine and a polygon routine unaware of perspective.  
+That's why it's not impossible at all to perform sub-pixel accuracy (notice 
+that there are no sub-pixel accuracy rendering in gpu940).
 </p><p>
 	Filling gaps between polygons, at the contrary, is a real difficulty, but 
 can be solved. Also, writing non sequential pixels can have terrible 
-consequences for performance. But not for GP2X's ARM940, because :
+consequences for performance. But not for GP2X's ARM940, because&nbsp;:
 </p><ul>
-	<li>each pixel is 32 bits in YUV format ;
-	<li>data cache is not used for writes in the out-buffer ;
+	<li>each pixel is 32 bits in YUV format ;</li>
+	<li>data cache is not used for writes in the out-buffer ;</li>
 </ul><p>
 	In theory, then, the GP2X was a perfect fit for this technique. Anyway, it 
 was later discovered than, even if data cache is unused, writing words far 
@@ -630,8 +636,9 @@ each other, so the true-perspective mapping must be reserved for when it's
 really needed, that is for big polygons that covers a large portion of the 
 screen. That's why the true-perspective functionality can be switched off on a 
 polygon by polygon basis. Hopefully, because z-constant routine is very close 
-to no-perspective routine, its almost the same in both cases : enabling true 
-perspective just adds the slope computation and the addition of the sloping
+to no-perspective routine, its almost the same in both cases&nbsp;: enabling 
+true perspective just adds the slope computation and the addition of the 
+sloping
 factor to one of the 2D coordinates of every pixels.
 </p><p>
 	The true perspective polygon &quot;shaper&quot; can be found in 
@@ -644,8 +651,9 @@ directory.
 <h3><a name="PolyNoPersp">No perspective polygon drawing</a></h3>
 <p>
 	The fact that there exists two distinct source files for perspective and
-no-perspective rendering is just a matter of performance : the few avoided
-<i>if</i>s made a significant speed improvement ; but both files are still
+no-perspective rendering is just a matter of performance&nbsp;: the few 
+avoided <i>if</i>s made a significant speed improvement ; but both files are 
+still
 mostly identical. Also, the routines that render the pixels along a scan-line
 (sloped or not) are exactly the same. It surely is problematic to have such
 similar code being duplicated, and this is one of the objectives for future 
@@ -710,23 +718,23 @@ it. So that when <i>bloc_def_func()</i> exit we have a minimal, branch free
 routine that draws a scan line in the current context's rendering mode.
 </p><p>
 	Doing this efficiently is not that simple, though. First, you have to list 
-all needed parameters, and affect them to registers (hopefully, ARM 
-processors comes with many of those). It's not possible to have a fixed 
-mapping here because we can need many many different parameters. Those 
-registers will be loaded with parameters value at the beginning of the 
-function, and will serve no other purpose in the inner loop. So you have to 
-know this mapping between parameters and registers before starting to output 
-code (actually, the first code to be output is this loading of parameters 
-values into those registers). Also, you have to know how many registers will 
-be needed for temporary computations. For example, you may need two temporary 
-registers to compute texel address, then later three temporary registers to 
-compute a blending effect, so that you need, in total, three temporary 
-registers (if you though five I caught you - they are <u>temporary</u> 
-registers, and can be reused).
+all needed parameters, and affect them to registers (hopefully, ARM processors 
+comes with many of those). It's not possible to have a fixed mapping here 
+because we can need many many different parameters. Those registers will be 
+loaded with parameters value at the beginning of the function, and will serve 
+no other purpose in the inner loop. So you have to know this mapping between 
+parameters and registers before starting to output code (actually, the first 
+code to be output is this loading of parameters values into those registers).  
+Also, you have to know how many registers will be needed for temporary 
+computations. For example, you may need two temporary registers to compute 
+texel address, then later three temporary registers to compute a blending 
+effect, so that you need, in total, three temporary registers (if you though 
+five I caught you - they are <u>temporary</u> registers, and can be reused).
 </p><p>
 	This is why the <i>bloc_def_func()</i> function takes a callback function 
-as parameter : it's called several times to generate a code block : the first 
-time to allocate registers, the second time to actually write the code.
+as parameter&nbsp;: it's called several times to generate a code block&nbsp;: 
+the first time to allocate registers, the second time to actually write the 
+code.
 </p><p>
 	In fact, it can be called a third time, for what I call the <i>bottom 
 half</i> of the code block (I lacked a name for this, so I used the BSD kernel 
@@ -734,22 +742,22 @@ half</i> of the code block (I lacked a name for this, so I used the BSD kernel
 needs to be executed after, for which no better name came to mind&quot;).
 </p><p>
 	To understand what JIT's &quot;bottom halves&quot; are good for, you need 
-to remember a previous remark : ARM processors know a clocking trick to 
+to remember a previous remark&nbsp;: ARM processors know a clocking trick to 
 access RAM faster when they know in advance that the accessed addresses will 
 be sequential. In other words, the <i>stm/ldm</i> instructions can write and 
 read memory faster than several distinct otherwise equivalent <i>str/ldr</i> 
 instructions (this has to do with RAM bank selection IIRC). So, when we know 
 that we are going to write sequential values, it pays to prepare several 
-pixels first and then write them to the out buffer with a single <i>stm</i>. 
+pixels first and then write them to the out buffer with a single <i>stm</i>.  
 So, the register allocator try to compute how much pixels we can hold in 
 remaining registers and write in a single burst, then we have to handle this 
-case in all functions that output the code. But this is not enough : when the 
-scan line length is not a multiple of this number of pixels, we have to rely 
-on the simpler, pixel by pixel version of the code to end the scan line. This 
-is what's called the bottom half in the JIT compiler.
+case in all functions that output the code. But this is not enough&nbsp;: when 
+the scan line length is not a multiple of this number of pixels, we have to 
+rely on the simpler, pixel by pixel version of the code to end the scan line.  
+This is what's called the bottom half in the JIT compiler.
 </p><p>
 	So, in the general case, the <i>bloc_def_func()</i> function is called 
-three times : one to allocate registers, one to output the code that draw 
+three times&nbsp;: one to allocate registers, one to output the code that draw 
 pixels in &quot;burst mode&quot;, and another time to output the code that 
 completes the scan line one pixel at a time.
 </p><p>
@@ -757,12 +765,12 @@ completes the scan line one pixel at a time.
 scan-line (not even each time we need to draw a polygon). That's why the JIT 
 compiler keeps up to 5 generated routines, each identified by a key build from 
 the rendering context (a combination of the various parameters that are used 
-to build the drawing routine). New needed routines take the place of the 
-last recently used ones when necessary. Also, to keep the JIT cache reasonably 
+to build the drawing routine). New needed routines take the place of the last 
+recently used ones when necessary. Also, to keep the JIT cache reasonably 
 small, each routine is limited to about 100 instructions (which proved enough 
 empirically).
 </p><p>
-	Notice : on PC, although the JIT code is not executed, it's still 
+	Notice&nbsp;: on PC, although the JIT code is not executed, it's still 
 generated and written to files in <i>/tmp/codegen_*</i>, so that one can have 
 a look at the resulting code. <i>make  dumpcodegen</i> in <i>gpu940/</i> 
 directory disassemble all the code to standard output.
@@ -770,61 +778,62 @@ directory disassemble all the code to standard output.
 <h2><a name="libgpu">Helper library</a></h2>
 <p>
 	This chapter gives details about the gpu940 library, build in <i>lib/</i>, 
-and whose API is defined at the end of <i>include/gpu940.h</i>. 
+and whose API is defined at the end of <i>include/gpu940.h</i>.  
 <i>libgpu940.so</i> is the user interface the the GPU shared memory, and 
 provides many useful functions.
 </p>
 <h3><a name="need4lib">The need for a client library</a></h3>
 <p>
-	Gpu940 comes with a little library that helps clients to send commands 
-and, more importantly, to manage the video buffer. As the client must 
-provides every buffers location by address, it's up to the client to allocate 
-space for textures, depth buffer, output buffers, and to free them when they 
-are not used anymore - which can be tricky for the output buffer, since it's 
-used for rendering <u>and</u> for displaying, and thus must not be recycled until 
-the <i>next</i> frame is displayed (not only published with <b>gpuSHOWBUF</b> but 
+	Gpu940 comes with a little library that helps clients to send commands and, 
+more importantly, to manage the video buffer. As the client must provides 
+every buffers location by address, it's up to the client to allocate space for 
+textures, depth buffer, output buffers, and to free them when they are not 
+used anymore - which can be tricky for the output buffer, since it's used for 
+rendering <u>and</u> for displaying, and thus must not be recycled until the 
+<i>next</i> frame is displayed (not only published with <b>gpuSHOWBUF</b> but 
 actually displayed on the screen).
 </p><p>
 	Also, the <b>gpuREWIND</b> command add complexity to the command buffer, 
 and this library provide a simple API for sending commands that is similar to 
 the familiar <i>write()</i> and <i>writev()</i> UNIX functions.
 </p><p>
-	So you are encouraged to use this library even if you plan to not use 
-the OpenGL layer for performance reason. OpenGL library uses it. Even the 
-<i>Code Alone</i> demo uses it.
+	So you are encouraged to use this library even if you plan to not use the 
+OpenGL layer for performance reason. OpenGL library uses it. Even the <i>Code 
+Alone</i> demo uses it.
 </p>
 <h3><a name="initialization">Initialization</a></h3>
 <p>
 	The <i>gpuOpen()</i> function, located in <i>lib/gpu940.c</i>, needs to be 
-called before anything else to ensure proper communication with GPU : it 
+called before anything else to ensure proper communication with GPU&nbsp;: it 
 mmaps <i>/dev/mem</i>, sends a <b>gpuRESET</b> command to the GPU then waits 
 until the frame count in <i>struct shared</i> is zero. This is important 
-because further memory allocation functions can make use of this frame counter.
+because further memory allocation functions can make use of this frame 
+counter.
 </p><p>
 	What this initialization function does not perform, though, is loading the 
 gpu940 code into the ARM940, nor even ensuring that the gpu940 software is 
-correctly loaded onto the 940 (or that the x86 gpu940 binary is running). 
+correctly loaded onto the 940 (or that the x86 gpu940 binary is running).  
 There is currently no way for the client program to find out if the GPU is 
 loaded or not.
 </p><p>
 	<i>gpuClose()</i> function should be called at the end of the client 
 program to close the mmaped file. Notice that it does not &quot;unload&quot; 
-(what would that mean ?) gpu940 from the ARM940 memory, nor stop it in any 
-way. The GPU will enter standby mode by itself (ie. reducing it's clock speed 
-as low as 50MHz). To stops the ARM940 from executing some code, the stop940 
-program must be run (this apparently does not work, see <a 
+(what would that mean&nbsp;?) gpu940 from the ARM940 memory, nor stop it in 
+any way. The GPU will enter standby mode by itself (ie. reducing it's clock 
+speed as low as 50MHz). To stops the ARM940 from executing some code, the 
+stop940 program must be run (this apparently does not work, see <a 
 href="https://gna.org/bugs/index.php?8404">bug description</a>).
 </p>
 <h3><a name="commandbuffer">Handling the command buffer</a></h3>
 <p>
 	To send commands to the GPU, the helper library offer two functions that 
-are the equivalent of the UNIX <i>write</i> and <i>writev</i> :
+are the equivalent of the UNIX <i>write</i> and <i>writev</i>&nbsp;:
 </p><ul>
 	<li><i>gpuWrite();</i></li>
 	<li><i>gpuWritev();</i></li>
 </ul><p>
-	Sent commands must be word aligned, and all sizes are given in bytes despite 
-they are constrained to 4 bytes multiples. These functions handle 
+	Sent commands must be word aligned, and all sizes are given in bytes 
+despite they are constrained to 4 bytes multiples. These functions handle 
 <b>gpuREWIND</b> properly, and guaranty that all writes are atomic (ie. the 
 GPU will see all or none).
 </p><p>
@@ -833,8 +842,8 @@ when true, allow the library to block until enough space is available in the
 command buffer. When the library must wait, is busy loop over a call to the 
 <i>sched_yield()</i> function, which will yield CPU to another ready to run 
 task. If no such other task is running, this is equivalent to a busy loop, 
-which is not friendly for GP2X batteries. A client application should be 
-aware that it's waiting for the GPU, and lower it's CPU clock accordingly.
+which is not friendly for GP2X batteries. A client application should be aware 
+that it's waiting for the GPU, and lower it's CPU clock accordingly.
 </p>
 <h3><a name="videobuffer">Handling the video buffer</a></h3>
 <p>
@@ -842,14 +851,14 @@ aware that it's waiting for the GPU, and lower it's CPU clock accordingly.
 functions are <i>gpuAlloc()</i> and <i>gpuFree()</i> which are equivalent to 
 the standard libc <i>malloc()</i> and <i>free()</i> except that they do not 
 operate on <i>void *</i> pointers, but on a <i>struct gpuBuf</i> structure, 
-which describe more precisely the video buffer segments that are allocated. 
-All these <i>gpuBuf</i> objects are chained together in two lists :
+which describe more precisely the video buffer segments that are allocated.  
+All these <i>gpuBuf</i> objects are chained together in two lists&nbsp;:
 </p><ul>
-	<li><i>list</i> : which is the list of all allocated <i>gpuBuf</i> in 
+	<li><i>list</i>&nbsp;: which is the list of all allocated <i>gpuBuf</i> in 
 increasing addresses order (addresses in video buffer) ;</li>
-	<li><i>fc_list</i> : which is list of all buffers that will automatically 
-be freed when the frame count will reach a given value (more on that below) 
-;</li>
+	<li><i>fc_list</i>&nbsp;: which is list of all buffers that will 
+automatically be freed when the frame count will reach a given value (more on 
+that below) ;</li>
 </ul><p>
 	Objects of that type are created on a dynamically allocated cache 
 (<i>buf_cache</i>). They are kept distinct from the video buffer because as 
@@ -858,28 +867,28 @@ it in the ARM920 data cache (plus, it lowers the amount of needed pointer
 arithmetic). The <i>cache_list</i> list chains together all free 
 <i>buf_cache</i> objects.
 </p><p>
-	The opaque <i>struct gpuBuf</i> type holds the <i>struct buffer_loc</i> type 
-that is needed by the buffer manipulation GPU commands. The <i>buffer_loc</i> 
-value can be obtained from a <i>gpuBuf</i> object with the 
+	The opaque <i>struct gpuBuf</i> type holds the <i>struct buffer_loc</i> 
+type that is needed by the buffer manipulation GPU commands. The 
+<i>buffer_loc</i> value can be obtained from a <i>gpuBuf</i> object with the 
 <i>gpuBuf_get_loc()</i> function.
 </p><p>
-	<i>gpuAlloc()</i> takes its sizes with two parameters : <i>width_log</i> 
-and <i>height</i>. So, the width is constrained to a power of two, as all 
-buffers given to the GPU share this constraint.
+	<i>gpuAlloc()</i> takes its sizes with two parameters&nbsp;: 
+<i>width_log</i> and <i>height</i>. So, the width is constrained to a power of 
+two, as all buffers given to the GPU share this constraint.
 </p><p>
-	More strangely, it also takes a boolean parameter named <i>can_wait</i>. 
+	More strangely, it also takes a boolean parameter named <i>can_wait</i>.  
 This is because in some circumstances the library can free some allocated 
-buffers from within <i>gpuAlloc()</i> : when those buffers were 
+buffers from within <i>gpuAlloc()</i>&nbsp;: when those buffers were 
 &quot;freed&quot; with the special <i>gpuFreeFC()</i> function. This one does 
 not free the buffer at once, but rather takes a number of frames and add the 
 buffer onto the <i>fc_list</i> for later removal when that number of frame 
 counts will be ellapsed. This strange semantic has two purposes.
 </p><p>
-	First, it allow the client application to say something like 
-&quot;free this buffer when the current frame is done&quot; (with 
-<i>gpuFreeFC(buffer, 1)</i>). To understand why this is required, imagine the 
-following program, that wants to :
-<p><ol>
+	First, it allow the client application to say something like &quot;free 
+this buffer when the current frame is done&quot; (with <i>gpuFreeFC(buffer, 
+1)</i>). To understand why this is required, imagine the following program, 
+that wants to&nbsp;:
+</p><ol>
 	<li>allocate a buffer B1, then load a texture in it ;</li>
 	<li>draw some polygons using texture B1 ;</li>
 	<li>load another texture into B1 ;</li>
@@ -889,43 +898,43 @@ following program, that wants to :
 </ol><p>
 	This buggy application may end up with all polygons mapped with the second 
 texture, because nothing prevents the GPU to start drawing the polygons only 
-once the client program published the frame, or worse freed it (if it was still rendering 
-previous frame for example) ! Don't forget that there are <u>no</u> 
-synchronisation between CPU and GPU, even at the point when the CPU send a 
-<b>gpuSHOWBUF</b> (&quot;publish&quot; the frame). The above program 
+once the client program published the frame, or worse freed it (if it was 
+still rendering previous frame for example)&nbsp;! Don't forget that there are 
+<u>no</u> synchronisation between CPU and GPU, even at the point when the CPU 
+send a <b>gpuSHOWBUF</b> (&quot;publish&quot; the frame). The above program 
 can only work if it uses two distinct buffers for the two textures, and if it 
 ask the helper library to wait until next frame was displayed before freeing 
 the buffers. So, most of the time, you will use <i>gpuFreeFC()</i> instead of 
 <i>gpuFree()</i>.
 </p><p>
 	The other reason why this delayed free is useful is to allow the user 
-program to work several frames in the future : when a frame is published, all 
-the buffers required to build this frame can be freed at once, some other may 
-be useful only until next frame (eg. the display buffer, which must not be 
+program to work several frames in the future&nbsp;: when a frame is published, 
+all the buffers required to build this frame can be freed at once, some other 
+may be useful only until next frame (eg. the display buffer, which must not be 
 reused before another frame is displayed), and in some cases (blur motion 
 effects&nbsp;...) some buffers may be needed longer.
 </p><p>
-	This feature can only work if the helper library know when the user 
-publish a frame. That's why a special <i>gpuShowBuf()</i> function is there. 
-Don't ever use <i>gpuWrite()</i> to send a <b>gpuSHOWBUF</b> command, or the 
-library internal frame count would be wrong.
+	This feature can only work if the helper library know when the user publish 
+a frame. That's why a special <i>gpuShowBuf()</i> function is there.  Don't 
+ever use <i>gpuWrite()</i> to send a <b>gpuSHOWBUF</b> command, or the library 
+internal frame count would be wrong.
 </p><p>
 	For convenience, a <i>gpuSetBuf()</i> function is available that sends a 
 <b>gpuSETBUF</b> command corresponding to a <i>gpuBuf</i> object.
 </p>
 <h3><a name="synchro">Synchronization with GPU</a></h3>
 <p>
-	The same library source file hosts the <i>gpuWaitDisplay()</i> function. 
+	The same library source file hosts the <i>gpuWaitDisplay()</i> function.  
 It simply waits until the GPU frame counter (available in <i>shared</i>) gets 
-equal to or greater than the internal frame counter (minus 1). That is, it waits 
-until the second last published frame's address is set in the display 
+equal to or greater than the internal frame counter (minus 1). That is, it 
+waits until the second last published frame's address is set in the display 
 controller (where <i>shared->frame_count</i> is incremented).
 </p><p>
-	Why not waiting until the last published frame is displayed ? Because 
-then, if the vertical IRQ occurs faster than the GPU do render frames, the 
-GPU is hold idle between the time when it add the last frame to the display 
-list and the time next IRQ occurs and displays it ; and having the GPU idle 
-when it's late is not a good idea.
+	Why not waiting until the last published frame is displayed&nbsp;? Because 
+then, if the vertical IRQ occurs faster than the GPU do render frames, the GPU 
+is hold idle between the time when it add the last frame to the display list 
+and the time next IRQ occurs and displays it ; and having the GPU idle when 
+it's late is not a good idea.
 </p>
 <h2><a name="OpenGL">OpenGL Implementation</a></h2>
 <p>
@@ -935,18 +944,16 @@ with legacy <a href="www.opengl.org">OpenGL</a>.
 </p>
 <h3><a name="GLMachine">Overall OpenGL machine</a></h3>
 <p>
-	At first, OpenGL appears as a client-server state machine. For our 
-purpose, there are no need to distinguish between client and server states. 
-No such slient-server design is planned, although it would be possible in 
-theory.
+	At first, OpenGL appears as a client-server state machine. For our purpose, 
+there are no need to distinguish between client and server states.  No such 
+slient-server design is planned, although it would be possible in theory.
 </p><p>
 	The OpenGL library was implemented in a straightforward manner. As a 
 result, most of the source code in <i>GL/</i> directory only maintain the 
-state variables without consideration for the actual renderer. Sometimes, 
-this can gives the impression that OpenGL features are implemented while they 
-in fact produce no visible result. Thus, most o the code in the GL library 
-will not be discussed here. 
-</p><p>
+state variables without consideration for the actual renderer. Sometimes, this 
+can gives the impression that OpenGL features are implemented while they in 
+fact produce no visible result. Thus, most o the code in the GL library will 
+not be discussed here.  </p><p>
 	The mapping between the GL state and the renderer is done mainly in 
 <i>GL/cmd.c</i>. Each time a vector is submitted to the GL in a way or 
 another, the <i>gli_cmd_vertex()</i> function is called, which send a 
@@ -958,11 +965,11 @@ hereafter.
 <h4><a name="GLcoord">Vertex coordinates</a></h4>
 <p>
 	The <i>gli_cmd_vertex()</i> function, which is only given a pointer to the 
-fixed point complete vertex coordinate set (4 components : x<sub>0</sub>, 
+fixed point complete vertex coordinate set (4 components&nbsp;: x<sub>0</sub>, 
 y<sub>0</sub>, z<sub>0</sub> and w<sub>0</sub>), first computes the required 
 coordinate sets. Here are the coordinates used in the transformation pipeline 
 of the GL library, in order of appearance (refer to your OpenGL 
-specifications, "Coordinate Transformations") :
+specifications, "Coordinate Transformations")&nbsp;:
 </p><ol>
 	<li>
 		<u>eye coordinates</u> (x<sub>e</sub>, y<sub>e</sub>, z<sub>e</sub>, 
@@ -992,7 +999,7 @@ accordingly Z increasing as depths increase).</li>
 	A little maths is needed here to split these computations between the GL 
 library and the GPU (where we want the divisions to take place). First, we are 
 supposed to divide by w<sub>c</sub> despite the GPU actually divides by the Z 
-vertex coordinate : so we give w<sub>c</sub> for Z. Before doing this 
+vertex coordinate&nbsp;: so we give w<sub>c</sub> for Z. Before doing this 
 division, the GPU multiplies the X and Y coordinates by it's <i>dproj</i> 
 (defaulting to 256). Thus we must divide the given X and Y coordinates by this 
 <i>dproj</i>.  Finally, the GPU does not scale vertex coordinates to match 
@@ -1002,53 +1009,53 @@ will then be located according to GL specifications.
 </p><p>
 	The only case left is z<sub>w</sub>. We already saw that the GPU performs 
 depth testing with a dedicated parameter instead of the Z vertex coordinate, 
-which comes in handy : this corresponds to GL's z<sub>w</sub>. Notice how the 
-two Zs have slighty different meanings : one is a perspective divisor while the 
-other is a depth. z<sub>w</sub> is supposed to be equal to 
+which comes in handy&nbsp;: this corresponds to GL's z<sub>w</sub>. Notice how 
+the two Zs have slighty different meanings&nbsp;: one is a perspective divisor 
+while the other is a depth. z<sub>w</sub> is supposed to be equal to 
 (z<sub>c</sub>&nbsp;/&nbsp;w<sub>c</sub>)&nbsp;&times;&nbsp;((f-n)&nbsp;/&nbsp;2)&nbsp;+&nbsp;((f+n)&nbsp;/&nbsp;2).
-This expensive computation is performed only if depth parameter is 
-required (depending mainly on the <i>GL_DEPTH_TEST</i> state).
+This expensive computation is performed only if depth parameter is required 
+(depending mainly on the <i>GL_DEPTH_TEST</i> state).
 </p><p>
 	Now all our vertex coordinates are properly set.
 </p>
 <h4><a name="GLcolor">Pixel colors</a></h4>
 <p>
-	Here is schematically where pixels colors came from with OpenGL : first, 
-each vertex is given a color (from the current color given with 
+	Here is schematically where pixels colors came from with OpenGL&nbsp;: 
+first, each vertex is given a color (from the current color given with 
 <i>glColor()</i> or a material color). These colors are modified by lights if 
 lighing is enabled. These resulting colors (3 R,B,G components and an 
 additional alpha component per vertex) are then interpolated through the 
 polygon. Then, if texturing is enabled, a texel if fetched and the vertex 
 color and texel color are mixed according to some environment parameter (by 
 default, they are multiplied). This gives the final color, which is then 
-written straight to the frame buffer or mixed with the previously stored 
-color if blending is enabled.
+written straight to the frame buffer or mixed with the previously stored color 
+if blending is enabled.
 </p><p>
 	This leads to potentially mixing colors two times per pixel, that is 4 
-multiplications per pixel and per color component : 12 multiplications per 
-pixel if implemented straightforwardly.
+multiplications per pixel and per color component&nbsp;: 12 multiplications 
+per pixel if implemented straightforwardly.
 </p><p>
 	Of course we can not afford this, so several tricks are used.
 </p><p>
-	First, like already state, most of the time the vertex colors are the same for 
-all vertexes of a polygon, and lighting does only affect the luminosity (when 
-using white light). So we do not need to interpolate 4 coefficients but only 
-one, the luminosity (which can be merely written in the frame buffer in YUV 
-mode). gpu940's libGL try to recognize these cases with the 
+	First, like already state, most of the time the vertex colors are the same 
+for all vertexes of a polygon, and lighting does only affect the luminosity 
+(when using white light). So we do not need to interpolate 4 coefficients but 
+only one, the luminosity (which can be merely written in the frame buffer in 
+YUV mode). gpu940's libGL try to recognize these cases with the 
 <i>gli_simple_lighting()</i> function. When it seams possible, the GPU flat 
-shading is used with a custom luminosity parameter. Otherwise it uses the 
-full R,G,B mode, when all three color components are interpolated.
+shading is used with a custom luminosity parameter. Otherwise it uses the full 
+R,G,B mode, when all three color components are interpolated.
 </p><p>
-	Then comes texturing. Most of the time when texturing is on, vertex colors are 
-not used or are used only to light the texture. Then again it is sufficient to 
-write the texel with modified Y component. Actually gpu940 GL library does 
-not try to recognize when mixing texel and vertex colors is necessary, and 
-always assume no lighting (which is why Egoboo2x lighting effects appears to 
-be disabled). In the future, the library should try to use the luminosity 
-parameter to render lighted textures. Full color and texel mixing seams out 
-of reach for now.
+	Then comes texturing. Most of the time when texturing is on, vertex colors 
+are not used or are used only to light the texture. Then again it is 
+sufficient to write the texel with modified Y component. Actually gpu940 GL 
+library does not try to recognize when mixing texel and vertex colors is 
+necessary, and always assume no lighting (which is why Egoboo2x lighting 
+effects appears to be disabled). In the future, the library should try to use 
+the luminosity parameter to render lighted textures. Full color and texel 
+mixing seams out of reach for now.
 </p><p>
-	Then comes blending. Blending is mainly used for two purposes :
+	Then comes blending. Blending is mainly used for two purposes&nbsp;:
 </p><ul>
 	<li>render translucent primitives ;</li>
 	<li>achieve texture transparency (some part of the texture are fully 
@@ -1058,92 +1065,213 @@ transparent while the remaining texels are fully opaque) ;</li>
 buffer (actually, even some hardware implementations do not store alpha 
 components, and the OpenGL standard seams to allow this).
 </p><p>
-	The eye is very tolerant with translucency : in fact, one can hardly tell 
-the difference between two levels of blend if they are close together.
+	The eye is very tolerant with translucency&nbsp;: in fact, one can hardly 
+tell the difference between two levels of blend if they are close together.
 So that it's enough to have only, say, 8 possibles blending levels, and that 
-this blending level can be constant through a whole polygon. Gpu940 avoids 
-the required multiplication by using a color mixing routine based on a 
-constant amount of shifts. The <i>blend_coef</i> polygon parameter choose the 
-amount of shift between the old and new color components : the previous 
-components are shifted in one direction and the new components in the other 
-direction, then both a summed and the result written to the frame buffer. The 
-libGL tries to map the GL mean alpha value to this <i>blend_coef</i> 
-parameter.
+this blending level can be constant through a whole polygon. Gpu940 avoids the 
+required multiplication by using a color mixing routine based on a constant 
+amount of shifts. The <i>blend_coef</i> polygon parameter choose the amount of 
+shift between the old and new color components&nbsp;: the previous components 
+are shifted in one direction and the new components in the other direction, 
+then both a summed and the result written to the frame buffer. The libGL tries 
+to map the GL mean alpha value to this <i>blend_coef</i> parameter.
 </p><p>
 	When alpha value is supposed to be fetched from the texture, this is 
 another story. When a texture with an alpha component is uploaded, all texels 
 alpha values are examined and if the mean alpha value is below a threshold, 
 it's assumed the user want translucency (as describer above). In addition, if 
 some alpha values are very low, it's then also assumed that the user want to 
-achieve transparency. Gpu940 have a distinct parameter for this : texture key 
-color. When a texture with an alpha component is uploaded, all texels that 
+achieve transparency. Gpu940 have a distinct parameter for this&nbsp;: texture 
+key color. When a texture with an alpha component is uploaded, all texels that 
 have their alpha component below a threshold are replaced with the key color, 
-and the texture is tagged with a flag (<i>need_key</i>) that will lead to 
-the GPU using the key-color rendering mode.
+and the texture is tagged with a flag (<i>need_key</i>) that will lead to the 
+GPU using the key-color rendering mode.
 </p><p>
 	Both transparency and translucency are then feasible without the need to 
 multiply color components with alpha components, at the expense of additional 
 guess-work in the library side (and some visual imperfections).
 </p>
 <h3><a name="GLswap">Swapping buffers</a></h3>
+<p>
+	OpenGL does know about only one frame buffer, where all the primitives are 
+rendered. This is the job of the GLX X-Windows extension (or the eglx library 
+for OpenGL-ES) to take care of what's actually displayed. GLX (or its eglx 
+counterpart) frame abstraction is very much simpler than gpu940 one, because 
+it knows of only two frame buffers&nbsp;: the front one (displayed) and the 
+back one (where primitives are renderer). When the application want to display 
+a frame, it only have to call the <i>glXSwapBuffers()</i> function to have the 
+back buffer become the front one.
+</p><p>
+	To offer the same behavior to applications, gpu940 GL library uses three 
+sets of buffers, each set consisting of an out buffer and an optional depth 
+buffer (only allocated if <i>glOpen()</i> was called with the 
+<i>DEPTH_BUFFER</i> flag). It then provides the <i>glSwapBuffers()</i> 
+function which mimic the behavior of the equivalent GLX function.
+</p><p>
+	Why using three buffers instead of merely two&nbsp;? Remember the 
+discussion about <i>gpuWaitDisplay()</i>&nbsp;: this function waits only until 
+the second last published frame gets displayed, for performance reason. So we 
+cannot reuse this one, since it's currently displayed, nor obviously the one 
+we just published, for it's going to be displayed. We must then work with 
+three sets of buffers.
+</p>
 <h3><a name="GLfloats">Other types than GLfixed</a></h3>
+<p>
+	Although the softfloat library used for floating point arithmetic is very 
+optimized, it cannot cope with well optimized fixed point arithmetic on a 
+processor that have no hardware support for floats. All GPU internal as well 
+as the helper and GL libraries are thus fixed point only.
+</p><p>
+	Most of OpenGL applications, though, insist on using floats as their main 
+data type for geometry. For simplicity, a quick and dirty header file was 
+coined to convert some popular floating point version of OpenGL calls into 
+their fixed point counterparts. This header file is 
+<i>include/GL/gl_float.h</i>, and is included by <i>include/GL/gl.h</i>. It 
+uses inline C functions rather than preprocessor macros for better type 
+checking. Apart from that, these functions are not optimized in any way 
+(matrix conversions are particularly awfull). This header file is provided to 
+make porting existing applications easier. If you can, avoid using them and 
+keep away from floats altogether.
+</p>
 <h2><a name="App">Appendix</a></h2>
 <p>
 	The following notes are some advices on how to use gpu940 to write or port 
-OpenGl applications. If you followed everything until there it's likely 
-that everything will just sound like common sense to you.
+OpenGl applications. If you followed everything until there it's likely that 
+everything will just sound like common sense to you.
 </p>
 <h3><a name="AppBrew">How to write new OpenGL apps</a></h3>
 <p>
+	You should be aware of two things :
+</p><ul>
+	<li>gpu940's GL library is <u>not</u> compliant to the OpenGL standard. 
+Although its designed to help porting applications in and out, we can not 
+implement the OpenGL specs but a small subset of it ; and even this subset 
+is not implemented according to the specs ;</li>
+	<li>gpu940 &quot;GPU&quot; is about several hundred times slower than the 
+hardware GPU that comes with your PC ;</li>
+</ul>
+<h4><a name="ABConf">Conformance issues</a></h4>
+<p>
+	Here is a quick list of the missing features, compared to OpenGL 
+specifications v1.1 :
+</p><ul>
+	<li><b>Client-server :</b> we do not distinguish between client state nor 
+server state. As a consequence, to GL apps can not share the GPU.</li>
+	<li><b>Argument types :</b> we do only support <i>GLfixed</i> type, which 
+is a creation of OpenGL-ES. Some of the other types are supported via quick 
+and dirty wrappers.</li>
+	<li><b>Evaluators :</b> are not implemented.</li>
+	<li><b>GL_LINES, GL_LINE_STRIP, GL_LINE_LOOP :</b> are not implemented, but 
+should be.</li>
+	<li><b>GL_POLYGON :</b> are not implement but will certainly be before 
+long.</li>
+	<li><b>Polygon edges :</b> are not implemented.</li>
+	<li><b>Indexed colors :</b> are not implemented.</li>
+	<li><b>glInterleavedArrays() and glRect() :</b> are not implemented, but 
+should be.</li>
+	<li><b>Normalization :</b> is not implemented. Could be, but probably not 
+a good idea.</li>
+	<li><b>Texture coordinate generation :</b> is not implemented.</li>
+	<li><b>Clip Planes :</b> not implemented yet, but should be. Anyway, gpu940 
+allows only 5, GL specs requires at least 6.</li>
+	<li><b>All raster functions :</b> are not implemented.</li>
+	<li><b>SpotLights :</b> are not implemented, but should be.</li>
+	<li><b>Color material :</b> is not implemented, but should be.</li>
+	<li><b>Antialiasing :</b> is not implemented. Low on priority list.</li>
+	<li><b>Stippling :</b> is not implemented.</li>
+	<li><b>Depth offset :</b> is not implemented, but could be.</li>
+	<li><b>Pixel operations :</b> <i>glDraw/Read/CopyPixels()</i> are not 
+implemented, nor <i>glBitmap()</i>.</li>
+	<li><b>Proxy textures :</b> are not implmented.</li>
+	<li><b>Texture matrix stack :</b> is unused.</li>
+	<li><b>Texture parameters :</b> most have no effect.</li>
+	<li><b>mipmapping :</b> is not implemented, but should be.</li>
+	<li><b>1D textures :</b> is not implemented.</li> 
+	<li><b>Texture prioritization :</b> is not implemented.</li>
+	<li><b>Fog :</b> is not implemented but could be tricked.</li>
+	<li><b>Scissor test :</b> not implemented, but should be.</li>
+	<li><b>Alpha test :</b> not implemented, but should be.</li>
+	<li><b>Stencil buffer :</b> there are none.</li>
+	<li><b>Dithering :</b> is not implemented.</li>
+	<li><b>Logic operation :</b> are not implemented. Could be if needed.</li>
+	<li><b>Buffer selection :</b> is not implemented. Could be if needed.</li>
+	<li><b>Accumulation buffer :</b> is not implemented.</li>
+	<li><b>Evaluators, Selection, FeedBack, display lists :</b> are not implemented.</li>
+</ul><p>
+	And here is a quick list of what, while implemented, does not conform to 
+requirements :
+</p><ul>
+	<li><b>Floating points :</b> we do all arithmetic on fixed point 32 bits 
+integers, with 16 bits for the decimal part (GLfixed as defined by OpenGL-ES).  
+Our range of acceptable values is then not conforming.</li>
+	<li><b>GL_POINTS :</b> just a single pixel in size. Enough for debugging, 
+which is the main purpose for points.</li>
+	<li><b>Lighting simplification :</b> sometimes (refer to the above 
+explanations to know how) libGL choose to interpolate only a single 
+luminosity color component (useful in YUV mode) rather than the three R,G,B 
+color components. This can leads to incorrect colors.</li>
+	<li><b>FRONT_AND_BACK only material :</b> conforming to OpenGL-ES, its not 
+possible to have different material properties for front and back faces.</li>
+	<li><b>Polygon mode :</b> only <i>GL_FILL</i> is implemented.</li>
+	<li><b>Texture environment :</b> other than <i>GL_REPLACE</i> may not work 
+as expected.</li>
+	<li><b>Blending :</b> DST_COLOR is unusable since we have no alpha buffer. 
+Also, blending results are not compliant because we do not scale color 
+components but just shift/add them.</li>
+	<li><b>Color mask :</b> it's not possible to disable individual 
+components. This is all the color or nothing.</li>
+</ul>
+<h4><a name="ABPerf">Performance issues</a></h4>
+<p>
 	First of all, you should be aware that if you do not pay extra attention to 
-what you ask for, the performance will be very deceiving. With the growing 
+your rendering loop, the performance will be very deceiving. With the growing 
 availability of very fast hardware accelerated 3D renderer, most of people 
-that happen to develop new 3d applications tends to think that drawing a 
+that happen to develop new 3d applications tend to think that drawing a 
 polygon is free, when actually even the simplest <i>glClear()</i> call is not 
-free&mnsp;:&nbsp;it requires the GPU to write several thousands of  words onto 
+free&nbsp;: it requires the GPU to write several thousands of  words onto 
 uncached memory. So most of younger developers that are not familiar with 
-software renderers will have to learn what are the consequences of the 
-library functions they use. This is a good training anyway, since even when 
-it's for the latest high-end 3D graphic card it never helps to waste power.
+software renderers will have to learn what are the consequences of the library 
+functions they use. This is a good training anyway, since even when it's for 
+the latest high-end 3D graphic card it never helps to waste power.
 </p><p>
 	So lets see how one can optimize an OpenGL program, especially when it's 
 for gpu940.
 </p>
-<h4>Don't clear too much</h4>
+<h5>Don't clear too much</h5>
 <p>
 	Like said in introduction, clearing the buffers can be time consuming and 
 is not always useful. First, you may need to clear only the color buffer or 
 the depth buffer.
 </p><p>
-	Then, always ask yourself what proportion of the frame will show the 
-clear color once the whole picture will be rendered ? Most of the time, not 
+	Then, always ask yourself what proportion of the frame will show the clear 
+color once the whole picture will be rendered&nbsp;? Most of the time, not 
 much, if at all ; so that it's often better to add some clearing polygons (for 
 example a sky box) than to clear the whole screen and redraw it completely.
 </p>
-<h4>Don't abuse depth tests</h4>
+<h5>Don't abuse depth tests</h5>
 <p>
 	Z-buffer was an evil invention. It's required for some pathological cases, 
 when sorting polygons cannot, locally, give correct results. Most of the time 
 the faster painter algorithm just works, so use it. Also, you often have 
-something like a background with object in front of it : no need for any 
+something like a background with object in front of it&nbsp;: no need for any 
 sorting nor depth testing for rendering these cases properly (in Egoboo2x for 
 example, all walls and characters are always in front of all floors). It also 
 helps to fight rendering inaccuracies that leads to make a character foot 
-appears as if it is cut by the floor if its Z coordinate is a little too far. 
+appears as if it is cut by the floor if its Z coordinate is a little too far.  
 It also avoid to need the ugly z-offset when rendering wall-marks, etc...
 </p><p>
 	Using Z-depth does not imply you need resulting depths. For example when 
 you render an object with depth tests enabled, you may not need this object 
 depth values if you do not render another object against this one. In these 
-situations, masking out z writing (with <i>glDepthMask()</i>) allow the GPU 
-to skip writing a word per pixel.
+situations, masking out z writing (with <i>glDepthMask()</i>) allow the GPU to 
+skip writing a word per pixel.
 </p><p>
-	The same is true the other way round : you may need an object depth for 
-later depth filtering without the need to test this object depth again the 
+	The same is true the other way round&nbsp;: you may need an object depth 
+for later depth filtering without the need to test this object depth again the 
 current z buffer. You can unmask depth writing and disable depth testing 
 altogether.
 </p>
-<h4>Don't send useless polygons</h4>
+<h5>Don't send useless polygons</h5>
 <p>
 	The GPU performs clipping in order to draw only visible portions of 
 polygons. Not to dispense you from the need to implement a proper visibility 
@@ -1155,7 +1283,7 @@ your case. You know your program and its particularities, the GPU does not.
 have no special way to know that a polygon is back face (like a BSP), let the 
 libGL do this for you by enabling <i>GL_CULL_FACE</i>.
 </p>
-<h4>Use simple meshes</h4>
+<h5>Use simple meshes</h5>
 <p>
 	Low poly count is an art, and some of your users will enjoy it. Don't hide 
 your geometry behind hundreds of smooth polygons. Low polygon models are nice, 
@@ -1164,30 +1292,51 @@ generally more easy to animate well, and require less space.
 	That said, use several level of details or your meshes if your application 
 will render them at different scales.
 </p>
-<h4>Use simple textures</h4>
+<h5>Use simple textures</h5>
 <p>
 	Low pixel count is an art, and some of your users will enjoy it (OK, maybe 
-not that many, but I will :-)). Textures can be accessed much faster when 
-they are small. Experimentally, it was found that on gpu940 it is noticeably 
-faster to use a texture of 64&times;64 pixels than one of 128&times;128 pixels.
+not that many, but I will :-)). Textures can be accessed much faster when they 
+are small. Experimentally, it was found that on gpu940 it is noticeably faster 
+to use a texture of 64&times;64 pixels than one of 128&times;128 pixels.
 </p><p>
 	That said, OpenGL provide mipmapping which have the double advantage of 
 making textured polygons better looking and using smaller texture.
 </p><p>
 	That said, mipmapping is not implemented in the helper library yet.
 </p>
-<h4>Use fixed points everywhere</h4>
+<h5>Use fixed points everywhere</h5>
 <p>
 	This may not be the case in many OpenGL renderer, but the GP2X really does 
 prefer integers to floating point values. So, use preferably fixed point 
 arithmetic for all your vertexes and internal computations.
 </p><p>
-	Floating values are like z buffer : a necessary evil in some rare cases, 
-an expensive and useless luxury most of the time. Integer arithmetic is 
+	Floating values are like z buffer&nbsp;: a necessary evil in some rare 
+cases, an expensive and useless luxury most of the time. Integer arithmetic is 
 simpler, faster, more accurate and more predictable. Only when you have no 
 clue about the scale of a value do you want floating point types. This is 
 probably not the case anywhere in your application.
 </p>
 <h3><a name="AppPort">How to port OpenGL apps</a></h3>
+<p>
+	This chapter gives some hints about porting existing applications to 
+gpu940's OpenGL-like library. Most of these hints were gathered while porting 
+<a href="http://egoboo.sourceforge.net">Egoboo</a> to the GP2X.
+</p><p>
+	As a general advice, choose wisely the application you attempt to port.  
+Don't forget that the GPU runs on a 200MHz RISC processor with a relatively 
+slow RAM compared to PCs. So, focus on well optimized applications runnable on 
+old hardware. Also, remember that the OpenGL layer is nothing but a quick 
+hack&nbsp;: it can draw polygons, but not much more. If your application is 
+very OpenGL oriented, it will probably need parts of OpenGL that are not 
+implemented. A good hint toward feasibility is&nbsp;: does the application can 
+use another renderer than OpenGL (like Direct3d, glide or a custom soft 
+renderer)&nbsp;? If so, it's probably independent of OpenGL most complex 
+features.
+</p><p>
+	Now to some problems you can encounter while porting.
+</p>
+<h4>It uses a tool library (GLU, GLUT, SDL or alike)</h4>
+<h4>It uses very big / small floats</h4>
+<h4>Blending is all wrong&nbsp;!</h4>
 </body>
 </html>
