@@ -238,7 +238,7 @@ true-perspective and z-tests, the GPU needs to know those resulting positions,
 so it was better to let it project and clip the polygons itself. So the client 
 must send 3D vertexes in camera space, and the gpu940 handle all the 3D to 2D 
 projection and clipping. The drawback is that it's no more possible for the 
-GPU to share a vertex between several polygons ; each vertex is then projected 
+GPU to share a vertex between several polygons&nbsp;; each vertex is then projected 
 each time it's encountered. To minimize this cost, which still remains 
 important, the GPU maintain a cache of projected vertexes and the client has a 
 way to tell it that a given vertex is the same than a previously sent
@@ -311,7 +311,7 @@ gives all rendering information and the 3D coordinates of all involved
 vertexes.  When it encounters this command, the GPU first clips the polygon, 
 projects vertexes and draws the polygon onto the current <i>out</i> buffer.  
 There are no camera nor <i>modelview</i> matrix stack as far as the GPU is 
-concerned ; all 3D transformations must have been performed by the user 
+concerned&nbsp;; all 3D transformations must have been performed by the user 
 application before sending the draw command. Other commands do change viewer 
 window coordinates, z-test mode, define buffers, etc...
 </p><p>
@@ -322,10 +322,10 @@ the command that sets GPU buffers.
 </p><p>
 	GPU uses three distinct buffers&nbsp;:
 </p><ul>
-	<li>the <i>out</i> buffer, into which everything is drawn ;</li>
-	<li>the <i>txt</i> buffer, from which texels are fetched ;</li>
+	<li>the <i>out</i> buffer, into which everything is drawn&nbsp;;</li>
+	<li>the <i>txt</i> buffer, from which texels are fetched&nbsp;;</li>
 	<li>the <i>z</i> buffer, where z values are stored and read to perform z 
-filtering ;</li>
+filtering&nbsp;;</li>
 </ul><p>
 	When all commands of a frame are sent, the user application send a <i>show 
 buffer</i> command to publish the frame. This command, when executed by the 
@@ -337,7 +337,7 @@ the interrupt is <i>missed</i> (missed frame count is maintained in the
 <i>shared</i> structure, and displayed on the OSD), meaning that there were 
 too many commands to perform in one frame time. When, at the contrary, more 
 than one frames are published during one frame time, the GPU will display them 
-one at a time, synchronized with the vertical interrupt ; in other words, it 
+one at a time, synchronized with the vertical interrupt&nbsp;; in other words, it 
 will not skip frames. For synchronisation purposes, the user application can 
 read the frame counters <i>frame_count</i> and <i>frame_miss</i> in the 
 <i>shared</i> structure that account for each displayed frame and missed 
@@ -351,7 +351,7 @@ used by the GPU code and the client code, and thus are located in the
 	gpu940 code is located in the <i>bin</i> directory. <i>crt0.S</i> is the 
 only assembly file, and holds the interrupt vector, the initial setup code, 
 and some functions like division. Its main purpose is to setup the ARM940 
-protection unit ; it is not used when building for PC. The protection unit is 
+protection unit&nbsp;; it is not used when building for PC. The protection unit is 
 configured for cache everything except the command buffer (and, of course, 
 MMSP's IO register set).
 </p><p>
@@ -396,11 +396,11 @@ structure at address <i>SHARED_PHYSICAL_ADDR</i>.
 	We follow two objectives&nbsp;:
 </p><ul>
 		<li>The commands must be the smallest possible so that we can holds many
-in the buffer and the 920 does not spare to much time writing them ;</li>
+in the buffer and the 920 does not spare to much time writing them&nbsp;;</li>
 		<li>The commands must be representable by simple C structures and must 
 no be packed in order for the 940 to use them in place without the need to 
 copy
-the data out of the buffer ;</li>
+the data out of the buffer&nbsp;;</li>
 </ul><p>
 	The chosen trade-off is as follow&nbsp;: we define a C structure for each 
 command, composed only of 32 bits words (bit fields allowed for flags). Each 
@@ -604,12 +604,12 @@ linearly interpolated without commiting any approximation.
 	This technique is seldom used because it suffers from several drawbacks and 
 misconceptions&nbsp;:
 </p><ul>
-	<li>It's hard to determine the z-constant &quot;scan-line&quot; ;</li>
+	<li>It's hard to determine the z-constant &quot;scan-line&quot;&nbsp;;</li>
 	<li>It's hard/impossible to perform advanced rendering tricks such as 
-	subpixel rendering ;</li>
-	<li>It's hard to draw slopped &quot;scan-lines&quot; ;</li>
-	<li>It's hard to avoid empty gaps between congruent polygons ;</li>
-	<li>The cost of writting non-sequential pixels are overwhelming ;</li>
+	subpixel rendering&nbsp;;</li>
+	<li>It's hard to draw slopped &quot;scan-lines&quot;&nbsp;;</li>
+	<li>It's hard to avoid empty gaps between congruent polygons&nbsp;;</li>
+	<li>The cost of writting non-sequential pixels are overwhelming&nbsp;;</li>
 	<li>etc ...</li>
 </ul><p>
 	Finding the slope of constant depth is not very difficult and can be 
@@ -626,8 +626,8 @@ that there are no sub-pixel accuracy rendering in gpu940).
 can be solved. Also, writing non sequential pixels can have terrible 
 consequences for performance. But not for GP2X's ARM940, because&nbsp;:
 </p><ul>
-	<li>each pixel is 32 bits in YUV format ;</li>
-	<li>data cache is not used for writes in the out-buffer ;</li>
+	<li>each pixel is 32 bits in YUV format&nbsp;;</li>
+	<li>data cache is not used for writes in the out-buffer&nbsp;;</li>
 </ul><p>
 	In theory, then, the GP2X was a perfect fit for this technique. Anyway, it 
 was later discovered than, even if data cache is unused, writing words far 
@@ -652,7 +652,7 @@ directory.
 <p>
 	The fact that there exists two distinct source files for perspective and
 no-perspective rendering is just a matter of performance&nbsp;: the few 
-avoided <i>if</i>s made a significant speed improvement ; but both files are 
+avoided <i>if</i>s made a significant speed improvement&nbsp;; but both files are 
 still
 mostly identical. Also, the routines that render the pixels along a scan-line
 (sloped or not) are exactly the same. It surely is problematic to have such
@@ -855,10 +855,10 @@ which describe more precisely the video buffer segments that are allocated.
 All these <i>gpuBuf</i> objects are chained together in two lists&nbsp;:
 </p><ul>
 	<li><i>list</i>&nbsp;: which is the list of all allocated <i>gpuBuf</i> in 
-increasing addresses order (addresses in video buffer) ;</li>
+increasing addresses order (addresses in video buffer)&nbsp;;</li>
 	<li><i>fc_list</i>&nbsp;: which is list of all buffers that will 
 automatically be freed when the frame count will reach a given value (more on 
-that below) ;</li>
+that below)&nbsp;;</li>
 </ul><p>
 	Objects of that type are created on a dynamically allocated cache 
 (<i>buf_cache</i>). They are kept distinct from the video buffer because as 
@@ -889,12 +889,12 @@ this buffer when the current frame is done&quot; (with <i>gpuFreeFC(buffer,
 1)</i>). To understand why this is required, imagine the following program, 
 that wants to&nbsp;:
 </p><ol>
-	<li>allocate a buffer B1, then load a texture in it ;</li>
-	<li>draw some polygons using texture B1 ;</li>
-	<li>load another texture into B1 ;</li>
-	<li>draw some other polygons that use this other texture ;</li>
-	<li>publish the frame ;</li>
-	<li>free buffer B1 ;</li>
+	<li>allocate a buffer B1, then load a texture in it&nbsp;;</li>
+	<li>draw some polygons using texture B1&nbsp;;</li>
+	<li>load another texture into B1&nbsp;;</li>
+	<li>draw some other polygons that use this other texture&nbsp;;</li>
+	<li>publish the frame&nbsp;;</li>
+	<li>free buffer B1&nbsp;;</li>
 </ol><p>
 	This buggy application may end up with all polygons mapped with the second 
 texture, because nothing prevents the GPU to start drawing the polygons only 
@@ -933,7 +933,7 @@ controller (where <i>shared->frame_count</i> is incremented).
 	Why not waiting until the last published frame is displayed&nbsp;? Because 
 then, if the vertical IRQ occurs faster than the GPU do render frames, the GPU 
 is hold idle between the time when it add the last frame to the display list 
-and the time next IRQ occurs and displays it ; and having the GPU idle when 
+and the time next IRQ occurs and displays it&nbsp;; and having the GPU idle when 
 it's late is not a good idea.
 </p>
 <h2><a name="OpenGL">OpenGL Implementation</a></h2>
@@ -1057,9 +1057,9 @@ mixing seams out of reach for now.
 </p><p>
 	Then comes blending. Blending is mainly used for two purposes&nbsp;:
 </p><ul>
-	<li>render translucent primitives ;</li>
+	<li>render translucent primitives&nbsp;;</li>
 	<li>achieve texture transparency (some part of the texture are fully 
-transparent while the remaining texels are fully opaque) ;</li>
+transparent while the remaining texels are fully opaque)&nbsp;;</li>
 </ul><p>
 	For both, it's not necessary to store resulting alpha values in the frame 
 buffer (actually, even some hardware implementations do not store alpha 
@@ -1145,10 +1145,10 @@ everything will just sound like common sense to you.
 </p><ul>
 	<li>gpu940's GL library is <u>not</u> compliant to the OpenGL standard. 
 Although its designed to help porting applications in and out, we can not 
-implement the OpenGL specs but a small subset of it ; and even this subset 
-is not implemented according to the specs ;</li>
+implement the OpenGL specs but a small subset of it&nbsp;; and even this subset 
+is not implemented according to the specs&nbsp;;</li>
 	<li>gpu940 &quot;GPU&quot; is about several hundred times slower than the 
-hardware GPU that comes with your PC ;</li>
+hardware GPU that comes with your PC&nbsp;;</li>
 </ul>
 <h4><a name="ABConf">Conformance issues</a></h4>
 <p>
@@ -1245,7 +1245,7 @@ the depth buffer.
 </p><p>
 	Then, always ask yourself what proportion of the frame will show the clear 
 color once the whole picture will be rendered&nbsp;? Most of the time, not 
-much, if at all ; so that it's often better to add some clearing polygons (for 
+much, if at all&nbsp;; so that it's often better to add some clearing polygons (for 
 example a sky box) than to clear the whole screen and redraw it completely.
 </p>
 <h5>Don't abuse depth tests</h5>
@@ -1333,10 +1333,54 @@ use another renderer than OpenGL (like Direct3d, glide or a custom soft
 renderer)&nbsp;? If so, it's probably independent of OpenGL most complex 
 features.
 </p><p>
-	Now to some problems you can encounter while porting.
+	Now to some problems you can encounter while porting an OpenGL application
+to the GP2X.
 </p>
 <h4>It uses a tool library (GLU, GLUT, SDL or alike)</h4>
-<h4>It uses very big / small floats</h4>
+<p>
+	GLU nor GLUT exist for the GP2X. If your application use these libs for 
+window management like opening/closing, you could likely replace them with 
+<i>glOpen()</i>/<i>glClose()</i> calls.
+</p><p>
+	It it deals with user input, well, you should rewrite this part anyway.
+</p><p>
+	If it deals with camera positioning or mesh creation, you can easily 
+rip-off the required functions from the tool library source code and include 
+them readily in the application code.
+</p><p>
+	If it deals with menu management, you are out of luck.
+</p><p>
+	If the application uses SDL GL wrapper, like Egoboo does, you may want 
+still be able to use SDL for user input, sound, etc... In this case, you can 
+remove the <i>SDL_INIT_VIDEO</i> flag from <i>SDL_Init()</i> call... or leave 
+it. Just make sure that SDL blitting functions are not used, and replace 
+call to <i>SDL_GL_SwapBuffers()</i> by <i>glSwapBuffers()</i>.
+</p>
+<h4>It uses very big&nbsp;/ small floats</h4>
+<p>
+	Conversion functions from <i>gl_float.h</i> can lead to serious troubles 
+when input float values are not representable in <i>GLfixed</i> type. For example, 
+<i>1e-15</i> and <i>1e+8</i> are not. And some values, while representable, 
+will still yield to incorrect results (an intermediate result might not be 
+representable in a <i>GLfixed</i>). In general, good values are between
+<i>1e-2</i> and <i>1e2</i>, which is not much.
+</p><p>
+	Dealing with this problem requires some maths. You need to find out what 
+scale to apply to all incoming vertexes, then use the reverse scaling onto 
+the <i>MODELVIEW</i> matrix. Look at the <i>RESCALE</i> macro and <i>mScale</i> 
+variable in Egoboo2x for an example on how to apply this trick.
+</p>
 <h4>Blending is all wrong&nbsp;!</h4>
+<p>
+	Guessing a good shift pair for the <i>blend_coef</i> facet parameter from 
+OpenGL blending settings and alpha parameters is an exercise that has good 
+chances to fail. So, blending effects may not look as expected.
+</p><p>
+	In order to obtain a similar rendering from the original application, you 
+may need to tweak the blending function and alpha values until the libGL 
+library choose a <i>blend_coef</i> that better suit your need.
+</p><p>
+	Future versions of gpu940 may change considerably in this area.
+</p>
 </body>
 </html>
