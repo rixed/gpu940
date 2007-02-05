@@ -119,6 +119,7 @@ static void console_setup(void) {
 	console_write(0, 4, "\xc4\xc4\xc4\xc4\xc4\xc4\xc4\xc4\xc4\xc4\xc4\xc4\xc4\xc4\xc4\xc4\xc4\xc5\xc4\xc4\xc4\xc4\xc4\xc4\xc4\xc4\xc4\xc4\xc4\xc4\xc5\xc4\xc4\xc4\xc4\xc4\xc4\xc4\xc4\xc4");
 }
 static void console_stat(int y, int target) {
+#	ifndef NDEBUG
 	struct perftime_stat st;
 	perftime_stat(target, &st);
 	unsigned c = st.load_avg >= 400 ? 1:3;
@@ -127,6 +128,10 @@ static void console_stat(int y, int target) {
 	console_setcolor(c); console_write_uint(18, y, 11, st.nb_enter);
 	console_setcolor(2); console_write(30, y, "\xb3");
 	console_setcolor(c); console_write_uint(31, y, 5, (100*st.load_avg)>>10);
+#	else
+	(void)y;
+	(void)target;
+#	endif
 }
 static void update_console(void) {
 	if (! console_enabled) return;

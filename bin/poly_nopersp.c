@@ -80,10 +80,9 @@ static void draw_trapeze_frac(void)
 static void next_params_int(unsigned side)
 {
 	ctx.trap.side[side].c += ctx.trap.side[side].dc;
-	ctx.trap.side[side].param[0] += ctx.trap.side[side].param_alpha[0];
-	ctx.trap.side[side].param[1] += ctx.trap.side[side].param_alpha[1];
-	ctx.trap.side[side].param[2] += ctx.trap.side[side].param_alpha[2];
-	ctx.trap.side[side].param[3] += ctx.trap.side[side].param_alpha[3];
+	for (unsigned p=ctx.poly.nb_params; p--; ) {
+		ctx.trap.side[side].param[p] += ctx.trap.side[side].param_alpha[p];
+	}
 }
 
 static void draw_trapeze_int(void)
