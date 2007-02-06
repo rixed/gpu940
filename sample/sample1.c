@@ -69,10 +69,10 @@ int main(void) {
 		{ .c = { -LEN, -LEN, LEN/4 }, .xy = LEN2 },
 	};
 	gpuCmdVector vectors[sizeof_array(vec3d)] = {
-		{ .same_as = 0, .u = { .text_params = { .u=0, .v=0, .i_zb=16<<16 }, }, },
-		{ .same_as = 0, .u = { .text_params = { .u=255<<16, .v=0, .i_zb=0<<16 }, }, },
-		{ .same_as = 0, .u = { .text_params = { .u=255<<16, .v=255<<16, .i_zb=16<<16 }, }, },
-		{ .same_as = 0, .u = { .text_params = { .u=0, .v=255<<16, .i_zb=32<<16 }, }, },
+		{ .same_as = 0, .u = { .named = { .r=0, .g=0, .b=0, .i=16<<16, .u=0, .v=0, .zb=0 }, }, },
+		{ .same_as = 0, .u = { .named = { .r=0, .g=0, .b=0, .i=0<<16, .u=255<<16, .v=0, .zb=0 }, }, },
+		{ .same_as = 0, .u = { .named = { .r=0, .g=0, .b=0, .i=16<<16, .u=255<<16, .v=255<<16, .zb=0 }, }, },
+		{ .same_as = 0, .u = { .named = { .r=0, .g=0, .b=0, .i=32<<16, .u=0, .v=255<<16, .zb=0 }, }, },
 	};
 	gpuCmdFacet facet = {
 		.opcode = gpuFACET,

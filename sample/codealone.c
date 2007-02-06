@@ -77,12 +77,12 @@ static struct gpuBuf *grab_menu_texture(void) {
 static struct gpuBuf *outBuf;
 static void next_out_buf(void) {
 	outBuf = gpuAlloc(9, 250, true);
-	gpuErr err = gpuSetBuf(gpuOutBuffer, outBuf, true);
+	gpuErr err = gpuSetBuf(gpuOutBuffer, outBuf, true); (void)err;
 	assert(gpuOK == err);
 }
 
 static void show_out_buf(void) {
-	gpuErr err = gpuShowBuf(outBuf, true);
+	gpuErr err = gpuShowBuf(outBuf, true); (void)err;
 	assert(gpuOK == err);
 	gpuFreeFC(outBuf, 1);
 }
@@ -95,7 +95,7 @@ static void set_dproj(unsigned dproj) {
 		.winPos = { GPU_DEFAULT_WINPOS0, GPU_DEFAULT_WINPOS1 }
 	};
 	setView.dproj = dproj;
-	gpuErr err = gpuWrite(&setView, sizeof(setView), true);
+	gpuErr err = gpuWrite(&setView, sizeof(setView), true); (void)err;
 	assert(gpuOK == err);
 }
 
@@ -281,9 +281,9 @@ static void draw_facet(unsigned f, bool ext, int32_t i_dec) {
 			cmdVec[v].u.geom.c3d[c] = c3d[ cube_facet[f][v] ][c];
 			normal[c] += cmdVec[v].u.geom.c3d[c] - camera.transf.trans[c];
 		}
-		cmdVec[v].u.text_params.u = uvs[f][v][0];
-		cmdVec[v].u.text_params.v = uvs[f][v][1];
-		cmdVec[v].u.text_params.i_zb = (i_dec-c3d[ cube_facet[f][v] ][2])<<6;
+		cmdVec[v].u.named.u = uvs[f][v][0];
+		cmdVec[v].u.named.v = uvs[f][v][1];
+		cmdVec[v].u.named.i = (i_dec-c3d[ cube_facet[f][v] ][2])<<6;
 	}
 	Fix_normalize(normal);
 	int64_t scal = Fix_scalar(normal, c3d[ cube_facet[f][0] ]);
@@ -301,7 +301,7 @@ static void draw_facet(unsigned f, bool ext, int32_t i_dec) {
 		{ .iov_base = cmdVec+2, .iov_len = sizeof(*cmdVec) },
 		{ .iov_base = cmdVec+3, .iov_len = sizeof(*cmdVec) },
 	};
-	gpuErr err = gpuWritev(cmdvec, sizeof_array(cmdvec), true);
+	gpuErr err = gpuWritev(cmdvec, sizeof_array(cmdvec), true); (void)err;
 	assert(gpuOK == err);
 }
 
@@ -322,7 +322,7 @@ static void clear_screen(void) {
 		.value = 0,
 	};
 	clear_rect.value = gpuColor(0, 0, 0);
-	gpuErr err = gpuWrite(&clear_rect, sizeof(clear_rect), true);
+	gpuErr err = gpuWrite(&clear_rect, sizeof(clear_rect), true); (void)err;
 	assert(gpuOK == err);
 }
 
@@ -740,10 +740,10 @@ static void transf_draw_pic(struct gpuBuf *pic_txt, FixVec *pic_vec, enum draw_w
 	};
 	pic_facet.color = gpuColor(0, 0, 255);	// key color of the texture
 	static gpuCmdVector vecs[4] = {
-		{ .same_as = 0, .u = { .text_params = { .u =   0<<16, .v =   0<<16 } }, },
-		{ .same_as = 0, .u = { .text_params = { .u = 255<<16, .v =   0<<16 } }, },
-		{ .same_as = 0, .u = { .text_params = { .u = 255<<16, .v = 255<<16 } }, },
-		{ .same_as = 0, .u = { .text_params = { .u =   0<<16, .v = 255<<16 } }, }
+		{ .same_as = 0, .u = { .named = { .u =   0<<16, .v =   0<<16 } }, },
+		{ .same_as = 0, .u = { .named = { .u = 255<<16, .v =   0<<16 } }, },
+		{ .same_as = 0, .u = { .named = { .u = 255<<16, .v = 255<<16 } }, },
+		{ .same_as = 0, .u = { .named = { .u =   0<<16, .v = 255<<16 } }, }
 	};
 	static struct iovec cmdvec[4+1] = {
 		{ .iov_base = &pic_facet, .iov_len = sizeof(pic_facet) },
@@ -763,7 +763,7 @@ static void transf_draw_pic(struct gpuBuf *pic_txt, FixVec *pic_vec, enum draw_w
 			for (unsigned c=0; c<3; c++)
 				vecs[v].u.geom.c3d[c] = pic_vec[v].c[c];
 		}
-		gpuErr err = gpuWritev(cmdvec, sizeof_array(cmdvec), true);
+		gpuErr err = gpuWritev(cmdvec, sizeof_array(cmdvec), true); (void)err;
 		assert(gpuOK == err);
 	} else {	// SHADOWS
 		pic_facet.blend_coef = 8;
@@ -818,7 +818,7 @@ static void transf_draw_pic(struct gpuBuf *pic_txt, FixVec *pic_vec, enum draw_w
 skip_shad:;
 		}
 		setCpCmd.nb_planes = 0;
-		gpuErr err = gpuWrite(&setCpCmd, sizeof(setCpCmd), true);
+		gpuErr err = gpuWrite(&setCpCmd, sizeof(setCpCmd), true); (void)err;
 		assert(gpuOK == err);
 	}
 }

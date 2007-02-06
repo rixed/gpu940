@@ -38,9 +38,9 @@ static void draw_line(void)
 	ctx.line.count = (ctx.trap.side[!ctx.trap.left_side].c >> 16) - c_start;
 	if (unlikely(ctx.line.count <= 0)) return;	// may happen on some pathological cases ?
 	ctx.line.w = ctx.location.out_start + c_start + ((ctx.poly.nc_declived>>16)<<ctx.location.buffer_loc[gpuOutBuffer].width_log);
-	if (unlikely(! ctx.trap.is_triangle) && likely(ctx.poly.nb_params > 0)) {
+	if (unlikely(! ctx.trap.is_triangle)) {
 		int32_t const inv_dc = Fix_uinv(ctx.line.count<<16);
-		for (unsigned p=ctx.poly.nb_params; p--; ) {
+		for (unsigned p=sizeof_array(ctx.line.dparam); p--; ) {
 			ctx.line.dparam[p] = Fix_mul(ctx.trap.side[!ctx.trap.left_side].param[p] - ctx.line.param[p], inv_dc);
 		}
 	}
@@ -57,7 +57,7 @@ static void draw_line(void)
 static void next_params_frac(unsigned side, int32_t dnc)
 {
 	ctx.trap.side[side].c += Fix_mul(dnc, ctx.trap.side[side].dc);
-	for (unsigned p=ctx.poly.nb_params; p--; ) {
+	for (unsigned p=sizeof_array(ctx.line.dparam); p--; ) {
 		ctx.trap.side[side].param[p] += Fix_mul(dnc, ctx.trap.side[side].param_alpha[p]);
 	}
 }
@@ -80,7 +80,7 @@ static void draw_trapeze_frac(void)
 static void next_params_int(unsigned side)
 {
 	ctx.trap.side[side].c += ctx.trap.side[side].dc;
-	for (unsigned p=ctx.poly.nb_params; p--; ) {
+	for (unsigned p=sizeof_array(ctx.line.dparam); p--; ) {
 		ctx.trap.side[side].param[p] += ctx.trap.side[side].param_alpha[p];
 	}
 }
@@ -121,17 +121,17 @@ static void draw_trapeze(void)
 		int32_t dc0 = ctx.trap.side[0].c - ctx.trap.side[1].c;
 		if (Fix_abs(ddc) > Fix_abs(dc0)) {
 			ddc = Fix_inv(ddc);
-			for (unsigned p=ctx.poly.nb_params; p--; ) {
+			for (unsigned p=sizeof_array(ctx.line.dparam); p--; ) {
 				ctx.line.dparam[p] = Fix_mul(ddc, ctx.trap.side[0].param_alpha[p] - ctx.trap.side[1].param_alpha[p]);
 			}
 		} else {
 			if (dc0 != 0) {
 				dc0 = Fix_inv(dc0);
-				for (unsigned p=ctx.poly.nb_params; p--; ) {
+				for (unsigned p=sizeof_array(ctx.line.dparam); p--; ) {
 					ctx.line.dparam[p] = Fix_mul(dc0, ctx.trap.side[0].param[p] - ctx.trap.side[1].param[p]);
 				}
 			} else {
-				for (unsigned p=ctx.poly.nb_params; p--; ) {
+				for (unsigned p=sizeof_array(ctx.line.dparam); p--; ) {
 					ctx.line.dparam[p] = 0;
 				}
 			}
@@ -218,14 +218,12 @@ void draw_poly_nopersp(void)
 				dnc = Fix_abs(dnc);
 				ctx.trap.side[side].dc = ((int64_t)num<<16)/dnc;	// FIXME: use Fix_div
 				// compute alpha_params used for vector parameters
-				if (ctx.poly.nb_params > 0) {
-					int32_t const inv_dalpha = Fix_inv(dnc);
-					for (unsigned p=ctx.poly.nb_params; p--; ) {
-						int32_t const P0 = ctx.points.vectors[ ctx.trap.side[side].start_v ].cmd->u.geom.param[p];
-						int32_t const PN = ctx.points.vectors[ ctx.trap.side[side].end_v ].cmd->u.geom.param[p];
-						ctx.trap.side[side].param[p] = P0;
-						ctx.trap.side[side].param_alpha[p] = Fix_mul(PN-P0, inv_dalpha);
-					}
+				int32_t const inv_dalpha = Fix_inv(dnc);
+				for (unsigned p=sizeof_array(ctx.line.dparam); p--; ) {
+					int32_t const P0 = ctx.points.vectors[ ctx.trap.side[side].start_v ].cmd->u.geom.param[p];
+					int32_t const PN = ctx.points.vectors[ ctx.trap.side[side].end_v ].cmd->u.geom.param[p];
+					ctx.trap.side[side].param[p] = P0;
+					ctx.trap.side[side].param_alpha[p] = Fix_mul(PN-P0, inv_dalpha);
 				}
 			}
 		}

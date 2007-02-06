@@ -51,7 +51,7 @@ static unsigned new_vec(unsigned prev, unsigned next, unsigned p)
 	if (hahb) ratio = ((int64_t)ha<<16)/(ha+hb);
 	assert(ctx.points.nb_vectors < sizeof_array(ctx.points.vectors));
 	ctx.points.vectors[ctx.points.nb_vectors].cmd = cmdVectors + ctx.points.nb_vectors;
-	for (unsigned u=ctx.poly.nb_params+3; u--; ) {
+	for (unsigned u=sizeof_array(ctx.points.vectors[0].cmd->u.all_params); u--; ) {
 		ctx.points.vectors[ctx.points.nb_vectors].cmd->u.all_params[u] =
 			ctx.points.vectors[prev].cmd->u.all_params[u] +
 			Fix_mul(ratio, (ctx.points.vectors[next].cmd->u.all_params[u]-ctx.points.vectors[prev].cmd->u.all_params[u]));
@@ -209,30 +209,6 @@ int clip_poly(void)
 	perftime_enter(PERF_CLIP, "clip & proj");
 	// init facet
 	unsigned new_size = ctx.poly.cmd->size;
-	ctx.poly.nb_params = 0;
-	switch (ctx.poly.cmd->rendering_type) {
-		case rendering_flat:
-			break;
-		case rendering_text:
-			ctx.poly.nb_params = 2;
-			break;
-		case rendering_smooth:
-			ctx.poly.nb_params = 3;
-			break;
-		default:
-			set_error_flag(gpuEPARAM);
-			goto ret;
-	}
-#	ifdef GP2X
-	int i_param = -1;
-#	endif
-	if (ctx.poly.cmd->use_intens) {
-#		ifdef GP2X
-		i_param = ctx.poly.nb_params;
-#		endif
-		ctx.poly.nb_params++;
-	}
-	if (ctx.rendering.z_mode != gpu_z_off || ctx.poly.cmd->write_z) ctx.poly.nb_params++;
 	// init vectors
 	unsigned v;
 	unsigned clipped = 0;
@@ -248,9 +224,7 @@ int clip_poly(void)
 			clipped |= ctx.points.vectors[v].clipped;
 		}
 #		ifdef GP2X
-		if (i_param != -1) {	// use this scan to premult i param for YUV illumination
-			ctx.points.vectors[v].cmd->u.geom.param[i_param] *= 55;
-		}
+		ctx.points.vectors[v].cmd->u.named.i *= 55;
 #		endif
 	}
 	ctx.points.vectors[0].prev = v-1;

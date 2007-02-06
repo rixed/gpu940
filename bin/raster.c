@@ -57,35 +57,32 @@ void raster_gen(void)
 	// 'Registers'
 	uint32_t *restrict w = ctx.line.w;	// at most 4 registers (2 if not perspective)
 	int32_t decliv = ctx.line.decliv;
-	int nbp = 0;
 	int32_t u,v,r,g,b,i,di,z,dz;	// at most 8 registers (7 if perspective)
 	switch (ctx.poly.cmd->rendering_type) {
 		case rendering_flat:
 			break;
 		case rendering_text:
-			u = ctx.line.param[0];
-			v = ctx.line.param[1];
-			nbp += 2;
+			u = ctx.line.param[4];
+			v = ctx.line.param[5];
 			break;
 		case rendering_smooth:
 			r = ctx.line.param[0];
 			g = ctx.line.param[1];
 			b = ctx.line.param[2];
-			nbp += 3;
 			break;
 	}
 	if (ctx.poly.cmd->use_intens) {
 		assert(ctx.poly.cmd->rendering_type != rendering_smooth);	// i was already dissolved into rgb components. We save one register.
-		i = ctx.line.param[nbp];
-		di = ctx.line.dparam[nbp++];
+		i = ctx.line.param[3];
+		di = ctx.line.dparam[3];
 #		ifdef GP2X	// gp2x uses YUV
 		i *= 55;
 		di *= 55;
 #		endif
 	}
 	if (ctx.rendering.z_mode != gpu_z_off || ctx.poly.cmd->write_z) {
-		z = ctx.line.param[nbp];
-		dz = ctx.line.dparam[nbp++];
+		z = ctx.line.param[6];
+		dz = ctx.line.dparam[6];
 	}
 	int count = ctx.line.count;
 	do {
@@ -162,8 +159,8 @@ next_pixel:
 			case rendering_flat:
 				break;
 			case rendering_text:
-				u += ctx.line.dparam[0];
-				v += ctx.line.dparam[1];
+				u += ctx.line.dparam[4];
+				v += ctx.line.dparam[5];
 				break;
 			case rendering_smooth:
 				r += ctx.line.dparam[0];

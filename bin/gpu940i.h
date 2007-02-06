@@ -104,7 +104,6 @@ extern struct ctx {
 		int32_t decliveness;
 		uint32_t scan_dir;
 		int32_t nc_dir;
-		uint32_t nb_params;	// from cmdFacet rendering_type
 		uint32_t nc_log;	// used to shift-left dw in line drawing routines.
 		int32_t z_alpha;
 		int64_t z_num, z_den;	// 32.32

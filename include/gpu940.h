@@ -41,7 +41,7 @@
 #define GPU_DEFAULT_CLIPMAX1 ((SCREEN_HEIGHT>>1)+1)
 #define GPU_DEFAULT_WINPOS0 ((512-SCREEN_WIDTH)>>1)
 #define GPU_DEFAULT_WINPOS1 3
-#define GPU_NB_PARAMS 5 // at most r,g,b,i,z
+#define GPU_NB_PARAMS 7 // at most r,g,b,i,z
 #define GPU_NB_USER_CLIPPLANES 5
 #define GPU_DISPLIST_SIZE 64
 #define SHARED_PHYSICAL_ADDR 0x2100000	// this is from 920T or for the video controler.
@@ -177,17 +177,10 @@ typedef struct {
 	uint32_t same_as;	// x,y and z are the same that this last vector. 0 means this same as this one, which of course allways stands true.
 	// Params are : x,y,z,  r?,g?,b?|u?,v?, i?,zb?
 	union {
-		// No opcode: it must follow a point/line/facet
 		int32_t all_params[3+GPU_NB_PARAMS];
 		struct {
-			int32_t x, y, z, i_zb, zb;
-		} flat_params;
-		struct {
-			int32_t x, y, z, u, v, i_zb, zb;
-		} text_params;
-		struct {
-			int32_t x, y, z, r, g, b, i_zb, zb;
-		} smooth_params;
+			int32_t x, y, z, r, g, b, i, u, v, zb;
+		} named;
 		struct {
 			int32_t c3d[3], param[GPU_NB_PARAMS];
 		} geom;

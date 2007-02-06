@@ -286,7 +286,7 @@ static void facet_complete(unsigned size, bool facet_is_inverted, GLfixed colore
 			if (! gli_smooth()) {	// intens was not set
 				int32_t lum = get_luminosity(colorer_eye);
 				for (unsigned v=0; v<size; v++) {
-					cmdVec[v].u.text_params.i_zb = lum;
+					cmdVec[v].u.named.i = lum;
 				}
 			}
 		} else {
@@ -353,32 +353,31 @@ void gli_cmd_vertex(int32_t const *v)
 	cmdVec[vec_idx].u.geom.c3d[1] = -((int64_t)clip_coords[1] * gli_viewport_height/2) >> 8;	// gpu940 uses Y toward bottom
 	cmdVec[vec_idx].u.geom.c3d[2] = clip_coords[3];	// we use W as Z for gpu940 (which then must use Z toward depths)
 	cmdVec[vec_idx].same_as = 0;
-	unsigned z_param = 0;
+	for (unsigned p=sizeof_array(cmdVec[vec_idx].u.geom.param); p--; ) {
+		cmdVec[vec_idx].u.geom.param[p] = 0;
+	}
 	if (gli_texturing()) {
 		// first, set U and V (scaled to actual texture size)
 		// FIXME: we should not send scaled coord to GPU. It would be simplier if GPU scale itself according to selected texture.
 		struct gli_texture_object *to = gli_get_texture_object();
-		cmdVec[vec_idx].u.text_params.u = gli_current_texcoord[0] << to->mipmaps[0].width_log;
-		cmdVec[vec_idx].u.text_params.v = gli_current_texcoord[1] << to->mipmaps[0].height_log;
-		z_param = 2;
+		cmdVec[vec_idx].u.named.u = gli_current_texcoord[0] << to->mipmaps[0].width_log;
+		cmdVec[vec_idx].u.named.v = gli_current_texcoord[1] << to->mipmaps[0].height_log;
 		// then, if some lighting is on, add intens.
 		if (gli_enabled(GL_LIGHTING)) {
 			if (gli_smooth()) {
-				cmdVec[vec_idx].u.text_params.i_zb = get_luminosity(eye_coords);
+				cmdVec[vec_idx].u.named.i = get_luminosity(eye_coords);
 			}
 			// else intens will be set later
 			// gpu940 can not uniformly lighten a texture (no flat intens), so
 			// if !gli_smooth use the same i for all vertexes. But we don't know
 			// which intens to use for now, so it must be added later in cmd_complete.
-			z_param ++;
 /*		} else {	// modulate with current color
 			if (gli_smooth()) {
 				// we should modulate each color component individually, but gpu940 don't know
 				// how to do this, so we just take red as the global modulator.
-				cmdVec[vec_idx].u.text_params.i_zb = lum2intens(gli_current_color[0]);
+				cmdVec[vec_idx].u.named.i = lum2intens(gli_current_color[0]);
 			}
 			// else intens will be set later (see above)
-			z_param ++;
 			FIXME: We are supposed to modulate texels with current color.
 			But we don't want to do this when all three colors are 1 (normal case),
 			ie when no modulation is required. The problem is that we don't know until
@@ -390,17 +389,15 @@ void gli_cmd_vertex(int32_t const *v)
 		}
 	} else if (gli_smooth() && gli_enabled(GL_LIGHTING)) {
 		if (gli_simple_lighting()) {
-			cmdVec[vec_idx].u.flat_params.i_zb = get_luminosity(eye_coords);
-			z_param ++;
+			cmdVec[vec_idx].u.named.i = get_luminosity(eye_coords);
 		} else {
 			GLfixed const *c = get_color(eye_coords);
-			cmdVec[vec_idx].u.smooth_params.r = Fix_gpuColor1(c[0], c[1], c[2]);
-			cmdVec[vec_idx].u.smooth_params.g = Fix_gpuColor2(c[0], c[1], c[2]);
-			cmdVec[vec_idx].u.smooth_params.b = Fix_gpuColor3(c[0], c[1], c[2]);
-			CLAMP(cmdVec[vec_idx].u.smooth_params.r, 0, 0xFFFF);
-			CLAMP(cmdVec[vec_idx].u.smooth_params.g, 0, 0xFFFF);
-			CLAMP(cmdVec[vec_idx].u.smooth_params.b, 0, 0xFFFF);
-			z_param += 3;
+			cmdVec[vec_idx].u.named.r = Fix_gpuColor1(c[0], c[1], c[2]);
+			cmdVec[vec_idx].u.named.g = Fix_gpuColor2(c[0], c[1], c[2]);
+			cmdVec[vec_idx].u.named.b = Fix_gpuColor3(c[0], c[1], c[2]);
+			CLAMP(cmdVec[vec_idx].u.named.r, 0, 0xFFFF);
+			CLAMP(cmdVec[vec_idx].u.named.g, 0, 0xFFFF);
+			CLAMP(cmdVec[vec_idx].u.named.b, 0, 0xFFFF);
 		}
 	}
 	// Add zb parameter if needed
@@ -409,7 +406,7 @@ void gli_cmd_vertex(int32_t const *v)
 		int32_t const z_scale = Fix_div(gli_depth_range_far - gli_depth_range_near, clip_coords[3]<<1);
 		int32_t const z_offset = (gli_depth_range_far + gli_depth_range_near) >> 1;
 		int32_t const z_scaled = Fix_mul(clip_coords[2], z_scale);
-		cmdVec[vec_idx].u.geom.param[z_param] = z_scaled + z_offset;
+		cmdVec[vec_idx].u.geom.param[6] = z_scaled + z_offset;
 	}
 	count ++;
 	switch (mode) {

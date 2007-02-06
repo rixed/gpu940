@@ -289,9 +289,7 @@ parameter can be linearly interpolated, not only texture coordinates U and V.
 From this remarks, we can deduce that no parameter play a special role in the 
 polygon shaper. Parameters are only meaningful for the rasterizer (the 
 function that draw a "scanline"). Until there, parameters are just a set of 
-values we want to interpolate on 3d space. In all other places of GPU code, we 
-only need to know how many parameters we have, which is given by the polygon 
-command sent by the client.
+values we want to interpolate on 3d space.
 </p><p>
 	Finally, 3D renderers comes in two flavors&nbsp;: the clumsy ones that can 
 draw only triangles, and the ones that can draw any (convex) polygons. I can 
@@ -408,26 +406,25 @@ of these structure starts with an opcode.
 </p><p>
 	Only the polygon command needs to be more polished, because a polygon can 
 comes with three to many vertexes (although seldom more than 5), and with 
-various parameters depending on the rendering mode (and we want the parameters 
-to be in the same place on the command buffer, whatever the rendering mode, to 
-be able to process all polygons the same until the draw-a-scanline function).  
-Thus, the polygon function is split in two parts&nbsp;: a fixed part, the 
-<i>gpuCmdFacet</i> structure which is 4 words long and tells how many vertexes 
-are following and how to draw them, and then a variable part
-consisting of as many <i>gpuCmdVector</i> as there are vertexes.
+various parameters depending on the rendering mode.  Thus, the polygon 
+function is split in two parts&nbsp;: a fixed part, the <i>gpuCmdFacet</i> 
+structure which is 4 words long and tells how many vertexes are following and 
+how to draw them, and then a variable part consisting of as many 
+<i>gpuCmdVector</i> as there are vertexes.
 </p><p>
 	This <i>gpuCmdVector</i> command which must always follow a 
-<i>gpuCmdFacet</i> command (and thus has no opcode) holds 8 parameters (apart 
+<i>gpuCmdFacet</i> command (and thus has no opcode) holds 10 parameters (apart 
 from the <i>same_as</i> member that we will see later when we look at 
-projections). Those parameters appears in many shapes in a union, because 
-depending on the rendering mode
-the various parameters are located in different places. The important thing is 
-that the first 3 parameters are the vertex coordinates, and then follow
-some rendering parameters (how many depends on the rendering mode set in the 
-<i>gpuCmdFacet</i>). So, the polygon function only have to know how many 
-parameters there are, until drawing scan lines where those parameters are 
-meaningful.
-</p><p>
+projections) :
+</p><ul>
+	<li>the <b>x, y, z</b> coordinates of the vertex&nbsp;;</li>
+	<li>the <b>r, g, b</b> color component of the vertex&nbsp;;</li>
+	<li>the <b>i</b> parameter, which is the light intensity for this 
+vertex (soon to be replaced by an alpha color component)&nbsp;;</li>
+	<li>the <b>u, v</b> texture coordinates for this vertex&nbsp;</li>
+	<li>the depth of the vertex, <b>zb</b> (which is distinct from the z 
+coordinate to allow for more effects or distinct scaling&nbsp;;</li>
+</ul><p>
 	Some troubles can arise when we met the end of the command buffer. A cyclic 
 buffer is supposed to wrap at offset zero once the end is reached, but as we 
 want the GPU to use the commands without copying them out of the buffer, we do 
@@ -558,12 +555,12 @@ handled by the OpenGL library, and can save about one third of the required
 projections, with a very small cache of 8 positions.
 </p><p>
 	Next in the <i>gpuCmdVector</i> follow a union or parameters, the first 
-three being the 3D coordinates, and next ones depending of the rendering mode 
-set in the facet command. Notice that when depth test are enabled, or when the 
-<i>write_z</i> flag is set in facet command, the Z coordinate compared to or 
-written in the depth buffer is <i>not</i> the third 3D coordinate, but a 
-separate parameter. This is so that it's possible to normalize depth 
-parameters, as required by OpenGl (and common sense).
+three being the 3D coordinates, and next ones used for rendering. Notice that 
+when depth test are enabled, or when the <i>write_z</i> flag is set in facet 
+command, the Z coordinate compared to or written in the depth buffer is 
+<i>not</i> the third 3D coordinate, but a separate parameter, <b>zb</b>. This 
+is so that it's possible to normalize depth parameters, as required by OpenGl 
+(and common sense).
 </p><p>
 	<b>gpuRECT</b> command tells the GPU to fill a rectangle in one of its 
 buffer. The rectangle position is given in pixels coordinates relative to 
@@ -652,8 +649,8 @@ directory.
 <p>
 	The fact that there exists two distinct source files for perspective and
 no-perspective rendering is just a matter of performance&nbsp;: the few 
-avoided <i>if</i>s made a significant speed improvement&nbsp;; but both files are 
-still
+avoided <i>if</i>s made a significant speed improvement&nbsp;; but both files 
+are still
 mostly identical. Also, the routines that render the pixels along a scan-line
 (sloped or not) are exactly the same. It surely is problematic to have such
 similar code being duplicated, and this is one of the objectives for future 
@@ -933,8 +930,8 @@ controller (where <i>shared->frame_count</i> is incremented).
 	Why not waiting until the last published frame is displayed&nbsp;? Because 
 then, if the vertical IRQ occurs faster than the GPU do render frames, the GPU 
 is hold idle between the time when it add the last frame to the display list 
-and the time next IRQ occurs and displays it&nbsp;; and having the GPU idle when 
-it's late is not a good idea.
+and the time next IRQ occurs and displays it&nbsp;; and having the GPU idle 
+when it's late is not a good idea.
 </p>
 <h2><a name="OpenGL">OpenGL Implementation</a></h2>
 <p>
@@ -1143,10 +1140,10 @@ everything will just sound like common sense to you.
 <p>
 	You should be aware of two things :
 </p><ul>
-	<li>gpu940's GL library is <u>not</u> compliant to the OpenGL standard. 
+	<li>gpu940's GL library is <u>not</u> compliant to the OpenGL standard.  
 Although its designed to help porting applications in and out, we can not 
-implement the OpenGL specs but a small subset of it&nbsp;; and even this subset 
-is not implemented according to the specs&nbsp;;</li>
+implement the OpenGL specs but a small subset of it&nbsp;; and even this 
+subset is not implemented according to the specs&nbsp;;</li>
 	<li>gpu940 &quot;GPU&quot; is about several hundred times slower than the 
 hardware GPU that comes with your PC&nbsp;;</li>
 </ul>
@@ -1169,8 +1166,8 @@ long.</li>
 	<li><b>Indexed colors :</b> are not implemented.</li>
 	<li><b>glInterleavedArrays() and glRect() :</b> are not implemented, but 
 should be.</li>
-	<li><b>Normalization :</b> is not implemented. Could be, but probably not 
-a good idea.</li>
+	<li><b>Normalization :</b> is not implemented. Could be, but probably not a 
+good idea.</li>
 	<li><b>Texture coordinate generation :</b> is not implemented.</li>
 	<li><b>Clip Planes :</b> not implemented yet, but should be. Anyway, gpu940 
 allows only 5, GL specs requires at least 6.</li>
@@ -1186,8 +1183,8 @@ implemented, nor <i>glBitmap()</i>.</li>
 	<li><b>Texture matrix stack :</b> is unused.</li>
 	<li><b>Texture parameters :</b> most have no effect.</li>
 	<li><b>mipmapping :</b> is not implemented, but should be.</li>
-	<li><b>1D textures :</b> is not implemented.</li> 
-	<li><b>Texture prioritization :</b> is not implemented.</li>
+	<li><b>1D textures :</b> is not implemented.</li> <li><b>Texture 
+	prioritization :</b> is not implemented.</li>
 	<li><b>Fog :</b> is not implemented but could be tricked.</li>
 	<li><b>Scissor test :</b> not implemented, but should be.</li>
 	<li><b>Alpha test :</b> not implemented, but should be.</li>
@@ -1196,7 +1193,8 @@ implemented, nor <i>glBitmap()</i>.</li>
 	<li><b>Logic operation :</b> are not implemented. Could be if needed.</li>
 	<li><b>Buffer selection :</b> is not implemented. Could be if needed.</li>
 	<li><b>Accumulation buffer :</b> is not implemented.</li>
-	<li><b>Evaluators, Selection, FeedBack, display lists :</b> are not implemented.</li>
+	<li><b>Evaluators, Selection, FeedBack, display lists :</b> are not 
+implemented.</li>
 </ul><p>
 	And here is a quick list of what, while implemented, does not conform to 
 requirements :
@@ -1207,19 +1205,19 @@ Our range of acceptable values is then not conforming.</li>
 	<li><b>GL_POINTS :</b> just a single pixel in size. Enough for debugging, 
 which is the main purpose for points.</li>
 	<li><b>Lighting simplification :</b> sometimes (refer to the above 
-explanations to know how) libGL choose to interpolate only a single 
-luminosity color component (useful in YUV mode) rather than the three R,G,B 
-color components. This can leads to incorrect colors.</li>
+explanations to know how) libGL choose to interpolate only a single luminosity 
+color component (useful in YUV mode) rather than the three R,G,B color 
+components. This can leads to incorrect colors.</li>
 	<li><b>FRONT_AND_BACK only material :</b> conforming to OpenGL-ES, its not 
 possible to have different material properties for front and back faces.</li>
 	<li><b>Polygon mode :</b> only <i>GL_FILL</i> is implemented.</li>
 	<li><b>Texture environment :</b> other than <i>GL_REPLACE</i> may not work 
 as expected.</li>
-	<li><b>Blending :</b> DST_COLOR is unusable since we have no alpha buffer. 
+	<li><b>Blending :</b> DST_COLOR is unusable since we have no alpha buffer.  
 Also, blending results are not compliant because we do not scale color 
 components but just shift/add them.</li>
-	<li><b>Color mask :</b> it's not possible to disable individual 
-components. This is all the color or nothing.</li>
+	<li><b>Color mask :</b> it's not possible to disable individual components.  
+This is all the color or nothing.</li>
 </ul>
 <h4><a name="ABPerf">Performance issues</a></h4>
 <p>
@@ -1245,8 +1243,9 @@ the depth buffer.
 </p><p>
 	Then, always ask yourself what proportion of the frame will show the clear 
 color once the whole picture will be rendered&nbsp;? Most of the time, not 
-much, if at all&nbsp;; so that it's often better to add some clearing polygons (for 
-example a sky box) than to clear the whole screen and redraw it completely.
+much, if at all&nbsp;; so that it's often better to add some clearing polygons 
+(for example a sky box) than to clear the whole screen and redraw it 
+completely.
 </p>
 <h5>Don't abuse depth tests</h5>
 <p>
@@ -1353,21 +1352,22 @@ them readily in the application code.
 	If the application uses SDL GL wrapper, like Egoboo does, you may want 
 still be able to use SDL for user input, sound, etc... In this case, you can 
 remove the <i>SDL_INIT_VIDEO</i> flag from <i>SDL_Init()</i> call... or leave 
-it. Just make sure that SDL blitting functions are not used, and replace 
-call to <i>SDL_GL_SwapBuffers()</i> by <i>glSwapBuffers()</i>.
+it. Just make sure that SDL blitting functions are not used, and replace call 
+to <i>SDL_GL_SwapBuffers()</i> by <i>glSwapBuffers()</i>.
 </p>
 <h4>It uses very big&nbsp;/ small floats</h4>
 <p>
 	Conversion functions from <i>gl_float.h</i> can lead to serious troubles 
-when input float values are not representable in <i>GLfixed</i> type. For example, 
-<i>1e-15</i> and <i>1e+8</i> are not. And some values, while representable, 
-will still yield to incorrect results (an intermediate result might not be 
-representable in a <i>GLfixed</i>). In general, good values are between
+when input float values are not representable in <i>GLfixed</i> type. For 
+example, <i>1e-15</i> and <i>1e+8</i> are not. And some values, while 
+representable, will still yield to incorrect results (an intermediate result 
+might not be representable in a <i>GLfixed</i>). In general, good values are 
+between
 <i>1e-2</i> and <i>1e2</i>, which is not much.
 </p><p>
 	Dealing with this problem requires some maths. You need to find out what 
-scale to apply to all incoming vertexes, then use the reverse scaling onto 
-the <i>MODELVIEW</i> matrix. Look at the <i>RESCALE</i> macro and <i>mScale</i> 
+scale to apply to all incoming vertexes, then use the reverse scaling onto the 
+<i>MODELVIEW</i> matrix. Look at the <i>RESCALE</i> macro and <i>mScale</i> 
 variable in Egoboo2x for an example on how to apply this trick.
 </p>
 <h4>Blending is all wrong&nbsp;!</h4>
