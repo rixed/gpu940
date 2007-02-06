@@ -613,7 +613,7 @@ static void intens(void)
 	unsigned const tmp1 = 0;
 	unsigned const max_p = in_bh ? 1 : nb_pixels_per_loop;
 	for (unsigned p=0; p < max_p; p++) {
-		unsigned const rcol = outcolor_rnum(p);
+		unsigned const rcol = outcolor_rnum(p);	// FIXME: ww have no preloaded fixed color if flat shading
 		// 1110 0010 0000 rcol tmp1 0000 1111 1111 ie "and tmp1, rcol, #0xff" ie tmp1 = Y component
 		*gen_dst++ = 0xe20000ff | (rcol<<16) | (tmp1<<12);
 		// 1110 0000 1001 tmp1 tmp1 1011 0100 varI ie "adds tmp1, tmp1, varI, asr #22"	// tmp1 = Y + intens
@@ -626,10 +626,10 @@ static void intens(void)
 		*gen_dst++ = 0x53a000ff | (tmp1<<12);
 		// 1110 0011 1100 rcol rcol 0000 1111 1111 ie "bic rcol, rcol, #0xff" ie put new Y into color
 		*gen_dst++ = 0xe3c000ff | (rcol<<16) | (rcol<<12);
-		// 1110 0001 1000 rcol rcol 0000 0000 tmp1 ie "orr rcol, rcol, tmp1"
+		// 1110 0001 1000 rcol rcol 0000 0000 tmp1 ie "orr rcol, rcol, tmp1" FIXME: we must not change rcol when flat shading, or we must use a copy.
 		*gen_dst++ = 0xe1800000 | (rcol<<16) | (rcol<<12) | tmp1;
 		unsigned const constp_di = load_constp(CONSTP_DI, tmp1);	// TODO: if nb_pixels_per_loop>1, use another tmp and put this out of loop
-		// 1110 0000 1000 varI varI 0000 0000 _DI_ ie "add varI, varI, constDI"
+		// 1110 0000 1000 varI varI 0000 0000 _DI_ ie "add varI, varI, constDI" FIXME: when we can skip pixels, increment later (similar to u,v)
 		*gen_dst++ = 0xe0800000 | (vars[VARP_I].rnum<<16) | (vars[VARP_I].rnum<<12) | constp_di;
 	}
 }
@@ -1011,7 +1011,14 @@ static void write_reg_preload(void)
 
 static void peek_flat(void)
 {
-	load_constp(CONSTP_COLOR, vars[VARP_OUTCOLOR].rnum);
+	// We have a reg for the flat color : CONTP_COLOR. Set all VARP_OUTCOLOR to this.
+	assert(vars[CONSTP_COLOR].rnum != -1);
+	for (unsigned r=0; r<sizeof_array(regs); r++) {
+		if (regs[r].var == VARP_OUTCOLOR) {
+			// 1110 0001 1010 0000 Rvar 0000 0000 Rcst ie "mov Rvar, Rconst"
+			*gen_dst++ = 0xe1a00000 | (r<<12) | vars[CONSTP_COLOR].rnum;
+		}
+	}
 }
 
 static void write_block(unsigned block)
