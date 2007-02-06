@@ -62,6 +62,7 @@ static uint64_t unsigned_divide64(uint64_t R, uint64_t D)
 	uint64_t normD, next_normD = D;
 	uint64_t Q = 0;
 	uint64_t e = 0, next_e = 1;
+	// FIXME (here and in crt0.S) : most of the time, lower 32bits of R are 0, so we can start at e=1
 	do {
 		normD = next_normD;
 		e = next_e;
