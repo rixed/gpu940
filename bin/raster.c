@@ -75,10 +75,6 @@ void raster_gen(void)
 		assert(ctx.poly.cmd->rendering_type != rendering_smooth);	// i was already dissolved into rgb components. We save one register.
 		i = ctx.line.param[3];
 		di = ctx.line.dparam[3];
-#		ifdef GP2X	// gp2x uses YUV
-		i *= 55;
-		di *= 55;
-#		endif
 	}
 	if (ctx.rendering.z_mode != gpu_z_off || ctx.poly.cmd->write_z) {
 		z = ctx.line.param[6];

@@ -613,7 +613,7 @@ static void intens(void)
 	unsigned const tmp1 = 0;
 	unsigned const max_p = in_bh ? 1 : nb_pixels_per_loop;
 	for (unsigned p=0; p < max_p; p++) {
-		unsigned const rcol = outcolor_rnum(p);	// FIXME: ww have no preloaded fixed color if flat shading
+		unsigned const rcol = outcolor_rnum(p);
 		// 1110 0010 0000 rcol tmp1 0000 1111 1111 ie "and tmp1, rcol, #0xff" ie tmp1 = Y component
 		*gen_dst++ = 0xe20000ff | (rcol<<16) | (tmp1<<12);
 		// 1110 0000 1001 tmp1 tmp1 1011 0100 varI ie "adds tmp1, tmp1, varI, asr #22"	// tmp1 = Y + intens
