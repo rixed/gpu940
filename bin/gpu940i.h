@@ -86,7 +86,7 @@ extern struct ctx {
 			uint32_t start_v;
 			uint32_t end_v;
 			int32_t z_alpha_start;
-			uint32_t is_growing:1;
+			int32_t place_holder[1];
 		} side[2];	// side dec, side inc
 		uint32_t left_side:1;
 		uint32_t is_triangle:1;
@@ -100,7 +100,7 @@ extern struct ctx {
 	// Current Polygon
 	struct {
 		gpuCmdFacet *cmd;
-		int32_t nc_declived, nc_declived_next;
+		int32_t nc_declived;
 		int32_t decliveness;
 		uint32_t scan_dir;
 		int32_t nc_dir;
@@ -109,6 +109,7 @@ extern struct ctx {
 		int64_t z_num, z_den;	// 32.32
 		int32_t z_dden, z_dnum;	// 16.16
 		struct jit_cache *rasterizer;
+		int32_t polace_holder[2];
 	} poly;
 	// Current line
 	struct {

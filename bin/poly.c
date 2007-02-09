@@ -63,22 +63,17 @@ static void next_params_frac(unsigned side, int32_t dnc) {
 	}
 }
 
-static void draw_trapeze_frac(void) {
-	int32_t dnc = ctx.poly.nc_declived_next - ctx.poly.nc_declived;
+static void draw_trapeze_frac(int32_t dnc) {
 	dnc = Fix_abs(dnc);
 	// compute next z_alpha
 	ctx.poly.z_den += (int64_t)dnc*ctx.poly.z_dden;
 	ctx.poly.z_num += (int64_t)dnc*ctx.poly.z_dnum;
 	if (ctx.poly.z_den) ctx.poly.z_alpha = ctx.poly.z_num/(ctx.poly.z_den>>16);	// FIXME: use Fix_div
-	// now compute some next c and params
-	if (ctx.trap.side[0].is_growing) next_params_frac(0, dnc);
-	if (ctx.trap.side[1].is_growing) next_params_frac(1, dnc);
+	// now compute next c and params
+	next_params_frac(0, dnc);
+	next_params_frac(1, dnc);
 	// draw 'scanline'
 	draw_line();	// will do another DIV
-	// compute others next c and params
-	if (! ctx.trap.side[0].is_growing) next_params_frac(0, dnc);
-	if (! ctx.trap.side[1].is_growing) next_params_frac(1, dnc);
-	ctx.poly.nc_declived = ctx.poly.nc_declived_next;
 }
 
 static void next_params_int(unsigned side) {
@@ -94,15 +89,11 @@ static void draw_trapeze_int(void) {
 	ctx.poly.z_den += (int64_t)ctx.poly.z_dden<<16;	// wrong if !complete_scan_line
 	ctx.poly.z_num += (int64_t)ctx.poly.z_dnum<<16;
 	if (ctx.poly.z_den) ctx.poly.z_alpha = ctx.poly.z_num/(ctx.poly.z_den>>16);
-	// now compute some next c and params
-	if (ctx.trap.side[0].is_growing) next_params_int(0);
-	if (ctx.trap.side[1].is_growing) next_params_int(1);
+	// now compute next c and params
+	next_params_int(0);
+	next_params_int(1);
 	// draw 'scanline'
 	draw_line();	// will do another DIV
-	// now compute others c and params
-	if (! ctx.trap.side[0].is_growing) next_params_int(0);
-	if (! ctx.trap.side[1].is_growing) next_params_int(1);
-	ctx.poly.nc_declived = ctx.poly.nc_declived_next;
 }
 
 static void draw_trapeze(void) {
@@ -116,26 +107,25 @@ static void draw_trapeze(void) {
 		ctx.trap.left_side = 1;
 	}
 	ctx.line.param = ctx.trap.side[ ctx.trap.left_side ].param;
-	ctx.trap.side[ctx.trap.left_side].is_growing = ctx.trap.side[ctx.trap.left_side].dc < 0;
-	ctx.trap.side[!ctx.trap.left_side].is_growing = ctx.trap.side[!ctx.trap.left_side].dc > 0;
 	// First, we draw from nc_declived to next scanline boundary or end of trapeze
 	if (ctx.poly.nc_declived & 0xffff) {
 		bool quit = false;
-		ctx.poly.nc_declived_next = ctx.poly.nc_declived & 0xffff0000;
+		int32_t nc_declived_next = ctx.poly.nc_declived & 0xffff0000;
 		if (ctx.poly.nc_dir > 0) {
-			ctx.poly.nc_declived_next += 1<<16;
+			nc_declived_next += 1<<16;
 		}
 		// maybe we reached end of trapeze already ?
 		for (unsigned side=2; side--; ) {
 			if (
-					(ctx.poly.nc_dir > 0 && ctx.points.vectors[ ctx.trap.side[side].end_v ].nc_declived <= ctx.poly.nc_declived_next) ||
-					(ctx.poly.nc_dir < 0 && ctx.points.vectors[ ctx.trap.side[side].end_v ].nc_declived >= ctx.poly.nc_declived_next)
+					(ctx.poly.nc_dir > 0 && ctx.points.vectors[ ctx.trap.side[side].end_v ].nc_declived <= nc_declived_next) ||
+					(ctx.poly.nc_dir < 0 && ctx.points.vectors[ ctx.trap.side[side].end_v ].nc_declived >= nc_declived_next)
 				) {
-				ctx.poly.nc_declived_next = ctx.points.vectors[ ctx.trap.side[side].end_v ].nc_declived;
+				nc_declived_next = ctx.points.vectors[ ctx.trap.side[side].end_v ].nc_declived;
 				quit = true;
 			}
 		}
-		draw_trapeze_frac();
+		draw_trapeze_frac(nc_declived_next - ctx.poly.nc_declived);
+		ctx.poly.nc_declived = nc_declived_next;
 		if (quit) return;
 	}
 	// Now draw integral scanlines
@@ -155,12 +145,12 @@ static void draw_trapeze(void) {
 		d_nc_declived = -0x10000;
 	}
 	while (ctx.poly.nc_declived != last_nc_declived_i) {
-		ctx.poly.nc_declived_next = ctx.poly.nc_declived + d_nc_declived;
 		draw_trapeze_int();
+		ctx.poly.nc_declived += d_nc_declived;
 	}
 	// And now finish the last subtrapeze
-	ctx.poly.nc_declived_next = last_nc_declived;
-	draw_trapeze_frac();
+	draw_trapeze_frac(last_nc_declived - ctx.poly.nc_declived);
+	ctx.poly.nc_declived = last_nc_declived;
 }
 
 /*

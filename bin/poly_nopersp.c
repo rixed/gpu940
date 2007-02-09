@@ -62,19 +62,14 @@ static void next_params_frac(unsigned side, int32_t dnc)
 	}
 }
 
-static void draw_trapeze_frac(void)
+static void draw_trapeze_frac(int32_t dnc)
 {
-	int32_t dnc = ctx.poly.nc_declived_next - ctx.poly.nc_declived;
 	dnc = Fix_abs(dnc);
-	// now compute some next c and params
-	if (ctx.trap.side[0].is_growing) next_params_frac(0, dnc);
-	if (ctx.trap.side[1].is_growing) next_params_frac(1, dnc);
+	// now compute next c and params
+	next_params_frac(0, dnc);
+	next_params_frac(1, dnc);
 	// draw 'scanline'
 	draw_line();	// will do another DIV
-	// compute others next c and params
-	if (! ctx.trap.side[0].is_growing) next_params_frac(0, dnc);
-	if (! ctx.trap.side[1].is_growing) next_params_frac(1, dnc);
-	ctx.poly.nc_declived = ctx.poly.nc_declived_next;
 }
 
 static void next_params_int(unsigned side)
@@ -87,15 +82,11 @@ static void next_params_int(unsigned side)
 
 static void draw_trapeze_int(void)
 {
-	// now compute some next c and params
-	if (ctx.trap.side[0].is_growing) next_params_int(0);
-	if (ctx.trap.side[1].is_growing) next_params_int(1);
+	// now compute next c and params
+	next_params_int(0);
+	next_params_int(1);
 	// draw 'scanline'
 	draw_line();	// will do another DIV
-	// now compute others c and params
-	if (! ctx.trap.side[0].is_growing) next_params_int(0);
-	if (! ctx.trap.side[1].is_growing) next_params_int(1);
-	ctx.poly.nc_declived = ctx.poly.nc_declived_next;
 }
 
 static void draw_trapeze(void)
@@ -110,8 +101,6 @@ static void draw_trapeze(void)
 		ctx.trap.left_side = 1;
 	}
 	ctx.line.param = ctx.trap.side[ ctx.trap.left_side ].param;
-	ctx.trap.side[ctx.trap.left_side].is_growing = ctx.trap.side[ctx.trap.left_side].dc < 0;
-	ctx.trap.side[!ctx.trap.left_side].is_growing = ctx.trap.side[!ctx.trap.left_side].dc > 0;
 	// Compute constant linear coefs for non-perspective mode if possible
 	// We can use the same dparam for all the trapeze if the trapeze is in fact a triangle
 	ctx.trap.is_triangle = ctx.trap.side[0].start_v == ctx.trap.side[1].start_v ||
@@ -140,33 +129,32 @@ static void draw_trapeze(void)
 	// First, we draw from nc_declived to next scanline boundary or end of trapeze
 	if (ctx.poly.nc_declived & 0xffff) {
 		bool quit = false;
-		ctx.poly.nc_declived_next = ctx.poly.nc_declived & 0xffff0000;
-		ctx.poly.nc_declived_next += 1<<16;
+		int32_t nc_declived_next = ctx.poly.nc_declived & 0xffff0000;
+		nc_declived_next += 1<<16;
 		// maybe we reached end of trapeze already ?
 		for (unsigned side=2; side--; ) {
-			if (ctx.points.vectors[ ctx.trap.side[side].end_v ].c2d[1] <= ctx.poly.nc_declived_next) {
-				ctx.poly.nc_declived_next = ctx.points.vectors[ ctx.trap.side[side].end_v ].c2d[1];
+			if (ctx.points.vectors[ ctx.trap.side[side].end_v ].c2d[1] <= nc_declived_next) {
+				nc_declived_next = ctx.points.vectors[ ctx.trap.side[side].end_v ].c2d[1];
 				quit = true;
 			}
 		}
-		draw_trapeze_frac();
+		draw_trapeze_frac(nc_declived_next - ctx.poly.nc_declived);
+		ctx.poly.nc_declived = nc_declived_next;
 		if (quit) return;
 	}
 	// Now draw integral scanlines
-	int32_t d_nc_declived, last_nc_declived_i;
 	int32_t last_nc_declived = ctx.points.vectors[ ctx.trap.side[0].end_v ].c2d[1];
 	if (ctx.points.vectors[ ctx.trap.side[1].end_v ].c2d[1] <= last_nc_declived) {
 		last_nc_declived = ctx.points.vectors[ ctx.trap.side[1].end_v ].c2d[1];
 	}
-	last_nc_declived_i = last_nc_declived & 0xffff0000;
-	d_nc_declived = 0x10000;
+	int32_t last_nc_declived_i = last_nc_declived & 0xffff0000;
 	while (ctx.poly.nc_declived != last_nc_declived_i) {
-		ctx.poly.nc_declived_next = ctx.poly.nc_declived + d_nc_declived;
 		draw_trapeze_int();
+		ctx.poly.nc_declived += 0x10000;
 	}
 	// And now finish the last subtrapeze
-	ctx.poly.nc_declived_next = last_nc_declived;
-	draw_trapeze_frac();
+	draw_trapeze_frac(last_nc_declived - ctx.poly.nc_declived);
+	ctx.poly.nc_declived = last_nc_declived;
 }
 
 /*
@@ -216,7 +204,7 @@ void draw_poly_nopersp(void)
 			if (! dc_ok) {
 				int32_t const num = ctx.points.vectors[ ctx.trap.side[side].end_v ].c2d[0] - ctx.trap.side[side].c;
 				dnc = Fix_abs(dnc);
-				ctx.trap.side[side].dc = ((int64_t)num<<16)/dnc;	// FIXME: use Fix_div
+				ctx.trap.side[side].dc = Fix_div(num, dnc);
 				// compute alpha_params used for vector parameters
 				int32_t const inv_dalpha = Fix_inv(dnc);
 				for (unsigned p=sizeof_array(ctx.line.dparam); p--; ) {
