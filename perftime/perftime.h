@@ -60,7 +60,7 @@ static inline unsigned perftime_target(void) {
 #	define perftime_stat(target, stat) do { (void)target; (void)stat; } while(0)
 #	define perftime_stat_print(fd, target) do { (void)fd; (void)target; } while(0)
 #	define perftime_stat_print_all(fd) do { (void)fd; } while(0)
-#	define perftime_end(x) do { (void)x; } while(0)
+#	define perftime_end()
 #	define perftime_enter(target, name) do { (void)target; (void)name; } while(0)
 #	define perftime_target(x) 0
 #endif
