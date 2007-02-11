@@ -614,7 +614,7 @@ cscope:
 
 dumpcodegen:
 	@for i in /tmp/codegen_*; do \
-		$$GP2XDEVDIR/bin/arm-linux-objdump -D -b binary -m arm $$i ; \
+		$$GP2XDEVDIR/bin/*-objdump -D -b binary -m arm $$i ; \
 	done | less
 # Tell versions [3.59,3.63) of GNU make to not export all variables.
 # Otherwise a system limit (for SysV at least) may be exceeded.

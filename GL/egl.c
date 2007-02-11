@@ -70,6 +70,10 @@ GLboolean glOpen(unsigned attribs)
 		}
 	}
 	active_buffer = ~0U;
+#	ifndef NDEBUG
+	static gpuCmdDbg dbgCmd = { gpuDBG, 1 };
+	gpuWrite(&dbgCmd, sizeof(dbgCmd), true);
+#	endif
 	return glSwapBuffers();
 }
 

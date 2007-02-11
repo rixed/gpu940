@@ -255,14 +255,14 @@ static struct {
 } vars[MAX_VARP+1] = {
 	{ .offset = offsetof(struct ctx, line.dw), .offset2 = ~0U, },
 	{ .offset = offsetof(struct ctx, poly.decliveness), .offset2 = ~0U, },
-	{ .offset = offsetof(struct ctx, line.param), .offset2 = 6, },	// CONSTP_Z
-	{ .offset = offsetof(struct ctx, line.dparam[6]), .offset2 = ~0U, },	// CONSTP_DZ
-	{ .offset = offsetof(struct ctx, line.dparam[4]), .offset2 = ~0U, },	// CONSTP_DU
-	{ .offset = offsetof(struct ctx, line.dparam[5]), .offset2 = ~0U, },	// CONSTP_DV
+	{ .offset = offsetof(struct ctx, line.param), .offset2 = 3, },	// CONSTP_Z
+	{ .offset = offsetof(struct ctx, line.dparam[3]), .offset2 = ~0U, },	// CONSTP_DZ
+	{ .offset = offsetof(struct ctx, line.dparam[0]), .offset2 = ~0U, },	// CONSTP_DU
+	{ .offset = offsetof(struct ctx, line.dparam[1]), .offset2 = ~0U, },	// CONSTP_DV
 	{ .offset = offsetof(struct ctx, line.dparam[0]), .offset2 = ~0U, },	// CONSTP_DR
 	{ .offset = offsetof(struct ctx, line.dparam[1]), .offset2 = ~0U, },	// CONSTP_DG
 	{ .offset = offsetof(struct ctx, line.dparam[2]), .offset2 = ~0U, },	// CONSTP_DB
-	{ .offset = offsetof(struct ctx, line.dparam[3]), .offset2 = ~0U, },	// CONST_DI = 9
+	{ .offset = offsetof(struct ctx, line.dparam[2]), .offset2 = ~0U, },	// CONST_DI = 9
 	{ .offset = offsetof(struct ctx, code.color), .offset2 = ~0U, },
 	{ .offset = offsetof(struct ctx, code.color), .offset2 = ~0U, },
 	{ .offset = offsetof(struct ctx, code.out2zb), .offset2 = ~0U, },
@@ -270,13 +270,13 @@ static struct {
 	{ .offset = offsetof(struct ctx, code.buff_addr[gpuTxtBuffer]), .offset2 = ~0U, },
 	{ .offset = offsetof(struct ctx, line.w), .offset2 = ~0U, },
 	{ .offset = offsetof(struct ctx, line.decliv), .offset2 = ~0U, },
-	{ .offset = offsetof(struct ctx, line.param), .offset2 = 6, },	// VARP_Z = 17
-	{ .offset = offsetof(struct ctx, line.param), .offset2 = 4, },	// VARP_U
-	{ .offset = offsetof(struct ctx, line.param), .offset2 = 5, },	// VARP_V
+	{ .offset = offsetof(struct ctx, line.param), .offset2 = 3, },	// VARP_Z = 17
+	{ .offset = offsetof(struct ctx, line.param), .offset2 = 0, },	// VARP_U
+	{ .offset = offsetof(struct ctx, line.param), .offset2 = 1, },	// VARP_V
 	{ .offset = offsetof(struct ctx, line.param), .offset2 = 0, },	// VARP_R
 	{ .offset = offsetof(struct ctx, line.param), .offset2 = 1, },	// VARP_G
 	{ .offset = offsetof(struct ctx, line.param), .offset2 = 2, },	// VARP_B
-	{ .offset = offsetof(struct ctx, line.param), .offset2 = 3, },	// VARP_I = 23
+	{ .offset = offsetof(struct ctx, line.param), .offset2 = 2, },	// VARP_I = 23
 	{ .offset = offsetof(struct ctx, line.count), .offset2 = ~0U,},
 	{ .offset = 0, .offset2 = ~0U, },	// VARP_OUTCOLOR, no offset
 };

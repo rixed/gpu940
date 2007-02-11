@@ -42,69 +42,72 @@ static bool have_user_clipPlanes(void)
 }
 
 // prev and next must have h <0 and >0 (or vice versa)
-static unsigned new_vec(unsigned prev, unsigned next, unsigned p)
+static gpuVector *new_vec(gpuVector *prev, gpuVector *next, unsigned p)
 {
 	static gpuCmdVector cmdVectors[MAX_FACET_SIZE+2*GPU_NB_CLIPPLANES];	// used as a place to store cmds that are not in cmdbuf
-	int32_t ha = Fix_abs(ctx.points.vectors[prev].h);
-	int32_t hb = Fix_abs(ctx.points.vectors[next].h);
+	int32_t ha = Fix_abs(prev->h);
+	int32_t hb = Fix_abs(next->h);
 	int32_t ratio = 1<<16, hahb = ha+hb;
 	if (hahb) ratio = ((int64_t)ha<<16)/(ha+hb);
 	assert(ctx.points.nb_vectors < sizeof_array(ctx.points.vectors));
-	ctx.points.vectors[ctx.points.nb_vectors].cmd = cmdVectors + ctx.points.nb_vectors;
-	for (unsigned u=sizeof_array(ctx.points.vectors[0].cmd->u.all_params); u--; ) {
-		ctx.points.vectors[ctx.points.nb_vectors].cmd->u.all_params[u] =
-			ctx.points.vectors[prev].cmd->u.all_params[u] +
-			Fix_mul(ratio, (ctx.points.vectors[next].cmd->u.all_params[u]-ctx.points.vectors[prev].cmd->u.all_params[u]));
+	gpuVector *new = ctx.points.vectors + ctx.points.nb_vectors;
+	new->cmd = cmdVectors + ctx.points.nb_vectors;
+	for (unsigned u=sizeof_array(new->cmd->u.all_params); u--; ) {
+		new->cmd->u.all_params[u] =
+			prev->cmd->u.all_params[u] +
+			Fix_mul(ratio, (next->cmd->u.all_params[u] - prev->cmd->u.all_params[u]));
 	}
-	ctx.points.vectors[ctx.points.nb_vectors].prev = prev;
-	ctx.points.vectors[ctx.points.nb_vectors].next = next;
-	ctx.points.vectors[prev].next = ctx.points.vectors[next].prev = ctx.points.nb_vectors;
-	ctx.points.vectors[ctx.points.nb_vectors].clipFlag = (ctx.points.vectors[prev].clipFlag&ctx.points.vectors[next].clipFlag) | (1<<p);
-	ctx.points.vectors[ctx.points.nb_vectors].proj = 0;
-	return ctx.points.nb_vectors++;
+	new->prev = prev;
+	new->next = next;
+	prev->next = next->prev = new;
+	new->clipFlag = (prev->clipFlag & next->clipFlag) | (1<<p);
+	new->proj = 0;
+	ctx.points.nb_vectors++;
+	return new;
 }
 
-static void compute_h(unsigned v, gpuPlane const *const plane)
+static void compute_h(gpuVector *v, gpuPlane const *const plane)
 {
-	ctx.points.vectors[v].h = 0;
+	v->h = 0;
 	for (unsigned c=3; c--; ) {
 		if (0 == plane->normal[c]) continue;
-		ctx.points.vectors[v].h += Fix_mul(plane->normal[c], ctx.points.vectors[v].cmd->u.geom.c3d[c] - plane->origin[c]);
+		v->h += Fix_mul(plane->normal[c], v->cmd->u.geom.c3d[c] - plane->origin[c]);
 	}
-	if (0 == ctx.points.vectors[v].h) ctx.points.vectors[v].h = 1;
+	if (0 == v->h) v->h = 1;
 }
 
 static int clip_facet_by_plane(unsigned p)
 {
 	gpuPlane const *const plane = ctx.view.clipPlanes+p;
 	// for each vector, compute H
-	unsigned last_in = ~0U;
-	unsigned new_v[2], nb_new_v = 0;
-	unsigned v = ctx.points.first_vector;
+	gpuVector *last_in = NULL;
+	gpuVector *new_v[2];
+	unsigned nb_new_v = 0;
+	gpuVector *v = ctx.points.first_vector;
 	do {
 		compute_h(v, plane);
-		v = ctx.points.vectors[v].next;
+		v = v->next;
 	} while (v != ctx.points.first_vector);
 	do {
-		unsigned next = ctx.points.vectors[v].next;
-		if (! Fix_same_sign(ctx.points.vectors[v].h, ctx.points.vectors[next].h)) {
+		gpuVector *next = v->next;
+		if (! Fix_same_sign(v->h, next->h)) {
 			new_v[nb_new_v++] = new_vec(v, next, p);
 		}
-		if (ctx.points.vectors[v].h > 0) {
+		if (v->h > 0) {
 			last_in = v;
 		}
 		v = next;
 	} while (nb_new_v < 2 && v != ctx.points.first_vector);
 	if (0 == nb_new_v) {
-		return ~0U != last_in;
+		return NULL != last_in;
 	}
-	assert(~0U != last_in && nb_new_v == 2);
-	if (ctx.points.vectors[ctx.points.first_vector].h > 0) {
-		ctx.points.vectors[new_v[0]].next = new_v[1];
-		ctx.points.vectors[new_v[1]].prev = new_v[0];
+	assert(NULL != last_in && nb_new_v == 2);
+	if (ctx.points.first_vector->h > 0) {
+		new_v[0]->next = new_v[1];
+		new_v[1]->prev = new_v[0];
 	} else {
-		ctx.points.vectors[new_v[0]].prev = new_v[1];
-		ctx.points.vectors[new_v[1]].next = new_v[0];
+		new_v[0]->prev = new_v[1];
+		new_v[1]->next = new_v[0];
 		ctx.points.first_vector = last_in;
 	}
 	return 1;
@@ -161,15 +164,15 @@ static void proj_cached(unsigned v)
 	}
 }
 
-static void proj_new_vec(unsigned v)
+static void proj_new_vec(gpuVector *v)
 {
-	int32_t const x = ctx.points.vectors[v].cmd->u.geom.c3d[0];
-	int32_t const y = ctx.points.vectors[v].cmd->u.geom.c3d[1];
-	int32_t const z = ctx.points.vectors[v].cmd->u.geom.c3d[2];
+	int32_t const x = v->cmd->u.geom.c3d[0];
+	int32_t const y = v->cmd->u.geom.c3d[1];
+	int32_t const z = v->cmd->u.geom.c3d[2];
 	int32_t const dproj = ctx.view.dproj;
 	int32_t c2d;
 	int32_t inv_z = Fix_inv(z);
-	switch (ctx.points.vectors[v].clipFlag & 0xa) {
+	switch (v->clipFlag & 0xa) {
 		case 0x2:	// right
 			c2d = ctx.view.clipMax[0]<<16;
 			break;
@@ -180,8 +183,8 @@ static void proj_new_vec(unsigned v)
 			c2d = Fix_mul(x<<dproj, inv_z);
 			break;
 	}
-	ctx.points.vectors[v].c2d[0] = c2d + (ctx.view.winWidth<<15);
-	switch (ctx.points.vectors[v].clipFlag & 0x14) {
+	v->c2d[0] = c2d + (ctx.view.winWidth<<15);
+	switch (v->clipFlag & 0x14) {
 		case 0x4:	// up
 			c2d = ctx.view.clipMax[1]<<16;
 			break;
@@ -192,7 +195,7 @@ static void proj_new_vec(unsigned v)
 			c2d = Fix_mul(y<<dproj, inv_z);
 			break;
 	}
-	ctx.points.vectors[v].c2d[1] = c2d + (ctx.view.winHeight<<15);
+	v->c2d[1] = c2d + (ctx.view.winHeight<<15);
 }
 
 /*
@@ -212,11 +215,11 @@ int clip_poly(void)
 	// init vectors
 	unsigned v;
 	unsigned clipped = 0;
-	ctx.points.first_vector = 0;
+	ctx.points.first_vector = ctx.points.vectors + 0;
 	ctx.points.nb_vectors = ctx.poly.cmd->size;
 	for (v=0; v<ctx.points.nb_vectors; v++) {
-		ctx.points.vectors[v].next = v+1;
-		ctx.points.vectors[v].prev = v-1;
+		ctx.points.vectors[v].next = &ctx.points.vectors[v+1];
+		ctx.points.vectors[v].prev = &ctx.points.vectors[v-1];
 		ctx.points.vectors[v].clipFlag = 0;
 		proj_cached(v);
 		if (! have_user_clipPlanes()) {	// no user clip planes
@@ -224,11 +227,13 @@ int clip_poly(void)
 			clipped |= ctx.points.vectors[v].clipped;
 		}
 #		ifdef GP2X
-		ctx.points.vectors[v].cmd->u.named.i *= 55;
+		if (ctx.poly.cmd->use_intens) {
+			ctx.points.vectors[v].cmd->u.text.i *= 55;
+		}
 #		endif
 	}
-	ctx.points.vectors[0].prev = v-1;
-	ctx.points.vectors[v-1].next = 0;
+	ctx.points.vectors[0].prev = &ctx.points.vectors[v-1];
+	ctx.points.vectors[v-1].next = &ctx.points.vectors[0];
 	if (!have_user_clipPlanes() && !clipped) {
 		disp = 1;
 		goto ret;
@@ -238,14 +243,14 @@ int clip_poly(void)
 	}
 	// compute new size and project new vertexes
 	new_size = 0;
-	v = ctx.points.first_vector;
+	gpuVector *vp = ctx.points.first_vector;
 	do {
 		new_size ++;
-		if (! ctx.points.vectors[v].proj) {
-			proj_new_vec(v);
+		if (! vp->proj) {
+			proj_new_vec(vp);
 		}
-		v = ctx.points.vectors[v].next;
-	} while (v != ctx.points.first_vector);
+		vp = vp->next;
+	} while (vp != ctx.points.first_vector);
 	disp = 1;
 ret:
 	for (v=0; v<ctx.poly.cmd->size; v++) {
@@ -297,13 +302,13 @@ int cull_poly(void)
 	if (ctx.poly.cmd->cull_mode == 0) {
 		goto cull_end;
 	}
-	unsigned v = ctx.points.first_vector;
+	gpuVector *v = ctx.points.first_vector;
 	unsigned nb_v = 0;
 	int32_t a = 0;
 	do {
-		unsigned v_next = nb_v < 2 ? ctx.points.vectors[v].next : ctx.points.first_vector;
-		a += Fix_mul(ctx.points.vectors[v].c2d[0]>>1, ctx.points.vectors[v_next].c2d[1]>>1);	// FIXME: 2 may not be enought for greater screen size
-		a -= Fix_mul(ctx.points.vectors[v_next].c2d[0]>>1, ctx.points.vectors[v].c2d[1]>>1);
+		gpuVector *v_next = nb_v < 2 ? v->next : ctx.points.first_vector;
+		a += Fix_mul(v->c2d[0]>>1, v_next->c2d[1]>>1);	// FIXME: 2 may not be enought for greater screen size
+		a -= Fix_mul(v_next->c2d[0]>>1, v->c2d[1]>>1);
 		v = v_next;
 		nb_v ++;
 	} while (nb_v < 3);	

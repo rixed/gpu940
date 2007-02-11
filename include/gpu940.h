@@ -41,7 +41,7 @@
 #define GPU_DEFAULT_CLIPMAX1 ((SCREEN_HEIGHT>>1)+1)
 #define GPU_DEFAULT_WINPOS0 ((512-SCREEN_WIDTH)>>1)
 #define GPU_DEFAULT_WINPOS1 3
-#define GPU_NB_PARAMS 7 // at most r,g,b,i,z
+#define GPU_NB_PARAMS 4
 #define GPU_NB_USER_CLIPPLANES 5
 #define GPU_DISPLIST_SIZE 64
 #define SHARED_PHYSICAL_ADDR 0x2100000	// this is from 920T or for the video controler.
@@ -179,8 +179,11 @@ typedef struct {
 	union {
 		int32_t all_params[3+GPU_NB_PARAMS];
 		struct {
-			int32_t x, y, z, r, g, b, i, u, v, zb;
-		} named;
+			int32_t x, y, z, r, g, b, zb;
+		} smooth;
+		struct {
+			int32_t x, y, z, u, v, i, zb;
+		} text;
 		struct {
 			int32_t c3d[3], param[GPU_NB_PARAMS];
 		} geom;
@@ -218,6 +221,7 @@ gpuErr gpuWritev(struct iovec const *cmdvec, size_t count, bool can_wait);
 uint32_t gpuReadErr(void);
 gpuErr gpuLoadImg(struct buffer_loc const *loc, uint32_t *rgb, unsigned lod);
 // r, g, b are 16.16 ranging from 0 to 1
+// gp2x uses YUV instead of RGB, stored in 32bits words (VYUY, or V0UY)
 static inline int32_t Fix_gpuColor1(int32_t r, int32_t g, int32_t b) {
 #ifdef GP2X
 	unsigned r_ = r & 0xff00;
@@ -265,6 +269,19 @@ static inline uint32_t gpuColor(unsigned r, unsigned g, unsigned b) {
 	uint32_t v = ((r<<23)-(r<<20)-(g<<21)-(g<<22)+(g<<17)-(b<<20)-(b<<17)+0x80800000U)&0xFF000000U;
 	return (v|y|u|(y>>16));
 #else
+	return (r<<16)|(g<<8)|(b);
+#endif
+}
+static inline uint32_t gpuColor_comp2uint(int32_t c[3]) {
+#ifdef GP2X
+	uint32_t y = (c[0] & 0xff00);
+	uint32_t u = (c[1] & 0xff00);
+	uint32_t v = (c[2] & 0xff00);
+	return (v<<16)|(y<<8)|u|(y>>8);
+#else
+	uint32_t r = (c[0] & 0xff00);
+	uint32_t g = (c[1] & 0xff00);
+	uint32_t b = (c[2] & 0xff00);
 	return (r<<16)|(g<<8)|(b);
 #endif
 }

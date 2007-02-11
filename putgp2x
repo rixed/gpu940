@@ -1,2 +1,2 @@
 #!/bin/sh
-ncftpput -u root -p root gp2x /mnt/sd bin/gpu940 bin/load940 bin/stop940 sample/codealone GL/samples/gpugears sample/sample1 sample/deftext.tga
+ncftpput -u root -p root gp2x /mnt/sd bin/gpu940 bin/load940 bin/stop940 sample/codealone GL/samples/gpugears GL/samples/texobj sample/sample1 sample/sample2 sample/deftext.tga

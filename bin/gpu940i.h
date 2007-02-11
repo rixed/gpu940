@@ -43,13 +43,12 @@ enum {
 	PERF_DIV,
 };
 
-typedef struct {
+typedef struct gpuVector {
 	gpuCmdVector *cmd;
 	int32_t c2d[2];
 	int32_t h;	// dist with a clipPlane
 	int32_t nc_declived;
-	uint32_t next;
-	uint32_t prev;
+	struct gpuVector *next, *prev;
 	uint32_t clipFlag:4;	// bit 0..3 indicate that the point is on this plane (do not project corresponding coordinate)
 	uint32_t clipped:1, proj:1;
 } gpuVector;
@@ -78,23 +77,23 @@ extern struct ctx {
 	} location;
 	// Current trapeze
 	struct {
-		struct {	// this is 16 words, which is good because we want easy access of any sides (side+s*16*4 is ok)
+		struct {
 			int32_t c;	// 16.16
 			int32_t dc;	// 16.16
 			int32_t param[GPU_NB_PARAMS];	// 16.16
 			int32_t param_alpha[GPU_NB_PARAMS];	// 16.16
-			uint32_t start_v;
-			uint32_t end_v;
+			gpuVector const *start_v;
+			gpuVector const *end_v;
 			int32_t z_alpha_start;
-			int32_t place_holder[1];
+			int32_t place_holder[3];
 		} side[2];	// side dec, side inc
-		uint32_t left_side:1;
-		uint32_t is_triangle:1;
+		uint32_t left_side;
+		uint32_t is_triangle;
 	} trap;
 	// Vectors in use
 	struct {
 		uint32_t nb_vectors;	// gives how many vectors are in vectors. For the size of facet, see cmdFacet.size.
-		uint32_t first_vector;
+		gpuVector *first_vector;
 		gpuVector vectors[MAX_FACET_SIZE+2*GPU_NB_CLIPPLANES];
 	} points;
 	// Current Polygon
@@ -109,7 +108,6 @@ extern struct ctx {
 		int64_t z_num, z_den;	// 32.32
 		int32_t z_dden, z_dnum;	// 16.16
 		struct jit_cache *rasterizer;
-		int32_t polace_holder[2];
 	} poly;
 	// Current line
 	struct {
@@ -118,7 +116,6 @@ extern struct ctx {
 		int32_t dw;
 		int32_t decliv;
 		int32_t *param;	// points to side[left].param
-//		int32_t param[GPU_NB_PARAMS];
 		int32_t dparam[GPU_NB_PARAMS];
 	} line;
 	// generated code
@@ -130,7 +127,7 @@ extern struct ctx {
 #		define NB_CODE_CACHE 5
 		struct jit_cache {
 			// TODO: make the bu smaller, but allow a code to span severall bufs
-#			define MAX_CODE_SIZE 102 //87
+#			define MAX_CODE_SIZE 102
 			uint32_t buf[MAX_CODE_SIZE];
 			uint32_t use_count;
 			uint64_t rendering_key;

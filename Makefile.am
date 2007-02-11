@@ -5,5 +5,5 @@ cscope:
 
 dumpcodegen:
 	@for i in /tmp/codegen_*; do \
-		$$GP2XDEVDIR/bin/arm-linux-objdump -D -b binary -m arm $$i ; \
+		$$GP2XDEVDIR/bin/*-objdump -D -b binary -m arm $$i ; \
 	done | less

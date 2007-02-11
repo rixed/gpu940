@@ -26,7 +26,6 @@
 static enum gli_DrawMode mode;
 static gpuCmdFacet cmdFacet = {
 	.opcode = gpuFACET,
-	.use_key = 0,
 	.perspective = 0,
 };
 static gpuCmdPoint cmdPoint = {
@@ -35,6 +34,8 @@ static gpuCmdPoint cmdPoint = {
 static gpuCmdVector cmdVec[4];
 static unsigned vec_idx;
 static unsigned count;	// count vertexes between begin and end
+static unsigned prim;	// count primitives between begin and end
+static bool (*is_colorer_func)(unsigned count);	// tells wether te count vertex is the colorer of the prim primitive (flatshading)
 
 static struct iovec const iov_poly[] = {
 	{ .iov_base = &cmdFacet, .iov_len = sizeof(cmdFacet) },
@@ -51,55 +52,6 @@ static struct iovec const iov_point[] = {
 /*
  * Private Functions
  */
-
-// given the luminosity, return gpu intens
-static GLfixed lum2intens(GLfixed lum)
-{
-	return (lum - (1<<15))<<7;	// this gives good result
-}
-
-static int32_t get_luminosity(GLfixed v_eye[4])
-{
-	// We can use a luminosity alone instead of full color component set, if :
-	// - acm = dcm (AMBIANT_AND_DIFFUSE like setting)
-	// - ecm = 0 (usual case)
-	// - acs = _acs*(1,1,1)
-	// - dcli = _dcli*(1,1,1)
-	// - acli = _acli*(1,1,1)
-	// Then, the lighting expression simplify to :
-	// color = acm * { acs + Sum(i=0,N-1)[(atti)*(spoti)*(_acli+(scalar(n, VP)*_dcli))] }
-	// That is :
-	// color = acm * 'luminosity'
-	// GPU don't know how to scale, but he can add an intensity to color.
-	// This is not the same result, but it's the same idea :->
-	GLfixed const _acs = gli_scene_ambient()[0];
-	GLfixed lum = _acs;
-	GLfixed normal[3];
-	gli_multmatrixU(GL_MODELVIEW, normal, gli_current_normal);
-//	GLfixed const *scm = gli_material_specular();
-	for (unsigned l=0; l<GLI_MAX_LIGHTS; l++) {	// TODO: use a current_min_light, current_max_light
-		if (! gli_light_enabled(l)) continue;
-		GLfixed this_lum = 0;
-		GLfixed vl_dir[3], vl_dist;
-		gli_light_dir(l, v_eye, vl_dir, &vl_dist);
-		GLfixed const att = gli_light_attenuation(l, vl_dist);
-		GLfixed const spot = gli_light_spot(l);
-		GLfixed const att_spot = Fix_mul(att, spot);
-		if (att_spot < 16) continue;	// skip light if negligible or null contribution
-		GLfixed const _acli = gli_light_ambient(l)[0];
-		this_lum = _acli;
-		GLfixed n_vl_dir = Fix_scalar(normal, vl_dir);
-		if (n_vl_dir > 0) {
-			GLfixed const _dcli = gli_light_diffuse(l)[0];
-			this_lum += Fix_mul(n_vl_dir, _dcli);
-		}
-		lum += Fix_mul(this_lum, att_spot);
-		// TODO
-		//GLfixed scli = gli_light_specular(l);
-	}
-	// lum is a scale factor to be applied to acm. We change this to a signed value to be added.
-	return lum2intens(lum);
-}
 
 // Returns the color contribution of the material, which is constant for all
 // vertexes of an array
@@ -171,7 +123,7 @@ static bool z_param_needed(void)
 	return depth_test() && (gli_depth_mask || (gli_depth_func != GL_ALWAYS && gli_depth_func != GL_NEVER));
 }
 
-static uint32_t color_GL2gpu(GLfixed const *c)
+static uint32_t color_GL2gpu(int32_t const *c)
 {
 	unsigned r = c[0]>>8;
 	unsigned g = c[1]>>8;
@@ -255,10 +207,10 @@ static void set_depth_mode(void)
 	}
 }
 
-static void facet_complete(unsigned size, bool facet_is_inverted, GLfixed colorer_eye[4])
+static void facet_complete(unsigned size, bool facet_is_inverted, unsigned colorer)
 {
-	// FIXME: most of these setting shoulb be done in cmd_prepare and not for each facet
 	// Set cull_mode
+	prim ++;
 	cmdFacet.cull_mode = 0;
 #	define VIEWPORT_IS_INVERTED true
 	bool front_is_cw = gli_front_faces_are_cw() ^ facet_is_inverted ^ VIEWPORT_IS_INVERTED;
@@ -281,30 +233,27 @@ static void facet_complete(unsigned size, bool facet_is_inverted, GLfixed colore
 		if (to->have_mean_alpha) {
 			alpha = Fix_mul(alpha, to->mean_alpha);
 		}
-		if (gli_enabled(GL_LIGHTING)) {
-			cmdFacet.use_intens = 1;
-			if (! gli_smooth()) {	// intens was not set
-				int32_t lum = get_luminosity(colorer_eye);
-				for (unsigned v=0; v<size; v++) {
-					cmdVec[v].u.named.i = lum;
+#		define ALMOST_0 (0x2000<<7)
+		if (! gli_smooth()) {	// copy colorer intens
+			int32_t const colorer_i = cmdVec[colorer].u.text.i;
+			if (Fix_abs(colorer_i) > ALMOST_0) {
+				cmdFacet.use_intens = 1;
+				for (unsigned v=size; v--; ) {
+					cmdVec[v].u.text.i = colorer_i;
 				}
 			}
 		} else {
-			cmdFacet.use_intens = 0;
+			for (unsigned v=size; v--; ) {
+				if (Fix_abs(cmdVec[v].u.text.i) > ALMOST_0) {
+					cmdFacet.use_intens = 1;
+					break;
+				}
+			}
 		}
-	} else if (gli_smooth() && gli_enabled(GL_LIGHTING)) {
-		if (gli_simple_lighting()) {	// or if we use texture...
-			GLfixed c[4];
-			get_material_color(c);
-			cmdFacet.color = color_GL2gpu(c);
-			cmdFacet.rendering_type = rendering_flat;
-			cmdFacet.use_intens = 1;
-		} else {
-			cmdFacet.rendering_type = rendering_smooth;
-		}
-	} else {
-		GLfixed const *c = get_color(colorer_eye);
-		cmdFacet.color = color_GL2gpu(c);
+	} else if (gli_smooth()) {
+		cmdFacet.rendering_type = rendering_smooth;
+	} else {	// flat
+		cmdFacet.color = gpuColor_comp2uint(&cmdVec[colorer].u.smooth.r);
 		cmdFacet.rendering_type = rendering_flat;
 	}
 	// Use blending ?
@@ -322,6 +271,37 @@ static void facet_complete(unsigned size, bool facet_is_inverted, GLfixed colore
 	assert(gpuOK == err); (void)err;
 }
 
+static bool unused(unsigned count)
+{
+	(void)count;
+	return false;
+}
+
+static bool is_colorer_polygon(unsigned count)
+{
+	return count == 0;
+}
+
+static bool is_colorer_triangle_strip_or_fan(unsigned count)
+{
+	return count == prim + 2;
+}
+
+static bool is_colorer_triangles(unsigned count)
+{
+	return count == prim+prim+prim + 2;
+}
+
+static bool is_colorer_quad_strip(unsigned count)
+{
+	return count == prim+prim + 3;
+}
+
+static bool is_colorer_quads(unsigned count)
+{
+	return count == (prim<<2) + 3;
+}
+
 /*
  * Public Functions
  */
@@ -334,71 +314,54 @@ void gli_cmd_prepare(enum gli_DrawMode mode_)
 	mode = mode_;
 	vec_idx = 0;
 	count = 0;
+	prim = 0;
+	typedef bool colorer_func(unsigned);
+	static colorer_func *colorer_funcs[] = {
+		unused, unused, unused, unused,
+		is_colorer_triangle_strip_or_fan, is_colorer_triangle_strip_or_fan, is_colorer_triangles,
+		is_colorer_quad_strip, is_colorer_quads,
+		is_colorer_polygon
+	};
+	is_colorer_func = colorer_funcs[mode_];
 }
 
 void gli_cmd_vertex(int32_t const *v)
 {
 	// TODO : precalc P*M
 	GLfixed eye_coords[4], clip_coords[4];
-	static GLfixed eye_coords0[4];	// used to save eye coordinates that may be used when flat shading
-#	define SAVEVEC() do { \
-		eye_coords0[0] = eye_coords[0]; \
-		eye_coords0[1] = eye_coords[1]; \
-		eye_coords0[2] = eye_coords[2]; \
-		eye_coords0[3] = eye_coords[3]; \
-	} while (0)
 	gli_multmatrix(GL_MODELVIEW, eye_coords, v);
 	gli_multmatrix(GL_PROJECTION, clip_coords, eye_coords);
 	cmdVec[vec_idx].u.geom.c3d[0] = ((int64_t)clip_coords[0] * gli_viewport_width/2) >> 8;	// FIXME: set dproj = 1
 	cmdVec[vec_idx].u.geom.c3d[1] = -((int64_t)clip_coords[1] * gli_viewport_height/2) >> 8;	// gpu940 uses Y toward bottom
 	cmdVec[vec_idx].u.geom.c3d[2] = clip_coords[3];	// we use W as Z for gpu940 (which then must use Z toward depths)
 	cmdVec[vec_idx].same_as = 0;
-	for (unsigned p=sizeof_array(cmdVec[vec_idx].u.geom.param); p--; ) {
-		cmdVec[vec_idx].u.geom.param[p] = 0;
-	}
+	// Now compute vertex colors
+	bool is_colorer = is_colorer_func(count);
+	bool const need_color = gli_smooth() || is_colorer;
+	GLfixed const *c;
+	if (need_color) {
+		c = get_color(eye_coords);
+		GLfixed r = c[0];
+		CLAMP(r, 0, 0xFFFF);
+		GLfixed g = c[1];
+		CLAMP(g, 0, 0xFFFF);
+		GLfixed b = c[2];
+		CLAMP(b, 0, 0xFFFF);
+		cmdVec[vec_idx].u.smooth.r = Fix_gpuColor1(r, g, b);
+		cmdVec[vec_idx].u.smooth.g = Fix_gpuColor2(r, g, b);
+		cmdVec[vec_idx].u.smooth.b = Fix_gpuColor3(r, g, b);
+	} // else will be set later
 	if (gli_texturing()) {
-		// first, set U and V (scaled to actual texture size)
+		// We cannot use both colors and texture. Convert colors to a luminosity.
+		if (need_color) {
+			int32_t text_i = ((( c[0] + c[1] + c[1] + c[2]) >> 2) - 0xFFFF) << 7;
+			cmdVec[vec_idx].u.text.i = text_i;
+		} // else will be set later
+		// Set U and V (scaled to actual texture size)
 		// FIXME: we should not send scaled coord to GPU. It would be simplier if GPU scale itself according to selected texture.
 		struct gli_texture_object *to = gli_get_texture_object();
-		cmdVec[vec_idx].u.named.u = gli_current_texcoord[0] << to->mipmaps[0].width_log;
-		cmdVec[vec_idx].u.named.v = gli_current_texcoord[1] << to->mipmaps[0].height_log;
-		// then, if some lighting is on, add intens.
-		if (gli_enabled(GL_LIGHTING)) {
-			if (gli_smooth()) {
-				cmdVec[vec_idx].u.named.i = get_luminosity(eye_coords);
-			}
-			// else intens will be set later
-			// gpu940 can not uniformly lighten a texture (no flat intens), so
-			// if !gli_smooth use the same i for all vertexes. But we don't know
-			// which intens to use for now, so it must be added later in cmd_complete.
-/*		} else {	// modulate with current color
-			if (gli_smooth()) {
-				// we should modulate each color component individually, but gpu940 don't know
-				// how to do this, so we just take red as the global modulator.
-				cmdVec[vec_idx].u.named.i = lum2intens(gli_current_color[0]);
-			}
-			// else intens will be set later (see above)
-			FIXME: We are supposed to modulate texels with current color.
-			But we don't want to do this when all three colors are 1 (normal case),
-			ie when no modulation is required. The problem is that we don't know until
-			the primitive is complete that this will be the case. Possible fix : store the
-			gli_current_color[red] of each vertex as well as a flag that become true as soone
-			as a red component is <>1, and in facet_complete use this information to eventually
-			add an intens paramter.
-*/
-		}
-	} else if (gli_smooth() && gli_enabled(GL_LIGHTING)) {
-		if (gli_simple_lighting()) {
-			cmdVec[vec_idx].u.named.i = get_luminosity(eye_coords);
-		} else {
-			GLfixed const *c = get_color(eye_coords);
-			cmdVec[vec_idx].u.named.r = Fix_gpuColor1(c[0], c[1], c[2]);
-			cmdVec[vec_idx].u.named.g = Fix_gpuColor2(c[0], c[1], c[2]);
-			cmdVec[vec_idx].u.named.b = Fix_gpuColor3(c[0], c[1], c[2]);
-			CLAMP(cmdVec[vec_idx].u.named.r, 0, 0xFFFF);
-			CLAMP(cmdVec[vec_idx].u.named.g, 0, 0xFFFF);
-			CLAMP(cmdVec[vec_idx].u.named.b, 0, 0xFFFF);
-		}
+		cmdVec[vec_idx].u.text.u = gli_current_texcoord[0] << to->mipmaps[0].width_log;
+		cmdVec[vec_idx].u.text.v = gli_current_texcoord[1] << to->mipmaps[0].height_log;
 	}
 	// Add zb parameter if needed
 	if (z_param_needed()) {
@@ -406,9 +369,10 @@ void gli_cmd_vertex(int32_t const *v)
 		int32_t const z_scale = Fix_div(gli_depth_range_far - gli_depth_range_near, clip_coords[3]<<1);
 		int32_t const z_offset = (gli_depth_range_far + gli_depth_range_near) >> 1;
 		int32_t const z_scaled = Fix_mul(clip_coords[2], z_scale);
-		cmdVec[vec_idx].u.geom.param[6] = z_scaled + z_offset;
+		cmdVec[vec_idx].u.geom.param[3] = z_scaled + z_offset;
 	}
 	count ++;
+	// FIXME: call an advance_facet() func pointer set in prepare facet to avoid this switch ?
 	switch (mode) {
 		case GL_POINTS:
 			point_complete();
@@ -417,42 +381,39 @@ void gli_cmd_vertex(int32_t const *v)
 		case GL_LINE_STRIP:
 		case GL_LINE_LOOP:
 		case GL_LINES:
-		case GL_POLYGON:
+		case GL_POLYGON:	// deserve special treatment as the colorer is not the last vertex but the first
 			assert(0);	// TODO
 		case GL_TRIANGLE_STRIP:
 			if (count < 3) {
 				vec_idx ++;
-			} else if (count == 3) {
-				facet_complete(3, false, eye_coords);
-				vec_idx = 0;
-			} else {	// each new vertex gives a new triangle
-				cmdVec[(vec_idx+1)%3].same_as = 3;
-				cmdVec[(vec_idx+2)%3].same_as = 3;
-				facet_complete(3, ! (count & 1), eye_coords);
-				vec_idx = vec_idx+1;
+			} else {
+				if (count > 3) {
+					cmdVec[(vec_idx+1)%3].same_as = 3;
+					cmdVec[(vec_idx+2)%3].same_as = 3;
+				}
+				facet_complete(3, ! (count & 1), vec_idx);
+				vec_idx ++;
 				if (vec_idx >= 3) vec_idx = 0;
 			}
 			break;
 		case GL_TRIANGLE_FAN:
 			if (count < 3) {
 				vec_idx ++;
-			} else if (count == 3) {
-				facet_complete(3, false, eye_coords);
-				vec_idx = 1;
-			} else {	// each new vertex gives a new triangle
-				cmdVec[(vec_idx+1)%3].same_as = 3;
-				cmdVec[(vec_idx+2)%3].same_as = 3;
-				facet_complete(3, ! (count & 1), eye_coords);
+			} else {
+				if (count > 3) {
+					cmdVec[(vec_idx+1)%3].same_as = 3;
+					cmdVec[(vec_idx+2)%3].same_as = 3;
+				}
+				facet_complete(3, ! (count & 1), vec_idx);
 				vec_idx = vec_idx+1;
 				if (vec_idx >= 3) vec_idx = 1;
 			}
 			break;
 		case GL_TRIANGLES:
 			if (vec_idx == 2) {
-				facet_complete(3, false, eye_coords0);
+				facet_complete(3, false, vec_idx);
 				vec_idx = 0;
 			} else {
-				if (vec_idx == 0) SAVEVEC();
 				vec_idx ++;
 			}
 			break;
@@ -464,12 +425,12 @@ void gli_cmd_vertex(int32_t const *v)
 			} else if (count == 3) {
 				vec_idx = 2;
 			} else if (count == 4) {
-				facet_complete(4, false, eye_coords);
+				facet_complete(4, false, vec_idx);
 				vec_idx = 0;
 			} else {
 				cmdVec[(vec_idx+2)%4].same_as = 4;
 				if (! (count & 1)) {
-					facet_complete(4, (count & 2), eye_coords);
+					facet_complete(4, (count & 2), vec_idx);
 					vec_idx = (vec_idx + 2) & 3;
 				} else {
 					if (vec_idx == 0) vec_idx = 1;
@@ -479,15 +440,13 @@ void gli_cmd_vertex(int32_t const *v)
 			break;
 		case GL_QUADS:
 			if (vec_idx == 3) {
-				facet_complete(4, false, eye_coords0);
+				facet_complete(4, false, vec_idx);
 				vec_idx = 0;
 			} else {
-				if (vec_idx == 0) SAVEVEC();
 				vec_idx ++;
 			}
 			break;
 	}
-#	undef SAVEVEC
 }
 
 void gli_points_array(GLint first, unsigned count)
