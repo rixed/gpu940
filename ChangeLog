@@ -1,6 +1,7 @@
 2007-02-11 rixed@free.fr
 	* Faster polygon rasterizer (gpugears : +10FPS!).
 	* GL textures are now lighted according to glColors.
+	* RELEASE version 1.0.0
 
 2007-01-02 rixed@free.fr
 	* Fix texture mapping coordinates not updated when z-test fails.
