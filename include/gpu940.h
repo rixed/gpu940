@@ -282,7 +282,7 @@ static inline uint32_t gpuColor_comp2uint(int32_t c[3]) {
 	uint32_t r = (c[0] & 0xff00);
 	uint32_t g = (c[1] & 0xff00);
 	uint32_t b = (c[2] & 0xff00);
-	return (r<<16)|(g<<8)|(b);
+	return (r<<8)|g|(b>>8);
 #endif
 }
 
