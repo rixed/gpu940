@@ -238,10 +238,11 @@ true-perspective and z-tests, the GPU needs to know those resulting positions,
 so it was better to let it project and clip the polygons itself. So the client 
 must send 3D vertexes in camera space, and the gpu940 handle all the 3D to 2D 
 projection and clipping. The drawback is that it's no more possible for the 
-GPU to share a vertex between several polygons&nbsp;; each vertex is then projected 
-each time it's encountered. To minimize this cost, which still remains 
-important, the GPU maintain a cache of projected vertexes and the client has a 
-way to tell it that a given vertex is the same than a previously sent
+GPU to share a vertex between several polygons&nbsp;; each vertex is then 
+projected each time it's encountered. To minimize this cost, which still 
+remains important, the GPU maintain a cache of projected vertexes and the 
+client has a way to tell it that a given vertex is the same than a previously 
+sent
 one.
 </p><p>
 	For clipping, you can choose to clip the 3d coordinates against the view 
@@ -335,9 +336,9 @@ the interrupt is <i>missed</i> (missed frame count is maintained in the
 <i>shared</i> structure, and displayed on the OSD), meaning that there were 
 too many commands to perform in one frame time. When, at the contrary, more 
 than one frames are published during one frame time, the GPU will display them 
-one at a time, synchronized with the vertical interrupt&nbsp;; in other words, it 
-will not skip frames. For synchronisation purposes, the user application can 
-read the frame counters <i>frame_count</i> and <i>frame_miss</i> in the 
+one at a time, synchronized with the vertical interrupt&nbsp;; in other words, 
+it will not skip frames. For synchronisation purposes, the user application 
+can read the frame counters <i>frame_count</i> and <i>frame_miss</i> in the 
 <i>shared</i> structure that account for each displayed frame and missed 
 interrupt.
 </p><p>
@@ -349,9 +350,9 @@ used by the GPU code and the client code, and thus are located in the
 	gpu940 code is located in the <i>bin</i> directory. <i>crt0.S</i> is the 
 only assembly file, and holds the interrupt vector, the initial setup code, 
 and some functions like division. Its main purpose is to setup the ARM940 
-protection unit&nbsp;; it is not used when building for PC. The protection unit is 
-configured for cache everything except the command buffer (and, of course, 
-MMSP's IO register set).
+protection unit&nbsp;; it is not used when building for PC. The protection 
+unit is configured for cache everything except the command buffer (and, of 
+course, MMSP's IO register set).
 </p><p>
 	gpu940 code flow then follows in <i>gpu940.c</i>, which handle command 
 reading main loop, MMSP settings, vertical IRQ, and serve all commands but
@@ -419,8 +420,8 @@ projections) :
 </p><ul>
 	<li>the <b>x, y, z</b> coordinates of the vertex&nbsp;;</li>
 	<li>the <b>r, g, b</b> color component of the vertex&nbsp;;</li>
-	<li>the <b>i</b> parameter, which is the light intensity for this 
-vertex (soon to be replaced by an alpha color component)&nbsp;;</li>
+	<li>the <b>i</b> parameter, which is the light intensity for this vertex 
+(soon to be replaced by an alpha color component)&nbsp;;</li>
 	<li>the <b>u, v</b> texture coordinates for this vertex&nbsp;</li>
 	<li>the depth of the vertex, <b>zb</b> (which is distinct from the z 
 coordinate to allow for more effects or distinct scaling&nbsp;;</li>
@@ -509,39 +510,10 @@ or textured (!) point).
 	<b>gpuLINE</b> is nor implemented yet.
 </p><p>
 	<b>gpuFACET</b> is the more complex command, and the heart of GPU. It draw 
-a (convex) polygon of any size (from 3 to 16 vertexes). It can do many 
-different renderings&nbsp;:
-</p><ul>
-	<li>flat rendering,</li>
-	<li>rendering with luminosity, with true or linear perspective,</li>
-	<li>textured rendering, with true or linear perspective,</li>
-	<li>textured rendering with luminosity, with true or linear 
-perspective,</li>
-	<li>keyed rendering (that is textured with a special color value meaning to 
-skip output of the pixel), with or without luminosity, with true or linear 
-perspective,</li>
-	<li>smooth rendering (color interpolation) with true or linear 
-perspective,</li>
-</ul><p>
-	all this with or without depth-tests, with optional blending. Also, two 
-flags can mask the writing of pixel or depth values (all these &quot;with or 
-without&quot; made a code generator mandatory). Also, a <i>cull_mode</i> 
-parameter sets the culling mode for the facet. All this made this command 4 
-words long, thanks to C bit fields. This command must be followed by as many 
+a (convex) polygon of any size (from 3 to 16 vertexes). It first perform 
+culling, then projection and drawing. The type of rendering is controlled by 
+the separate <b>gpuMODE</b> command. This command must be followed by as many 
 <i>gpuCmdVector</i> as defined in the facet's <i>size</i>.
-</p><p>
-	Note that keyed rendering is an unknown feature for OpenGL. Instead, OpenGL 
-can use an alpha component in the texture, which is far more expensive.  
-Textures defined with an alpha channel are transformed by the OpenGL layer to 
-keyed textures&nbsp;: when alpha channel is below an arbitrary limit (which is 
-5/256), we replace the texel color by a key color are mark the texture as 
-requiring a key test. Also, the GPU only supports constant blending, that is 
-to use a constant blending ratio for all polygon, when OpenGL requires a 
-dedicated component for alpha value. Anyway, using key color in conjunction 
-with constant blending proved enough for Egoboo, wich is not that bad. Adding 
-a dedicated alpha value could be done, though, and probably will in a near 
-future&nbsp;: it will not cost much CPU cycles, and will considerably simplify 
-OpenGL layer code.
 </p><p>
 	Not really a command by itself, the <i>gpuCmdVector</i> structure needs a 
 proper explanation. The first field of this structure, <i>same_as</i>, can be 
@@ -567,9 +539,37 @@ buffer. The rectangle position is given in pixels coordinates relative to
 buffer or to the clipping window. Notice that this is performed with regular 
 <i>memset</i>, not using GP2X's fancy blitter.
 </p><p>
-	<b>gpuZMODE</b> sets the depth test mode. All OpenGL operators are 
-available, plus the special <i>gpu_z_off</i> which disable depth test (and is 
-the default).
+	<b>gpuMODE</b> sets the rendering mode. The supported rendering 
+follows&nbsp;:
+</p><ul>
+	<li>flat rendering,</li>
+	<li>rendering with luminosity, with true or linear perspective,</li>
+	<li>textured rendering, with true or linear perspective,</li>
+	<li>textured rendering with luminosity, with true or linear 
+perspective,</li>
+	<li>keyed rendering (that is textured with a special color value meaning to 
+skip output of the pixel), with or without luminosity, with true or linear 
+perspective,</li>
+	<li>smooth rendering (color interpolation) with true or linear 
+perspective,</li>
+</ul><p>
+	all this with or without depth-tests, and with optional blending.  All 
+OpenGL depth-test operators are available, plus the special <i>gpu_z_off</i> 
+which disable depth test (and is the default).  Also, two flags can mask the 
+writing of pixel or depth values (all these &quot;with or without&quot; made a 
+code generator mandatory). All these parameters form the JIT cache key : this 
+is best to avoid changing these rendering parameters too often so that the 
+JIT cache is valid as long as possible.
+</p><p>
+	Note that keyed rendering is an unknown feature for OpenGL. Instead, OpenGL 
+can use an alpha component in the texture, which is far more expensive.  
+Textures defined with an alpha channel are transformed by the OpenGL layer to 
+keyed textures&nbsp;: when alpha channel is below an arbitrary limit (which is 
+5/256), we replace the texel color by a key color and mark the texture as 
+requiring a key test. Also, the GPU only supports constant blending, that is 
+to use a constant blending ratio for all polygon, while OpenGL requires a 
+dedicated component for alpha value. Anyway, using key color in conjunction 
+with constant blending proved enough for Egoboo, wich is not that bad.
 </p><p>
 	The last command is <b>gpuDBG</b>, which enable or disable (default) the 
 OSD debugging console. The debugging console displays various performance 
