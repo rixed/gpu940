@@ -74,17 +74,25 @@ int main(void) {
 		{ .same_as = 0, .u = { .text = { .i=16<<16, .u=255<<16, .v=255<<16, .zb=0 }, }, },
 		{ .same_as = 0, .u = { .text = { .i=32<<16, .u=0, .v=255<<16, .zb=0 }, }, },
 	};
+	gpuCmdMode mode = {
+		.opcode = gpuMODE,
+		.mode = {
+			.named = {
+				.rendering_type = rendering_text,
+				.z_mode = gpu_z_off,
+				.use_key = 0,
+				.use_intens = 0,
+				.perspective = 1,
+				.blend_coef = 0,
+				.write_out = 1,
+				.write_z = 0,
+			},
+		},
+	};
 	gpuCmdFacet facet = {
 		.opcode = gpuFACET,
 		.size = sizeof_array(vectors),
 		.color = gpuColor(20, 30, 180),
-		.rendering_type = rendering_text,
-		.use_intens = 0,
-		.perspective = 1,
-		.use_key = 0,
-		.blend_coef = 0,
-		.write_out = 1,
-		.write_z = 0,
 		.cull_mode = 0,//GPU_CCW,
 	};
 	gpuCmdRect clear_rect = {
@@ -98,7 +106,8 @@ int main(void) {
 	};
 	struct iovec cmdvec[] = {
 		{ .iov_base = &clear_rect, .iov_len = sizeof(clear_rect) },
-		{ .iov_base = &facet, .iov_len = sizeof(facet) },	// textured facet
+		{ .iov_base = &mode, .iov_len = sizeof(mode) },
+		{ .iov_base = &facet, .iov_len = sizeof(facet) },
 		{ .iov_base = vectors+0, .iov_len = sizeof(*vectors) },
 		{ .iov_base = vectors+1, .iov_len = sizeof(*vectors) },
 		{ .iov_base = vectors+2, .iov_len = sizeof(*vectors) },

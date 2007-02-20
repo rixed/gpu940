@@ -203,18 +203,25 @@ static FixVec cube_vec[8] = {
 	{ .c = { -LEN<<16, -LEN<<16, -LEN<<16 }, .xy = LEN2<<16 },
 };
 static int32_t c3d[8][3];
+static gpuCmdMode cube_cmdMode = {
+	.opcode = gpuMODE,
+	.mode = {
+		.named = {
+			.rendering_type = rendering_text,
+			.use_key = 0,
+			.use_intens = 1,
+			.blend_coef = 0,
+			.perspective = 1,
+			.write_out = 1,
+			.write_z = 0,
+		},
+	},
+};
 static gpuCmdFacet cube_cmdFacet = {
 	.opcode = gpuFACET,
 	.size = 4,
 	.color = 0xF08080,
-	.rendering_type = rendering_text,
-	.use_key = 0,
-	.use_intens = 1,
-	.blend_coef = 0,
-	.perspective = 1,
 	.cull_mode = 0,
-	.write_out = 1,
-	.write_z = 0,
 };
 static unsigned cube_facet[6][4] = {
 	{ 0, 4, 5, 1 },
@@ -258,14 +265,14 @@ static int32_t uvs[6][4][2] = {
 		{   0<<16,   0<<16 }
 	}, {	// facet 4
 		{   0<<16, 512<<16 },
-		{ 512<<16, 512<<16 },
-		{ 512<<16,   0<<16 },
-		{   0<<16,   0<<16 }
+			{ 512<<16, 512<<16 },
+			{ 512<<16,   0<<16 },
+			{   0<<16,   0<<16 }
 	}, {	// facet 5
 		{   0<<16, 256<<16 },
-		{ 256<<16, 256<<16 },
-		{ 256<<16,   0<<16 },
-		{   0<<16,   0<<16 }
+			{ 256<<16, 256<<16 },
+			{ 256<<16,   0<<16 },
+			{   0<<16,   0<<16 }
 	}
 };
 static int facet_intens[6] = { 1,1,1,1,1,1 };
@@ -293,8 +300,9 @@ static void draw_facet(unsigned f, bool ext, int32_t i_dec) {
 	if (gpuOK != gpuSetBuf(gpuTxtBuffer, facet_text[f], true)) {
 		assert(0);
 	}
-	cube_cmdFacet.use_intens = facet_intens[f];
-	static struct iovec cmdvec[4+1] = {
+	cube_cmdMode.mode.named.use_intens = facet_intens[f];
+	static struct iovec cmdvec[] = {
+		{ .iov_base = &cube_cmdMode, .iov_len = sizeof(cube_cmdMode) },
 		{ .iov_base = &cube_cmdFacet, .iov_len = sizeof(cube_cmdFacet) },
 		{ .iov_base = cmdVec+0, .iov_len = sizeof(*cmdVec) },
 		{ .iov_base = cmdVec+1, .iov_len = sizeof(*cmdVec) },
@@ -727,16 +735,23 @@ static void locate_pic(FixVec *pic_vec, int32_t ang1, int32_t ang2) {
 
 enum draw_what { PIC, SHADOWS };
 static void transf_draw_pic(struct gpuBuf *pic_txt, FixVec *pic_vec, enum draw_what draw_what) {
+	static gpuCmdMode pic_mode = {
+		.opcode = gpuMODE,
+		.mode = {
+			.named = {
+				.rendering_type = rendering_text,
+				.use_key = 1,
+				.use_intens = 0,
+				.blend_coef = 0,
+				.write_out = 1,
+				.write_z = 0,
+			},
+		},
+	};
 	static gpuCmdFacet pic_facet = {
 		.opcode = gpuFACET,
 		.size = 4,
-		.rendering_type = rendering_text,
-		.use_key = 1,
-		.use_intens = 0,
-		.blend_coef = 0,
 		.cull_mode = 0,
-		.write_out = 1,
-		.write_z = 0,
 	};
 	pic_facet.color = gpuColor(0, 0, 255);	// key color of the texture
 	static gpuCmdVector vecs[4] = {
@@ -745,7 +760,8 @@ static void transf_draw_pic(struct gpuBuf *pic_txt, FixVec *pic_vec, enum draw_w
 		{ .same_as = 0, .u = { .text = { .u = 255<<16, .v = 255<<16 } }, },
 		{ .same_as = 0, .u = { .text = { .u =   0<<16, .v = 255<<16 } }, }
 	};
-	static struct iovec cmdvec[4+1] = {
+	static struct iovec cmdvec[] = {
+		{ .iov_base = &pic_mode, .iov_len = sizeof(pic_mode) },
 		{ .iov_base = &pic_facet, .iov_len = sizeof(pic_facet) },
 		{ .iov_base = vecs+0, .iov_len = sizeof(*vecs) },
 		{ .iov_base = vecs+1, .iov_len = sizeof(*vecs) },
@@ -756,18 +772,18 @@ static void transf_draw_pic(struct gpuBuf *pic_txt, FixVec *pic_vec, enum draw_w
 		assert(0);
 	}
 	if (draw_what == PIC) {	// Simply rotate and draw
-		pic_facet.perspective = 1;
-		pic_facet.blend_coef = 0;
+		pic_mode.mode.named.perspective = 1;
+		pic_mode.mode.named.blend_coef = 0;
 		for (unsigned v=4; v--; ) {
-		//	FixMat_x_Vec(vecs[v].geom.c3d, &camera.transf, pic_vec+v, true);
+			//	FixMat_x_Vec(vecs[v].geom.c3d, &camera.transf, pic_vec+v, true);
 			for (unsigned c=0; c<3; c++)
 				vecs[v].u.geom.c3d[c] = pic_vec[v].c[c];
 		}
 		gpuErr err = gpuWritev(cmdvec, sizeof_array(cmdvec), true); (void)err;
 		assert(gpuOK == err);
 	} else {	// SHADOWS
-		pic_facet.blend_coef = 8;
-		pic_facet.perspective = 0;
+		pic_mode.mode.named.blend_coef = 8;
+		pic_mode.mode.named.perspective = 0;
 		int32_t L[3] = {
 			camera.pos[0] - camera.transf.rot[0][2] + camera.transf.rot[0][1],
 			camera.pos[1] - camera.transf.rot[1][2] + camera.transf.rot[1][1],
@@ -837,7 +853,7 @@ static void scene2(void) {
 	int32_t ang1 = 2000;
 	int32_t ang2 = 0;
 	set_dproj(7);
-	cube_cmdFacet.perspective = 0;
+	cube_cmdMode.mode.named.perspective = 0;
 	do {
 		// build a new texture
 		struct gpuBuf *text;

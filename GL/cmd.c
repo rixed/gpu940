@@ -24,9 +24,16 @@
  */
 
 static enum gli_DrawMode mode;
+static gpuCmdMode cmdMode = {
+	.opcode = gpuMODE,
+	.mode = {
+		.named = {
+			.perspective = 0,
+		},
+	},
+};
 static gpuCmdFacet cmdFacet = {
 	.opcode = gpuFACET,
-	.perspective = 0,
 };
 static gpuCmdPoint cmdPoint = {
 	.opcode = gpuPOINT,
@@ -166,13 +173,8 @@ static void set_current_texture(struct gli_texture_object *to)
 	}
 }
 
-// Send a ZMode command if needed
-static void set_depth_mode(void)
+static gpuZMode get_depth_mode(void)
 {
-	static gpuCmdZMode cmd = {
-		.opcode = gpuZMODE,
-		.mode = gpu_z_off,
-	};
 	gpuZMode needed = gpu_z_off;
 	if (depth_test()) {
 		switch (gli_depth_func) {
@@ -200,11 +202,7 @@ static void set_depth_mode(void)
 				break;
 		}
 	}
-	if (needed != cmd.mode) {
-		cmd.mode = needed;
-		gpuErr const err = gpuWrite(&cmd, sizeof(cmd), true);
-		assert(gpuOK == err); (void)err;
-	}
+	return needed;
 }
 
 static void facet_complete(unsigned size, bool facet_is_inverted, unsigned colorer)
@@ -218,16 +216,16 @@ static void facet_complete(unsigned size, bool facet_is_inverted, unsigned color
 	if (! gli_must_render_face(GL_BACK)) cmdFacet.cull_mode |= 2>>(!front_is_cw);
 	if (cmdFacet.cull_mode == 3) return;
 	cmdFacet.size = size;
-	cmdFacet.use_intens = 0;
-	cmdFacet.use_key = 0;
+	cmdMode.mode.named.use_intens = 0;
+	cmdMode.mode.named.use_key = 0;
 	GLfixed alpha = gli_current_color[3];
 	// Set facet rendering type and color if needed
 	if (gli_texturing()) {
 		struct gli_texture_object *to = gli_get_texture_object();
 		set_current_texture(to);
-		cmdFacet.rendering_type = rendering_text;
+		cmdMode.mode.named.rendering_type = rendering_text;
 		if (to->need_key) {
-			cmdFacet.use_key = 1;
+			cmdMode.mode.named.use_key = 1;
 			cmdFacet.color = gpuColor(KEY_RED, KEY_GREEN, KEY_BLUE);
 		}
 		if (to->have_mean_alpha) {
@@ -237,7 +235,7 @@ static void facet_complete(unsigned size, bool facet_is_inverted, unsigned color
 		if (! gli_smooth()) {	// copy colorer intens
 			int32_t const colorer_i = cmdVec[colorer].u.text.i;
 			if (Fix_abs(colorer_i) > ALMOST_0) {
-				cmdFacet.use_intens = 1;
+				cmdMode.mode.named.use_intens = 1;
 				for (unsigned v=size; v--; ) {
 					cmdVec[v].u.text.i = colorer_i;
 				}
@@ -245,29 +243,36 @@ static void facet_complete(unsigned size, bool facet_is_inverted, unsigned color
 		} else {
 			for (unsigned v=size; v--; ) {
 				if (Fix_abs(cmdVec[v].u.text.i) > ALMOST_0) {
-					cmdFacet.use_intens = 1;
+					cmdMode.mode.named.use_intens = 1;
 					break;
 				}
 			}
 		}
 	} else if (gli_smooth()) {
-		cmdFacet.rendering_type = rendering_smooth;
+		cmdMode.mode.named.rendering_type = rendering_smooth;
 	} else {	// flat
 		cmdFacet.color = gpuColor_comp2uint(&cmdVec[colorer].u.smooth.r);
-		cmdFacet.rendering_type = rendering_flat;
+		cmdMode.mode.named.rendering_type = rendering_flat;
 	}
 	// Use blending ?
 	if (gli_enabled(GL_BLEND) && alpha < 0xF000) {
-		cmdFacet.blend_coef = 0xF - (alpha>>12);
+		cmdMode.mode.named.blend_coef = 0xF - (alpha>>12);
 	} else {
-		cmdFacet.blend_coef = 0;
+		cmdMode.mode.named.blend_coef = 0;
 	}
 	// Optionnaly ask for z-buffer
-	set_depth_mode();
-	cmdFacet.write_out = gli_color_mask_all && (!depth_test() || gli_depth_func != GL_NEVER);
-	cmdFacet.write_z = depth_test() && gli_depth_mask;
+	cmdMode.mode.named.z_mode = get_depth_mode();
+	cmdMode.mode.named.write_out = gli_color_mask_all && (!depth_test() || gli_depth_func != GL_NEVER);
+	cmdMode.mode.named.write_z = depth_test() && gli_depth_mask;
 	// Send to GPU
-	gpuErr const err = gpuWritev(iov_poly, 1+size, true);
+	static uint32_t prev_rendering_flags = ~0;
+	gpuErr err;
+	if (cmdMode.mode.flags != prev_rendering_flags) {
+		err = gpuWrite(&cmdMode, sizeof(cmdMode), true);
+		assert(gpuOK == err); (void)err;
+		prev_rendering_flags = cmdMode.mode.flags;
+	}
+	err = gpuWritev(iov_poly, 1+size, true);
 	assert(gpuOK == err); (void)err;
 }
 

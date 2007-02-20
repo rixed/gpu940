@@ -139,29 +139,37 @@ static gpuCmdVector vectors[sizeof_array(vec3d)] = {
 };
 
 static void send_facet(unsigned v0) {
+	static gpuCmdMode mode = {
+		.opcode = gpuMODE,
+		.mode = {
+			.named = {
+				.rendering_type = rendering_text,
+				.use_key = 0,
+				.use_intens = 1,
+				.blend_coef = 0,
+				.perspective = 1,
+				.write_out = 1,
+				.write_z = 0,
+			},
+		},
+	};
 	static gpuCmdFacet facet = {
 		.opcode = gpuFACET,
 		.size = 4,
-		.rendering_type = rendering_text,
-		.use_key = 0,
-		.use_intens = 1,
-		.blend_coef = 0,
-		.perspective = 1,
 		.cull_mode = 0,
-		.write_out = 1,
-		.write_z = 0,
 	};
-	static struct iovec cmdvec[4+1] = {
+	static struct iovec cmdvec[] = {
+		{ .iov_base = &mode, .iov_len = sizeof(mode) },
 		{ .iov_base = &facet, .iov_len = sizeof(facet) },
 		{ .iov_len = sizeof(*vectors) },
 		{ .iov_len = sizeof(*vectors) },
 		{ .iov_len = sizeof(*vectors) },
 		{ .iov_len = sizeof(*vectors) },
 	};
-	cmdvec[1].iov_base = vectors+v0+0;
-	cmdvec[2].iov_base = vectors+v0+1;
-	cmdvec[3].iov_base = vectors+v0+2;
-	cmdvec[4].iov_base = vectors+v0+3;
+	cmdvec[2].iov_base = vectors+v0+0;
+	cmdvec[3].iov_base = vectors+v0+1;
+	cmdvec[4].iov_base = vectors+v0+2;
+	cmdvec[5].iov_base = vectors+v0+3;
 	gpuErr err = gpuWritev(cmdvec, sizeof_array(cmdvec), true);
 	assert(gpuOK == err); (void)err;
 }

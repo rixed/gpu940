@@ -55,118 +55,92 @@ static bool zpass(int32_t z, gpuZMode z_mode, int32_t zb)
 void raster_gen(void)
 {
 	// 'Registers'
-	uint32_t *restrict w = ctx.line.w;	// at most 4 registers (2 if not perspective)
+	uint32_t *restrict w = ctx.line.w;
 	int32_t decliv = ctx.line.decliv;
-	int32_t u,v,r,g,b,i,di,z,dz;	// at most 8 registers (7 if perspective)
-	switch (ctx.poly.cmd->rendering_type) {
-		case rendering_text:
-			u = ctx.line.param[0];
-			v = ctx.line.param[1];
-			// pass
-		case rendering_flat:
-			i = ctx.line.param[2];
-			di = ctx.line.dparam[2];
-			break;
-		case rendering_smooth:
-			r = ctx.line.param[0];
-			g = ctx.line.param[1];
-			b = ctx.line.param[2];
-			break;
+	int32_t param[GPU_NB_PARAMS];	// (u,v,i)|(r,g,b),z;
+	for (unsigned i=sizeof_array(param); i--; ) {
+		param[i] = ctx.line.param[i];
 	}
-	z = ctx.line.param[3];
-	dz = ctx.line.dparam[3];
 	int count = ctx.line.count;
 	do {
 		uint32_t *w_;
-		if (ctx.poly.cmd->perspective) {
+		if (ctx.rendering.mode.named.perspective) {
 			w_ = w + ((decliv>>16)<<ctx.poly.nc_log);	
 		} else {
 			w_ = w;
 		}
 		// ZBuffer
-		if (ctx.rendering.z_mode != gpu_z_off) {
-			int32_t zb = *(w_ + ctx.code.out2zb);
-			if (! zpass(z, ctx.rendering.z_mode, zb)) goto next_pixel;
+		if (ctx.rendering.mode.named.z_mode != gpu_z_off) {
+			int32_t const zb = *(w_ + ctx.code.out2zb);
+			if (! zpass(param[3], ctx.rendering.mode.named.z_mode, zb)) goto next_pixel;
 		}
 		// Peek color
 		uint32_t color;
-		switch ((enum gpuRenderingType)ctx.poly.cmd->rendering_type) {
+		switch (ctx.rendering.mode.named.rendering_type) {
 			case rendering_flat:
 				color = ctx.poly.cmd->color;
 				break;
 			case rendering_text:
-				color = texture_color(&ctx.location.buffer_loc[gpuTxtBuffer], u, v);
-				if (ctx.poly.cmd->use_key) {
+				color = texture_color(&ctx.location.buffer_loc[gpuTxtBuffer], param[0], param[1]);
+				if (ctx.rendering.mode.named.use_key) {
 					if (color == ctx.poly.cmd->color) goto next_pixel;
 				}
 				break;
 			case rendering_smooth:
 				color =
 #				ifdef GP2X
-					((b&0xFF00)<<16)|((r&0xFF00)<<8)|(g&0xFF00)|((r&0xFF00)>>8);
+					((param[2]&0xFF00)<<16)|((param[0]&0xFF00)<<8)|(param[1]&0xFF00)|((param[0]&0xFF00)>>8);
 #				else
-					((r&0xFF00)<<8)|(g&0xFF00)|((b&0xFF00)>>8);
+					((param[0]&0xFF00)<<8)|(param[1]&0xFF00)|((param[2]&0xFF00)>>8);
 #				endif
 				break;
+			default:
+				assert(0);
 		}
 		// Intens
-		if (ctx.poly.cmd->use_intens) {
+		if (ctx.rendering.mode.named.use_intens) {
 #		ifdef GP2X	// gp2x uses YUV
 			int y = color&0xff;
-			y += (i>>22);
+			y += (param[2]>>22);
 			SAT8(y);
 			color = (color&0xff00ff00) | (y<<16) | y;
 #		else
-			int r = (color>>16)+(i>>16);
-			int g = ((color>>8)&255)+(i>>16);
-			int b = (color&255)+(i>>16);
+			int r = (color>>16)+(param[2]>>16);
+			int g = ((color>>8)&255)+(param[2]>>16);
+			int b = (color&255)+(param[2]>>16);
 			SAT8(r);
 			SAT8(g);
 			SAT8(b);
 			color = (r<<16)|(g<<8)|b;
 #		endif
-			i += di;
 		}
 		// Blend
-		if (ctx.poly.cmd->blend_coef) {
+		if (ctx.rendering.mode.named.blend_coef) {
 			uint32_t previous = *w_;
-			uint32_t p = (previous&0x00ff00ff)>>(ctx.poly.cmd->blend_coef<=8 ? 8-ctx.poly.cmd->blend_coef : 0);
-			uint32_t c = (color&0x00ff00ff)>>(ctx.poly.cmd->blend_coef>8 ? ctx.poly.cmd->blend_coef-8 : 0);
+			uint32_t p = (previous&0x00ff00ff)>>(ctx.rendering.mode.named.blend_coef<=8 ? 8-ctx.rendering.mode.named.blend_coef : 0);
+			uint32_t c = (color&0x00ff00ff)>>(ctx.rendering.mode.named.blend_coef>8 ? ctx.rendering.mode.named.blend_coef-8 : 0);
 			uint32_t merge = ((p>>1) + (c>>1)) & 0x00ff00ff;
-			p = (previous&0xff00ff00)>>(ctx.poly.cmd->blend_coef<=8 ? 8-ctx.poly.cmd->blend_coef : 0);
-			c = (color&0xff00ff00)>>(ctx.poly.cmd->blend_coef>8 ? ctx.poly.cmd->blend_coef-8 : 0);
+			p = (previous&0xff00ff00)>>(ctx.rendering.mode.named.blend_coef<=8 ? 8-ctx.rendering.mode.named.blend_coef : 0);
+			c = (color&0xff00ff00)>>(ctx.rendering.mode.named.blend_coef>8 ? ctx.rendering.mode.named.blend_coef-8 : 0);
 			color = merge | (((p>>1) + (c>>1)) & 0xff00ff00);
 		}
 		// Poke
-		if (ctx.poly.cmd->write_out) {
+		if (ctx.rendering.mode.named.write_out) {
 			*w_ = color;
 		}
-		if (ctx.poly.cmd->write_z) {
-			*(w_ + ctx.code.out2zb) = z;
+		if (ctx.rendering.mode.named.write_z) {
+			*(w_ + ctx.code.out2zb) = param[3];
 		}
 		// Next pixel
 next_pixel:
-		switch ((enum gpuRenderingType)ctx.poly.cmd->rendering_type) {
-			case rendering_flat:
-				break;
-			case rendering_text:
-				u += ctx.line.dparam[0];
-				v += ctx.line.dparam[1];
-				break;
-			case rendering_smooth:
-				r += ctx.line.dparam[0];
-				g += ctx.line.dparam[1];
-				b += ctx.line.dparam[2];
-				break;
+		for (unsigned i=sizeof_array(param); i--; ) {
+			param[i] += ctx.line.dparam[i];
 		}
-		if (ctx.poly.cmd->perspective) {
+		if (ctx.rendering.mode.named.perspective) {
 			w += ctx.line.dw;
 			decliv += ctx.poly.decliveness;
 		} else {
 			w ++;
-			if (ctx.rendering.z_mode != gpu_z_off || ctx.poly.cmd->write_z) {
-				z += dz;
-			}
 		}
 	} while (--count >= 0);
 }

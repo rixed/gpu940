@@ -56,7 +56,8 @@ typedef struct gpuVector {
 extern struct ctx {
 	// global rendering parameters
 	struct {
-		gpuZMode z_mode;
+		gpuMode mode;
+		struct jit_cache *rasterizer;
 	} rendering;
 	// View parameters
 	struct {
@@ -107,7 +108,6 @@ extern struct ctx {
 		int32_t z_alpha;
 		int64_t z_num, z_den;	// 32.32
 		int32_t z_dden, z_dnum;	// 16.16
-		struct jit_cache *rasterizer;
 	} poly;
 	// Current line
 	struct {
@@ -126,7 +126,7 @@ extern struct ctx {
 		uint32_t sp_save;
 #		define NB_CODE_CACHE 5
 		struct jit_cache {
-			// TODO: make the bu smaller, but allow a code to span severall bufs
+			// TODO: make the buf smaller, but allow a code to span severall bufs
 #			define MAX_CODE_SIZE 102
 			uint32_t buf[MAX_CODE_SIZE];
 			uint32_t use_count;

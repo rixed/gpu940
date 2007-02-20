@@ -226,7 +226,14 @@ static void ctx_reset(void) {
 	ctx.view.winWidth = ctx.view.clipMax[0] - ctx.view.clipMin[0];
 	ctx.view.winHeight = ctx.view.clipMax[1] - ctx.view.clipMin[1];
 	ctx.view.dproj = GPU_DEFAULT_DPROJ;
-	ctx.rendering.z_mode = gpu_z_off;
+	ctx.rendering.mode.named.z_mode = gpu_z_off;
+	ctx.rendering.mode.named.rendering_type = rendering_flat;
+	ctx.rendering.mode.named.use_key = 0;
+	ctx.rendering.mode.named.use_intens = 0;
+	ctx.rendering.mode.named.perspective = 1;	// so that we don't have to prepare a JIT
+	ctx.rendering.mode.named.blend_coef = 0;
+	ctx.rendering.mode.named.write_out = 1;
+	ctx.rendering.mode.named.write_z = 1;
 	reset_clipPlanes();
 	ctx.view.nb_clipPlanes = 5;
 	ctx_code_reset();
@@ -305,6 +312,15 @@ static void video_reset(void) {
 #endif
 }
 
+static void reset_prepared_jit(void)
+{
+#	if defined(GP2X) || defined(TEST_RASTERIZER)
+	if (! ctx.rendering.mode.named.perspective) {
+		ctx.rendering.rasterizer = jit_prepare_rasterizer();
+	}
+#	endif
+}
+
 /*
  * Command processing
  */
@@ -351,6 +367,7 @@ static void do_setBuf(void)
 			goto dsb_quit;
 		}
 		ctx.location.txt_mask = (1<<ctx.location.buffer_loc[gpuTxtBuffer].width_log)-1;
+		reset_prepared_jit();
 	} else if (setBuf->type == gpuOutBuffer) {
 		ctx.location.out_start = location_winPos(gpuOutBuffer, 0, 0);
 	}
@@ -405,7 +422,7 @@ static void do_facet(void)
 	}
 	if (clip_poly() && cull_poly()) {
 		ctx.code.color = ctx.poly.cmd->color;
-		if (ctx.poly.cmd->perspective) draw_poly_persp();
+		if (ctx.rendering.mode.named.perspective) draw_poly_persp();
 		else draw_poly_nopersp();
 	}
 df_quit:
@@ -427,11 +444,12 @@ static void do_rect(void)
 	next_cmd(sizeof(*rect));
 	perftime_enter(previous_target, NULL);
 }
-static void do_zmode(void)
+static void do_mode(void)
 {
-	gpuCmdZMode const *const z_mode = (gpuCmdZMode *)get_cmd();
-	ctx.rendering.z_mode = z_mode->mode;
-	next_cmd(sizeof(*z_mode));
+	gpuCmdMode const *const mode = (gpuCmdMode *)get_cmd();
+	ctx.rendering.mode.flags = mode->mode.flags;
+	next_cmd(sizeof(*mode));
+	reset_prepared_jit();
 }
 static void do_dbg(void)
 {
@@ -495,8 +513,8 @@ static void fetch_command(void)
 		case gpuRECT:
 			do_rect();
 			break;
-		case gpuZMODE:
-			do_zmode();
+		case gpuMODE:
+			do_mode();
 			break;
 		case gpuDBG:
 			do_dbg();

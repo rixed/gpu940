@@ -246,9 +246,9 @@ void draw_poly_persp(void) {
 	ctx.poly.z_alpha = 0;
 	ctx.poly.nc_declived = c_vec->nc_declived;
 	ctx.trap.side[0].start_v = ctx.trap.side[0].end_v = ctx.trap.side[1].start_v = ctx.trap.side[1].end_v = c_vec;
-	// Now that all is initialized, build rasterized
+	// Now that nc_log is known, prepare the rasterizer
 #	if defined(GP2X) || defined(TEST_RASTERIZER)
-	ctx.poly.rasterizer = jit_prepare_rasterizer();
+	ctx.rendering.rasterizer = jit_prepare_rasterizer();
 #	endif
 	// cut into trapezes
 #	define DNC_MIN 0x800

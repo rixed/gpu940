@@ -97,7 +97,7 @@ typedef enum {
 	gpuLINE,
 	gpuFACET,
 	gpuRECT,
-	gpuZMODE,
+	gpuMODE,
 	gpuDBG,
 } gpuOpcode;
 
@@ -146,25 +146,13 @@ typedef struct {
 	struct buffer_loc loc;
 } gpuCmdShowBuf;
 
-enum gpuRenderingType {
-	rendering_flat,	// use facet color for flat rendering. can use intens.
-	rendering_text,	// use u,v for textured rendering. can use intens.
-	rendering_smooth,	// use vectors r,g,b and interpolate. no intens then !
-};
 typedef struct {
 	gpuOpcode opcode;
 	uint32_t size;	// >=3
 	uint32_t color;	// used for flat rendering or keyed textures
-	uint32_t rendering_type:2;
-	uint32_t use_key:1;
-	uint32_t use_intens:1;
-	uint32_t perspective:1;
-	uint32_t blend_coef:4;	// if 0, opaque. If 15, much blend (16 would mean keep current value)
 #	define GPU_CW 1
 #	define GPU_CCW 2
 	uint32_t cull_mode:2;	// bit 0 for direct (counter clock-wise), bit 1 for indirect (clock-wise)
-	uint32_t write_out:1;
-	uint32_t write_z:1;
 } gpuCmdFacet;
 
 typedef struct {
@@ -200,10 +188,28 @@ typedef struct {
 } gpuCmdRect;
 
 typedef enum { gpu_z_off, gpu_z_lt, gpu_z_eq, gpu_z_ne, gpu_z_lte, gpu_z_gt, gpu_z_gte } gpuZMode;
+typedef enum {
+	rendering_flat,	// use facet color for flat rendering. can use intens.
+	rendering_text,	// use u,v for textured rendering. can use intens.
+	rendering_smooth,	// use vectors r,g,b and interpolate. no intens then !
+} gpuRenderingType;
+typedef union {
+	struct {
+		gpuRenderingType rendering_type:2;
+		gpuZMode z_mode:3;
+		uint32_t use_key:1;
+		uint32_t use_intens:1;
+		uint32_t perspective:1;
+		uint32_t blend_coef:4;	// if 0, opaque. If 15, much blend (16 would mean keep current value)
+		uint32_t write_out:1;
+		uint32_t write_z:1;
+	} named;
+	uint32_t flags;
+} gpuMode;
 typedef struct {
 	gpuOpcode opcode;
-	gpuZMode mode;
-} gpuCmdZMode;
+	gpuMode mode;
+} gpuCmdMode;
 
 typedef struct {
 	gpuOpcode opcode;

@@ -227,7 +227,7 @@ int clip_poly(void)
 			clipped |= ctx.points.vectors[v].clipped;
 		}
 #		ifdef GP2X
-		if (ctx.poly.cmd->use_intens) {
+		if (ctx.rendering.mode.named.use_intens) {
 			ctx.points.vectors[v].cmd->u.text.i *= 55;
 		}
 #		endif

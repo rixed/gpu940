@@ -294,21 +294,21 @@ struct patches {
 
 static bool may_skip_peek(void)
 {
-	return ctx.rendering.z_mode != gpu_z_off;
+	return ctx.rendering.mode.named.z_mode != gpu_z_off;
 }
 
 static bool may_skip_poke(void)
 {
-	return may_skip_peek() || ctx.poly.cmd->use_key;
+	return may_skip_peek() || ctx.rendering.mode.named.use_key;
 }
 
 static bool may_have_multi_pixels_per_loop(void)
 {
 	return
-		! ctx.poly.cmd->perspective && // because we do not write in scanlines then
+		! ctx.rendering.mode.named.perspective && // because we do not write in scanlines then
 		! may_skip_peek() &&	// because there may be holes
 		! may_skip_poke() &&	// same
-		! ctx.poly.cmd->blend_coef;	// because it would be too hard
+		! ctx.rendering.mode.named.blend_coef;	// because it would be too hard
 }
 
 static void add_patch(enum patch_type type, enum patch_target target)
@@ -421,7 +421,7 @@ static unsigned load_constp(unsigned v, int rtmp)
 static uint32_t z_mode_cond(void)
 {
 	// we want to branch when the test _fails_
-	switch (ctx.rendering.z_mode) {
+	switch (ctx.rendering.mode.named.z_mode) {
 		case gpu_z_gte:
 			return 11<<28;
 		case gpu_z_ne:
@@ -661,7 +661,7 @@ static void poke_z_persp(void)
 
 static void poke_nopersp(void)
 {
-	if (!ctx.poly.cmd->use_key && ctx.rendering.z_mode == gpu_z_off) {
+	if (!ctx.rendering.mode.named.use_key && ctx.rendering.mode.named.z_mode == gpu_z_off) {
 		// we increment VARP_W on the go, so that we have nothing left for NEXT_NOPERSP
 		if (in_bh || nb_pixels_per_loop == 1) {
 			// 1110 0100 1000 varW rcol 0000 0000 0100 ie "str rcol, [rW], #0x4"
@@ -705,21 +705,21 @@ static void write_combine(void)	// come here with previous color in r0
 	*gen_dst++ = 0xe0000400 | (vars[VARP_OUTCOLOR].rnum<<16) | (vars[VARP_OUTCOLOR].rnum<<12) | tmp3;
 	// 1110 0000 0000 rcol rcol 0100 0000 tmp3 ie "and tmp1, tmp1, tmp3, lsl #8" ie tmp1 = tmp1 & 0xff00ff00
 	*gen_dst++ = 0xe0000400 | (tmp1<<16) | (tmp1<<12) | tmp3;
-	if (ctx.poly.cmd->blend_coef == 8) {
+	if (ctx.rendering.mode.named.blend_coef == 8) {
 		// 1110 0000 1000 tmp4 tmp2 0000 0000 tmp2 ie "add tmp2, tmp4, tmp2" tmp2 = tmp2 + tmp4	
 		*gen_dst++ = 0xe0800000 | (tmp4<<16) | (tmp2<<12) | tmp2;
 		// 1110 0000 1001 tmp1 rcol 0000 0000 rcol ie "adds rcol, tmp1, rcol" rcol = rcol + tmp1 (with carry for higher bit)
 		*gen_dst++ = 0xe0900000 | (tmp1<<16) | (vars[VARP_OUTCOLOR].rnum<<12) | vars[VARP_OUTCOLOR].rnum;
-	} else if (ctx.poly.cmd->blend_coef < 8) {
+	} else if (ctx.rendering.mode.named.blend_coef < 8) {
 		// 1110 0000 1000 tmp4 tmp2 shif t010 tmp2 ie "add tmp2, tmp4, tmp2, lsr #(8-blend)" tmp2 = tmp2>>(8-blend_coef) + tmp4	
-		*gen_dst++ = 0xe0800020 | (tmp4<<16) | (tmp2<<12) | ((8-ctx.poly.cmd->blend_coef)<<7) | tmp2;
+		*gen_dst++ = 0xe0800020 | (tmp4<<16) | (tmp2<<12) | ((8-ctx.rendering.mode.named.blend_coef)<<7) | tmp2;
 		// 1110 0000 1001 tmp1 rcol shif t010 rcol ie "adds rcol, tmp1, rcol, lsr #(8-blend)" rcol = rcol>>(8-blend_coef) + tmp1 (with carry for higher bit)
-		*gen_dst++ = 0xe0900020 | (tmp1<<16) | (vars[VARP_OUTCOLOR].rnum<<12) | ((8-ctx.poly.cmd->blend_coef)<<7) | vars[VARP_OUTCOLOR].rnum;
+		*gen_dst++ = 0xe0900020 | (tmp1<<16) | (vars[VARP_OUTCOLOR].rnum<<12) | ((8-ctx.rendering.mode.named.blend_coef)<<7) | vars[VARP_OUTCOLOR].rnum;
 	} else {
 		// 1110 0000 1000 tmp2 tmp2 shif t010 tmp4 ie "add tmp2, tmp2, tmp4, lsr #(blend-8)" tmp2 = tmp2 + tmp4>>(blend-8)
-		*gen_dst++ = 0xe0800020 | (tmp2<<16) | (tmp2<<12) | ((ctx.poly.cmd->blend_coef-8)<<7) | tmp4;
+		*gen_dst++ = 0xe0800020 | (tmp2<<16) | (tmp2<<12) | ((ctx.rendering.mode.named.blend_coef-8)<<7) | tmp4;
 		// 1110 0000 1001 rcol rcol shif t010 tmp1 ie "adds rcol, rcol, tmp1, lsr #(blend-8)" rcol = rcol + tmp1>>(blend-8) (with carry for higher bit)
-		*gen_dst++ = 0xe0900020 | (vars[VARP_OUTCOLOR].rnum<<16) | (vars[VARP_OUTCOLOR].rnum<<12) | ((ctx.poly.cmd->blend_coef-8)<<7) | tmp1;
+		*gen_dst++ = 0xe0900020 | (vars[VARP_OUTCOLOR].rnum<<16) | (vars[VARP_OUTCOLOR].rnum<<12) | ((ctx.rendering.mode.named.blend_coef-8)<<7) | tmp1;
 	}
 	// 1110 0000 0000 tmp3 tmp2 0000 1010 tmp2 ie "and tmp2, tmp3, tmp2, lsr #1"
 	*gen_dst++ = 0xe00000a0 | (tmp3<<16) | (tmp2<<12) | tmp2;
@@ -751,7 +751,7 @@ static void combine_nopersp(void)
 	// 1110 0101 1001 varW tmp1 0000 0000 0000 ie "ldr tmp1, [varW]
 	*gen_dst++ = 0xe5900000 | (vars[VARP_W].rnum<<16) | (tmp1<<12);
 	write_combine();
-	if (!ctx.poly.cmd->use_key && ctx.rendering.z_mode == gpu_z_off) {
+	if (!ctx.rendering.mode.named.use_key && ctx.rendering.mode.named.z_mode == gpu_z_off) {
 		// 1110 0100 1000 varW rcol 0000 0000 0100 ie "str rcol, [rW], #0x4"
 		*gen_dst++ = 0xe4800004 | (vars[VARP_W].rnum<<16) | (vars[VARP_OUTCOLOR].rnum<<12);
 	} else {
@@ -776,7 +776,7 @@ static void next_persp(void)
 static void next_nopersp(void)
 {
 	do_patch(next_pixel);
-	if (ctx.poly.cmd->use_key || ctx.rendering.z_mode != gpu_z_off) {	// we still have not incremented VARP_W
+	if (ctx.rendering.mode.named.use_key || ctx.rendering.mode.named.z_mode != gpu_z_off) {	// we still have not incremented VARP_W
 		assert(nb_pixels_per_loop = 1);
 		// 1110 0010 1000 varW varW 0000 0000 0100 ie "add varW, varW, #4"
 		*gen_dst++ = 0xe2800004 | (vars[VARP_W].rnum<<16) | (vars[VARP_W].rnum<<12);
@@ -822,55 +822,55 @@ static void next_smooth(void)	// we did not inc our params. Do it now.
 static void bloc_def_func(void (*cb)(unsigned))
 {	
 	if (
-		ctx.poly.cmd->rendering_type == rendering_flat &&
-		!ctx.poly.cmd->use_intens &&
-		ctx.poly.cmd->write_out
+		ctx.rendering.mode.named.rendering_type == rendering_flat &&
+		!ctx.rendering.mode.named.use_intens &&
+		ctx.rendering.mode.named.write_out
 	) {
 		cb(PRELOAD_FLAT);
 	}
 	cb(BEGIN_WRITE_LOOP);
 	cb(BEGIN_PIXEL_LOOP);
 	// ZBuffer
-	if (ctx.rendering.z_mode != gpu_z_off) {
-		if (ctx.poly.cmd->perspective) cb(ZBUFFER_PERSP);
+	if (ctx.rendering.mode.named.z_mode != gpu_z_off) {
+		if (ctx.rendering.mode.named.perspective) cb(ZBUFFER_PERSP);
 		else cb(ZBUFFER_NOPERSP);
 	}
 	// Peek color
-	switch (ctx.poly.cmd->rendering_type) {
+	switch (ctx.rendering.mode.named.rendering_type) {
 		case rendering_flat:
-			if (ctx.poly.cmd->write_out && ctx.poly.cmd->use_intens) cb(PEEK_FLAT);
+			if (ctx.rendering.mode.named.write_out && ctx.rendering.mode.named.use_intens) cb(PEEK_FLAT);
 			break;
 		case rendering_text:
-			if (ctx.poly.cmd->write_out || ctx.poly.cmd->use_key) {
+			if (ctx.rendering.mode.named.write_out || ctx.rendering.mode.named.use_key) {
 				if (may_skip_peek()) cb(PEEK_TEXT_COND);
 				else cb(PEEK_TEXT);
 			}
-			if (ctx.poly.cmd->use_key) cb(KEY_TEST);
+			if (ctx.rendering.mode.named.use_key) cb(KEY_TEST);
 			break;
 		case rendering_smooth:
-			if (ctx.poly.cmd->write_out) {
+			if (ctx.rendering.mode.named.write_out) {
 				if (may_skip_peek()) cb(PEEK_SMOOTH_COND);
 				else cb(PEEK_SMOOTH);
 			}
 			break;
 	}
 	// Intens
-	if (ctx.poly.cmd->use_intens && ctx.poly.cmd->write_out) cb(INTENS);
+	if (ctx.rendering.mode.named.use_intens && ctx.rendering.mode.named.write_out) cb(INTENS);
 	cb(END_PIXEL_LOOP);
 	// Poke
-	if (ctx.poly.cmd->write_z) {
-		if (ctx.poly.cmd->perspective) cb(POKE_Z_PERSP);
+	if (ctx.rendering.mode.named.write_z) {
+		if (ctx.rendering.mode.named.perspective) cb(POKE_Z_PERSP);
 		else cb(POKE_Z_NOPERSP);
 	}
-	if (ctx.poly.cmd->write_out) {
-		if (ctx.poly.cmd->perspective) {
-			if (ctx.poly.cmd->blend_coef) {
+	if (ctx.rendering.mode.named.write_out) {
+		if (ctx.rendering.mode.named.perspective) {
+			if (ctx.rendering.mode.named.blend_coef) {
 				cb(COMBINE_PERSP);
 			} else {
 				cb(POKE_OUT_PERSP);
 			}
 		} else {
-			if (ctx.poly.cmd->blend_coef) {
+			if (ctx.rendering.mode.named.blend_coef) {
 				cb(COMBINE_NOPERSP);
 			} else {
 				cb(POKE_OUT_NOPERSP);
@@ -878,22 +878,22 @@ static void bloc_def_func(void (*cb)(unsigned))
 		}
 	}
 	// Next pixel
-	if (ctx.poly.cmd->perspective) {
+	if (ctx.rendering.mode.named.perspective) {
 		cb(NEXT_PERSP);
 	} else {
 		cb(NEXT_NOPERSP);
-		if (ctx.rendering.z_mode != gpu_z_off || ctx.poly.cmd->write_z) {
+		if (ctx.rendering.mode.named.z_mode != gpu_z_off || ctx.rendering.mode.named.write_z) {
 			cb(NEXT_Z);
 		}
 	}
-	switch (ctx.poly.cmd->rendering_type) {
+	switch (ctx.rendering.mode.named.rendering_type) {
 		case rendering_flat:
 			break;
 		case rendering_text:
-			if (ctx.poly.cmd->write_out && may_skip_peek()) cb(NEXT_TEXT);
+			if (ctx.rendering.mode.named.write_out && may_skip_peek()) cb(NEXT_TEXT);
 			break;
 		case rendering_smooth:
-			if (ctx.poly.cmd->write_out && may_skip_peek()) cb(NEXT_SMOOTH);
+			if (ctx.rendering.mode.named.write_out && may_skip_peek()) cb(NEXT_SMOOTH);
 			break;
 	}
 	cb(END_WRITE_LOOP);
@@ -937,13 +937,13 @@ static void alloc_regs(void)
 		if (may_have_multi_pixels_per_loop()) {
 			// we can read several values and poke them all at once
 			// notice : that z_mode is off does not mean that we do not want to write Z !
-			while (r + ctx.poly.cmd->write_out + ctx.poly.cmd->write_z <= sizeof_array(regs)) {
-				if (ctx.poly.cmd->write_out) {
+			while (r + ctx.rendering.mode.named.write_out + ctx.rendering.mode.named.write_z <= sizeof_array(regs)) {
+				if (ctx.rendering.mode.named.write_out) {
 					regs[r].var = VARP_OUTCOLOR;
 					outcolors_mask |= 1U<<r;
 					r ++;
 				}
-				if (ctx.poly.cmd->write_z) {
+				if (ctx.rendering.mode.named.write_z) {
 					regs[r].var = VARP_Z;
 					outz_mask |= 1U<<r;
 					r ++;
@@ -1043,17 +1043,11 @@ static void write_all(void)
 
 static uint64_t get_rendering_key(void)
 {
-	uint64_t key = ctx.poly.cmd->rendering_type + 1;	// so a used key is never 0
-	key |= ctx.poly.cmd->blend_coef << 2;	// need 4 bits
-	key |= ctx.poly.cmd->use_key << 6;
-	key |= ctx.poly.cmd->use_intens << 7;
-	key |= ctx.poly.cmd->perspective << 8;
-	key |= ctx.poly.cmd->write_out << 9;
-	key |= ctx.poly.cmd->write_z << 10;
-	key |= ctx.rendering.z_mode << 11;	// need 3 bits
-	if (ctx.poly.cmd->perspective) key |= (uint64_t)ctx.poly.nc_log << 14;	// need 18 bits
-	if (ctx.poly.cmd->rendering_type == rendering_text) key |= (uint64_t)ctx.location.txt_mask << 32;	// need 18 bits
-	return key;
+	uint32_t key_lo = ctx.rendering.mode.flags;
+	uint32_t key_hi = 0x80000000U;	// so a used key is never 0
+	if (ctx.rendering.mode.named.perspective) key_hi |= ctx.poly.nc_log == 0;
+	if (ctx.rendering.mode.named.rendering_type == rendering_text) key_hi |= ctx.location.txt_mask << 1;	// need 18 bits
+	return ((uint64_t)key_hi<<32) | key_lo;
 }
 
 #if defined(TEST_RASTERIZER) && !defined(GP2X)

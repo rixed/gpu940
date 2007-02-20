@@ -180,10 +180,6 @@ void draw_poly_nopersp(void)
 	} while (v != ctx.points.first_vector);	
 	ctx.poly.nc_declived = c_vec->c2d[1];
 	ctx.trap.side[0].start_v = ctx.trap.side[0].end_v = ctx.trap.side[1].start_v = ctx.trap.side[1].end_v = c_vec;
-	// Now that all is initialized, build rasterized
-#	if defined(GP2X) || defined(TEST_RASTERIZER)
-	ctx.poly.rasterizer = jit_prepare_rasterizer();
-#	endif
 	// cut into trapezes
 #	define DNC_MIN 0x800
 	do {
