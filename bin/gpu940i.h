@@ -49,7 +49,7 @@ typedef struct gpuVector {
 	int32_t h;	// dist with a clipPlane
 	int32_t nc_declived;
 	struct gpuVector *next, *prev;
-	uint32_t clipFlag:4;	// bit 0..3 indicate that the point is on this plane (do not project corresponding coordinate)
+	uint32_t clipFlag:5;	// bit 0..4 indicate that the point is on this plane (do not project corresponding coordinate)
 	uint32_t clipped:1, proj:1;
 } gpuVector;
 
@@ -139,6 +139,7 @@ extern struct ctx {
 #include "poly.h"
 #include "poly_nopersp.h"
 #include "point.h"
+#include "line.h"
 #include "clip.h"
 #include "text.h"
 #include "mylib.h"

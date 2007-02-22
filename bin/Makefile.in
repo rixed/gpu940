@@ -52,9 +52,9 @@ am__installdirs = "$(DESTDIR)$(bindir)"
 binPROGRAMS_INSTALL = $(INSTALL_PROGRAM)
 PROGRAMS = $(bin_PROGRAMS)
 am_gpu940_OBJECTS = gpu940.$(OBJEXT) poly.$(OBJEXT) \
-	poly_nopersp.$(OBJEXT) point.$(OBJEXT) clip.$(OBJEXT) \
-	mylib.$(OBJEXT) text.$(OBJEXT) raster.$(OBJEXT) crt0.$(OBJEXT) \
-	mydiv.$(OBJEXT) codegen.$(OBJEXT)
+	poly_nopersp.$(OBJEXT) point.$(OBJEXT) line.$(OBJEXT) \
+	clip.$(OBJEXT) mylib.$(OBJEXT) text.$(OBJEXT) raster.$(OBJEXT) \
+	crt0.$(OBJEXT) mydiv.$(OBJEXT) codegen.$(OBJEXT)
 gpu940_OBJECTS = $(am_gpu940_OBJECTS)
 gpu940_DEPENDENCIES = ../console/libconsole.a \
 	../perftime/libperftime.a ../lib/fixmath.lo
@@ -194,6 +194,8 @@ gpu940_SOURCES = \
 	poly_nopersp.h \
 	point.c \
 	point.h \
+	line.c \
+	line.h \
 	clip.c \
 	clip.h \
 	mylib.c \
@@ -298,6 +300,7 @@ distclean-compile:
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/clip.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/codegen.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/gpu940.Po@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/line.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/load940.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/mydiv.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/mylib.Po@am__quote@

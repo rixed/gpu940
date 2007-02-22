@@ -401,7 +401,18 @@ static void do_point(void)
 	}
 	next_cmd(sizeof(*point) + sizeof(gpuCmdVector));
 }
-static void do_line(void) {}
+static void do_line(void)
+{
+	gpuCmdLine const *const line = (gpuCmdLine *)get_cmd();
+	gpuCmdVector *const vec = (gpuCmdVector *)(line+1);
+	ctx.points.vectors[0].cmd = vec;
+	ctx.points.vectors[1].cmd = vec+1;
+	if (clip_line()) {
+		ctx.code.color = line->color;
+		draw_line();
+	}
+	next_cmd(sizeof(*line) + 2*sizeof(*vec));
+}
 static void do_facet(void)
 {
 	// Warning: don't skip any vector here (without positionning err_flag) or future same_as hints will be wrong.

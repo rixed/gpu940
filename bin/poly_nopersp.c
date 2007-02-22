@@ -32,7 +32,7 @@
  */
 
 // buffers are so lower coords have lower addresses.
-static void draw_line(void)
+static void draw_scanline(void)
 {
 	int32_t const c_start = ctx.trap.side[ctx.trap.left_side].c >> 16;
 	ctx.line.count = (ctx.trap.side[!ctx.trap.left_side].c >> 16) - c_start;
@@ -69,7 +69,7 @@ static void draw_trapeze_frac(int32_t dnc)
 	next_params_frac(0, dnc);
 	next_params_frac(1, dnc);
 	// draw 'scanline'
-	draw_line();	// will do another DIV
+	draw_scanline();	// will do another DIV
 }
 
 static void next_params_int(unsigned side)
@@ -86,7 +86,7 @@ static void draw_trapeze_int(void)
 	next_params_int(0);
 	next_params_int(1);
 	// draw 'scanline'
-	draw_line();	// will do another DIV
+	draw_scanline();	// will do another DIV
 }
 
 static void draw_trapeze(void)

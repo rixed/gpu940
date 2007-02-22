@@ -10,6 +10,8 @@ gpu940_SOURCES = \
 	poly_nopersp.h \
 	point.c \
 	point.h \
+	line.c \
+	line.h \
 	clip.c \
 	clip.h \
 	mylib.c \

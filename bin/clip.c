@@ -41,27 +41,33 @@ static bool have_user_clipPlanes(void)
 	return ctx.view.nb_clipPlanes > 5;
 }
 
+static void vec_ctor(gpuVector *new, gpuVector *prev, gpuVector *next, unsigned p)
+{
+	int32_t ha = Fix_abs(prev->h);
+	int32_t hb = Fix_abs(next->h);
+	int32_t ratio = 1<<16, hahb = ha+hb;
+	if (hahb) ratio = ((int64_t)ha<<16)/(ha+hb);	// FIXME: use Fix_div
+	for (unsigned u=sizeof_array(new->cmd->u.all_params); u--; ) {
+		new->cmd->u.all_params[u] = 
+			prev->cmd->u.all_params[u] +
+			Fix_mul(ratio, (next->cmd->u.all_params[u] - prev->cmd->u.all_params[u]));
+	}
+	new->clipFlag = (prev->clipFlag & next->clipFlag) | (1<<p);
+	assert(new->clipFlag);
+	new->proj = 0;
+}
+
 // prev and next must have h <0 and >0 (or vice versa)
 static gpuVector *new_vec(gpuVector *prev, gpuVector *next, unsigned p)
 {
 	static gpuCmdVector cmdVectors[MAX_FACET_SIZE+2*GPU_NB_CLIPPLANES];	// used as a place to store cmds that are not in cmdbuf
-	int32_t ha = Fix_abs(prev->h);
-	int32_t hb = Fix_abs(next->h);
-	int32_t ratio = 1<<16, hahb = ha+hb;
-	if (hahb) ratio = ((int64_t)ha<<16)/(ha+hb);
 	assert(ctx.points.nb_vectors < sizeof_array(ctx.points.vectors));
 	gpuVector *new = ctx.points.vectors + ctx.points.nb_vectors;
 	new->cmd = cmdVectors + ctx.points.nb_vectors;
-	for (unsigned u=sizeof_array(new->cmd->u.all_params); u--; ) {
-		new->cmd->u.all_params[u] =
-			prev->cmd->u.all_params[u] +
-			Fix_mul(ratio, (next->cmd->u.all_params[u] - prev->cmd->u.all_params[u]));
-	}
+	vec_ctor(new, prev, next, p);
 	new->prev = prev;
 	new->next = next;
 	prev->next = next->prev = new;
-	new->clipFlag = (prev->clipFlag & next->clipFlag) | (1<<p);
-	new->proj = 0;
 	ctx.points.nb_vectors++;
 	return new;
 }
@@ -113,6 +119,28 @@ static int clip_facet_by_plane(unsigned p)
 	return 1;
 }
 
+static int clip_line_by_plane(unsigned p)
+{
+	gpuPlane const *const plane = ctx.view.clipPlanes+p;
+	// for each vector, compute H
+	int clipped_v = -1;
+	compute_h(ctx.points.vectors+0, plane);
+	if (ctx.points.vectors[0].h < 0) {
+		clipped_v = 0;
+	}
+	compute_h(ctx.points.vectors+1, plane);
+	if (ctx.points.vectors[1].h < 0) {
+		if (clipped_v == 0) {	// both point excluded by this plane
+			return 0;
+		}
+		clipped_v = 1;
+	}
+	if (-1 != clipped_v) {
+		vec_ctor(ctx.points.vectors+clipped_v, ctx.points.vectors+0, ctx.points.vectors+1, p);
+	}
+	return 1;
+}
+
 static int clip_point_by_plane(unsigned p)
 {
 	gpuPlane const *const plane = ctx.view.clipPlanes+p;
@@ -148,7 +176,6 @@ static void proj_given(unsigned v)
 
 static void proj_cached(unsigned v)
 {
-	assert(v < ctx.poly.cmd->size);
 	int const same_as = ctx.points.vectors[v].cmd->same_as - v;
 	if (same_as > 0 && same_as <= cache_depth) {
 		cache_hit ++;
@@ -172,6 +199,7 @@ static void proj_new_vec(gpuVector *v)
 	int32_t const dproj = ctx.view.dproj;
 	int32_t c2d;
 	int32_t inv_z = Fix_inv(z);
+	assert(0 != v->clipFlag);
 	switch (v->clipFlag & 0xa) {
 		case 0x2:	// right
 			c2d = ctx.view.clipMax[0]<<16;
@@ -285,6 +313,53 @@ int clip_point(void)
 	}
 	disp = 1;
 ret:
+	perftime_enter(previous_target, NULL);
+	return disp;
+}
+
+int clip_line(void)
+{
+	int disp = 0;
+	unsigned previous_target = perftime_target();
+	perftime_enter(PERF_CLIP, "clip & proj");
+	// init vectors
+	unsigned v;
+	unsigned clipped = 0;
+	for (v=2; v--; ) {
+		ctx.points.vectors[v].clipFlag = 0;
+		proj_cached(v);
+		if (! have_user_clipPlanes()) {	// no user clip planes
+			if (! ctx.points.vectors[v].proj) proj_given(v);
+			clipped |= ctx.points.vectors[v].clipped;
+		}
+#		ifdef GP2X
+		if (ctx.rendering.mode.named.use_intens) {
+			ctx.points.vectors[v].cmd->u.text.i *= 55;
+		}
+#		endif
+	}
+	if (!have_user_clipPlanes() && !clipped) {
+		disp = 1;
+		goto ret;
+	}
+	for (v=0; v<ctx.view.nb_clipPlanes; v++) {
+		if (! clip_line_by_plane(v)) goto ret;
+	}
+	// project new vertexes
+	for (v=2; v--; ) {
+		if (! ctx.points.vectors[v].proj) {
+			proj_new_vec(ctx.points.vectors+v);
+		}
+	}
+	disp = 1;
+ret:
+	for (v=2; v--; ) {	// FIXME: call a store_cache(ctx.points.vectors+v);
+		// store it in cache
+		c2d_cache[cache_end].x = ctx.points.vectors[v].c2d[0];
+		c2d_cache[cache_end].y = ctx.points.vectors[v].c2d[1];
+		c2d_cache[cache_end].clipped = ctx.points.vectors[v].clipped;
+		next_cache();
+	}
 	perftime_enter(previous_target, NULL);
 	return disp;
 }

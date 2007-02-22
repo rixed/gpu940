@@ -38,6 +38,9 @@ static gpuCmdFacet cmdFacet = {
 static gpuCmdPoint cmdPoint = {
 	.opcode = gpuPOINT,
 };
+static gpuCmdLine cmdLine = {
+	.opcode = gpuLINE,
+};
 static gpuCmdVector cmdVec[4];
 static unsigned vec_idx;
 static unsigned count;	// count vertexes between begin and end
@@ -54,6 +57,11 @@ static struct iovec const iov_poly[] = {
 static struct iovec const iov_point[] = {
 	{ .iov_base = &cmdPoint, .iov_len = sizeof(cmdPoint) },
 	{ .iov_base = &cmdVec, .iov_len = sizeof(cmdVec[0]) },
+};
+static struct iovec const iov_line[] = {
+	{ .iov_base = &cmdLine, .iov_len = sizeof(cmdLine) },
+	{ .iov_base = cmdVec+0, .iov_len = sizeof(*cmdVec) },
+	{ .iov_base = cmdVec+1, .iov_len = sizeof(*cmdVec) },
 };
 
 /*
@@ -205,17 +213,8 @@ static gpuZMode get_depth_mode(void)
 	return needed;
 }
 
-static void facet_complete(unsigned size, bool facet_is_inverted, unsigned colorer)
+static void set_mode_and_color(int32_t *color, unsigned nb_vec, unsigned colorer)
 {
-	// Set cull_mode
-	prim ++;
-	cmdFacet.cull_mode = 0;
-#	define VIEWPORT_IS_INVERTED true
-	bool front_is_cw = gli_front_faces_are_cw() ^ facet_is_inverted ^ VIEWPORT_IS_INVERTED;
-	if (! gli_must_render_face(GL_FRONT)) cmdFacet.cull_mode |= 1<<(!front_is_cw);
-	if (! gli_must_render_face(GL_BACK)) cmdFacet.cull_mode |= 2>>(!front_is_cw);
-	if (cmdFacet.cull_mode == 3) return;
-	cmdFacet.size = size;
 	cmdMode.mode.named.use_intens = 0;
 	cmdMode.mode.named.use_key = 0;
 	GLfixed alpha = gli_current_color[3];
@@ -226,7 +225,7 @@ static void facet_complete(unsigned size, bool facet_is_inverted, unsigned color
 		cmdMode.mode.named.rendering_type = rendering_text;
 		if (to->need_key) {
 			cmdMode.mode.named.use_key = 1;
-			cmdFacet.color = gpuColor(KEY_RED, KEY_GREEN, KEY_BLUE);
+			*color = gpuColor(KEY_RED, KEY_GREEN, KEY_BLUE);
 		}
 		if (to->have_mean_alpha) {
 			alpha = Fix_mul(alpha, to->mean_alpha);
@@ -236,12 +235,12 @@ static void facet_complete(unsigned size, bool facet_is_inverted, unsigned color
 			int32_t const colorer_i = cmdVec[colorer].u.text.i;
 			if (Fix_abs(colorer_i) > ALMOST_0) {
 				cmdMode.mode.named.use_intens = 1;
-				for (unsigned v=size; v--; ) {
+				for (unsigned v=nb_vec; v--; ) {
 					cmdVec[v].u.text.i = colorer_i;
 				}
 			}
 		} else {
-			for (unsigned v=size; v--; ) {
+			for (unsigned v=nb_vec; v--; ) {
 				if (Fix_abs(cmdVec[v].u.text.i) > ALMOST_0) {
 					cmdMode.mode.named.use_intens = 1;
 					break;
@@ -251,7 +250,7 @@ static void facet_complete(unsigned size, bool facet_is_inverted, unsigned color
 	} else if (gli_smooth()) {
 		cmdMode.mode.named.rendering_type = rendering_smooth;
 	} else {	// flat
-		cmdFacet.color = gpuColor_comp2uint(&cmdVec[colorer].u.smooth.r);
+		*color = gpuColor_comp2uint(&cmdVec[colorer].u.smooth.r);
 		cmdMode.mode.named.rendering_type = rendering_flat;
 	}
 	// Use blending ?
@@ -272,7 +271,29 @@ static void facet_complete(unsigned size, bool facet_is_inverted, unsigned color
 		assert(gpuOK == err); (void)err;
 		prev_rendering_flags = cmdMode.mode.flags;
 	}
-	err = gpuWritev(iov_poly, 1+size, true);
+}
+
+static void line_complete(unsigned colorer)
+{
+	prim ++;
+	set_mode_and_color(&cmdLine.color, 2, colorer);
+	gpuErr err = gpuWritev(iov_poly, 3, true);
+	assert(gpuOK == err); (void)err;
+}
+
+static void facet_complete(unsigned size, bool facet_is_inverted, unsigned colorer)
+{
+	// Set cull_mode
+	prim ++;
+	cmdFacet.cull_mode = 0;
+#	define VIEWPORT_IS_INVERTED true
+	bool front_is_cw = gli_front_faces_are_cw() ^ facet_is_inverted ^ VIEWPORT_IS_INVERTED;
+	if (! gli_must_render_face(GL_FRONT)) cmdFacet.cull_mode |= 1<<(!front_is_cw);
+	if (! gli_must_render_face(GL_BACK)) cmdFacet.cull_mode |= 2>>(!front_is_cw);
+	if (cmdFacet.cull_mode == 3) return;
+	cmdFacet.size = size;
+	set_mode_and_color(&cmdFacet.color, size, colorer);
+	gpuErr err = gpuWritev(iov_poly, 1+size, true);
 	assert(gpuOK == err); (void)err;
 }
 
@@ -280,6 +301,11 @@ static bool unused(unsigned count)
 {
 	(void)count;
 	return false;
+}
+
+static bool is_colorer_line_strip(unsigned count)
+{
+	return (count & 1) == 0;
 }
 
 static bool is_colorer_polygon(unsigned count)
@@ -322,7 +348,7 @@ void gli_cmd_prepare(enum gli_DrawMode mode_)
 	prim = 0;
 	typedef bool colorer_func(unsigned);
 	static colorer_func *colorer_funcs[] = {
-		unused, unused, unused, unused,
+		unused, is_colorer_line_strip, unused, unused,
 		is_colorer_triangle_strip_or_fan, is_colorer_triangle_strip_or_fan, is_colorer_triangles,
 		is_colorer_quad_strip, is_colorer_quads,
 		is_colorer_polygon
@@ -383,11 +409,24 @@ void gli_cmd_vertex(int32_t const *v)
 			point_complete();
 			vec_idx = 0;
 			break;
+		case GL_LINE_LOOP:	// We should keep the first vec, and use it when glEnd() is called. But Im tired.
 		case GL_LINE_STRIP:
-		case GL_LINE_LOOP:
+			cmdVec[vec_idx].same_as = 0; 
+			if (count > 2) {
+				cmdVec[!vec_idx].same_as = 2;
+				line_complete(0);
+			}
+			vec_idx = !vec_idx;
+			break;
 		case GL_LINES:
+			cmdVec[vec_idx].same_as = 0; 
+			if (count > 2) {
+				line_complete(0);
+			}
+			vec_idx = !vec_idx;
+			break;
 		case GL_POLYGON:	// deserve special treatment as the colorer is not the last vertex but the first
-			assert(0);	// TODO
+			assert(0);	// TODO (beware of iov struct size)
 		case GL_TRIANGLE_STRIP:
 			if (count < 3) {
 				vec_idx ++;

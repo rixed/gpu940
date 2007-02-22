@@ -78,12 +78,12 @@ void raster_gen(void)
 		uint32_t color;
 		switch (ctx.rendering.mode.named.rendering_type) {
 			case rendering_flat:
-				color = ctx.poly.cmd->color;
+				color = ctx.code.color;
 				break;
 			case rendering_text:
 				color = texture_color(&ctx.location.buffer_loc[gpuTxtBuffer], param[0], param[1]);
 				if (ctx.rendering.mode.named.use_key) {
-					if (color == ctx.poly.cmd->color) goto next_pixel;
+					if (color == ctx.code.color) goto next_pixel;
 				}
 				break;
 			case rendering_smooth:
@@ -95,6 +95,7 @@ void raster_gen(void)
 #				endif
 				break;
 			default:
+				color = 0;	// please GCC don't warn about color
 				assert(0);
 		}
 		// Intens
@@ -125,6 +126,7 @@ void raster_gen(void)
 			color = merge | (((p>>1) + (c>>1)) & 0xff00ff00);
 		}
 		// Poke
+		assert(w_ >= shared->buffers);
 		if (ctx.rendering.mode.named.write_out) {
 			*w_ = color;
 		}

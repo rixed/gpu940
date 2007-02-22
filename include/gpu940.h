@@ -158,7 +158,12 @@ typedef struct {
 typedef struct {
 	gpuOpcode opcode;
 	uint32_t color;
-} gpuCmdPoint;
+} gpuCmdPoint;	// must be followed by 1 gpuCmdVector value
+
+typedef struct {
+	gpuOpcode opcode;
+	uint32_t color;
+} gpuCmdLine;	// must be followed by 2 gpuCmdVector values
 
 typedef struct {
 	// no need for opcode because this cmd always follow facet, point and line.

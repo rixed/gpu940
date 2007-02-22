@@ -15,15 +15,10 @@
  * along with gpu940; if not, write to the Free Software
  * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
  */
-#ifndef CLIP_H_060421
-#define CLIP_H_060421
+#ifndef LINE_H_070220
+#define LINE_H_070220
 #include "../config.h"
 
-int clip_poly(void);
-int clip_point(void);
-int clip_line(void);
-int cull_poly(void);
-unsigned proj_cache_ratio(void);
-void proj_cache_reset(void);
+void draw_line(void);
 
 #endif
