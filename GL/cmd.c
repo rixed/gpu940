@@ -213,7 +213,7 @@ static gpuZMode get_depth_mode(void)
 	return needed;
 }
 
-static void set_mode_and_color(int32_t *color, unsigned nb_vec, unsigned colorer)
+static void set_mode_and_color(uint32_t *color, unsigned nb_vec, unsigned colorer)
 {
 	cmdMode.mode.named.use_intens = 0;
 	cmdMode.mode.named.use_key = 0;
@@ -277,7 +277,7 @@ static void line_complete(unsigned colorer)
 {
 	prim ++;
 	set_mode_and_color(&cmdLine.color, 2, colorer);
-	gpuErr err = gpuWritev(iov_poly, 3, true);
+	gpuErr err = gpuWritev(iov_line, 3, true);
 	assert(gpuOK == err); (void)err;
 }
 
@@ -411,19 +411,19 @@ void gli_cmd_vertex(int32_t const *v)
 			break;
 		case GL_LINE_LOOP:	// We should keep the first vec, and use it when glEnd() is called. But Im tired.
 		case GL_LINE_STRIP:
-			cmdVec[vec_idx].same_as = 0; 
 			if (count > 2) {
-				cmdVec[!vec_idx].same_as = 2;
+				cmdVec[!vec_idx].same_as = 1;
+			}
+			if (count > 1) {
 				line_complete(0);
 			}
 			vec_idx = !vec_idx;
 			break;
 		case GL_LINES:
-			cmdVec[vec_idx].same_as = 0; 
-			if (count > 2) {
+			vec_idx = !vec_idx;
+			if (vec_idx == 0) {
 				line_complete(0);
 			}
-			vec_idx = !vec_idx;
 			break;
 		case GL_POLYGON:	// deserve special treatment as the colorer is not the last vertex but the first
 			assert(0);	// TODO (beware of iov struct size)
