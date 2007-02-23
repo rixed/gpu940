@@ -9,6 +9,7 @@ SECTIONS {
 		poly_nopersp.o(.text)
 		/*raster.o(.text)*/
 		point.o(.text)
+		line.o(.text)
 		text.o(.text)
 		fixmath.o(.text)
 		mydiv.o(.text)
