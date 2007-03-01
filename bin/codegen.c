@@ -421,7 +421,7 @@ static unsigned load_constp(unsigned v, int rtmp)
 static uint32_t z_mode_cond(void)
 {
 	// we want to branch when the test _fails_
-	switch (ctx.rendering.mode.named.z_mode) {
+	switch ((gpuZMode)ctx.rendering.mode.named.z_mode) {
 		case gpu_z_gte:
 			return 11<<28;
 		case gpu_z_ne:
@@ -836,7 +836,7 @@ static void bloc_def_func(void (*cb)(unsigned))
 		else cb(ZBUFFER_NOPERSP);
 	}
 	// Peek color
-	switch (ctx.rendering.mode.named.rendering_type) {
+	switch ((gpuRenderingType)ctx.rendering.mode.named.rendering_type) {
 		case rendering_flat:
 			if (ctx.rendering.mode.named.write_out && ctx.rendering.mode.named.use_intens) cb(PEEK_FLAT);
 			break;
@@ -886,7 +886,7 @@ static void bloc_def_func(void (*cb)(unsigned))
 			cb(NEXT_Z);
 		}
 	}
-	switch (ctx.rendering.mode.named.rendering_type) {
+	switch ((gpuRenderingType)ctx.rendering.mode.named.rendering_type) {
 		case rendering_flat:
 			break;
 		case rendering_text:

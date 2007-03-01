@@ -202,7 +202,7 @@ static int32_t next_power_of_2(int32_t x) {
 static void ctx_code_buf_reset(void)
 {
 	for (unsigned b=0; b<sizeof_array(ctx.location.buffer_loc); b++) {
-		ctx.code.buff_addr[b] = (uint32_t)&shared->buffers[ctx.location.buffer_loc[b].address];
+		ctx.code.buff_addr[b] = &shared->buffers[ctx.location.buffer_loc[b].address];
 	}
 	ctx.code.out2zb = ctx.location.buffer_loc[gpuZBuffer].address - ctx.location.buffer_loc[gpuOutBuffer].address;
 }

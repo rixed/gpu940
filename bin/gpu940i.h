@@ -120,7 +120,7 @@ extern struct ctx {
 	} line;
 	// generated code
 	struct {
-		uint32_t buff_addr[GPU_NB_BUFFER_TYPES];	// address of the buffers
+		uint32_t *buff_addr[GPU_NB_BUFFER_TYPES];	// address of the buffers
 		int32_t out2zb;	// in words
 		uint32_t color;	// extracted from facet cmd for easier access
 		uint32_t sp_save;

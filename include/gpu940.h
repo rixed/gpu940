@@ -200,8 +200,8 @@ typedef enum {
 } gpuRenderingType;
 typedef union {
 	struct {
-		gpuRenderingType rendering_type:2;
-		gpuZMode z_mode:3;
+		uint32_t rendering_type:2;
+		uint32_t z_mode:3;
 		uint32_t use_key:1;
 		uint32_t use_intens:1;
 		uint32_t perspective:1;

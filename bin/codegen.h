@@ -24,9 +24,11 @@ struct jit_cache *jit_prepare_rasterizer(void);
 void jit_invalidate(void);
 static inline void jit_exec(void)
 {
+#	ifdef GP2X
 	typedef void (*rasterizer_func)(void);
 	rasterizer_func const rasterizer = (rasterizer_func const)ctx.rendering.rasterizer->buf;
 	rasterizer();
+#	endif
 }
 
 #endif

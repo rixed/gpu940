@@ -69,6 +69,7 @@ void raster_gen(void)
 		} else {
 			w_ = w;
 		}
+		assert(w_ >= shared->buffers);
 		// ZBuffer
 		if (ctx.rendering.mode.named.z_mode != gpu_z_off) {
 			int32_t const zb = *(w_ + ctx.code.out2zb);
@@ -76,7 +77,7 @@ void raster_gen(void)
 		}
 		// Peek color
 		uint32_t color;
-		switch (ctx.rendering.mode.named.rendering_type) {
+		switch ((gpuRenderingType)ctx.rendering.mode.named.rendering_type) {
 			case rendering_flat:
 				color = ctx.code.color;
 				break;
@@ -126,7 +127,6 @@ void raster_gen(void)
 			color = merge | (((p>>1) + (c>>1)) & 0xff00ff00);
 		}
 		// Poke
-		assert(w_ >= shared->buffers);
 		if (ctx.rendering.mode.named.write_out) {
 			*w_ = color;
 		}
