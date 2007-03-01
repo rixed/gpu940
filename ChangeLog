@@ -1,3 +1,6 @@
+2007-02-22 rixed@free.fr
+	* Addition of GL lines.
+
 2007-02-20 rixed@free.fr
 	* Put rendering definition aside from facet command to avoid having to check the JIT at every facet.
 
