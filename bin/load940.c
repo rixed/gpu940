@@ -75,7 +75,7 @@ int main(int nb_args, char **args) {
 	ssize_t err;
 	char *dest = (void *)uppermem;
 	while ( 0 < (err=read(prog, dest, progsize)) ) {
-		printf("  writing %d bytes...\n", err);
+		printf("  writing %zd bytes...\n", err);
 		dest += err;
 		progsize -= err;
 	}
