@@ -45,7 +45,8 @@ static gpuCmdVector cmdVec[4];
 static unsigned vec_idx;
 static unsigned count;	// count vertexes between begin and end
 static unsigned prim;	// count primitives between begin and end
-static bool (*is_colorer_func)(unsigned count);	// tells wether te count vertex is the colorer of the prim primitive (flatshading)
+static bool (*is_colorer_func)(void);	// tells wether te count vertex is the colorer of the prim primitive (flatshading)
+static GLfixed current_or_colorer_alpha;
 
 static struct iovec const iov_poly[] = {
 	{ .iov_base = &cmdFacet, .iov_len = sizeof(cmdFacet) },
@@ -217,7 +218,7 @@ static void set_mode_and_color(uint32_t *color, unsigned nb_vec, unsigned colore
 {
 	cmdMode.mode.named.use_intens = 0;
 	cmdMode.mode.named.use_key = 0;
-	GLfixed alpha = gli_current_color[3];
+	GLfixed alpha = current_or_colorer_alpha;
 	// Set facet rendering type and color if needed
 	if (gli_texturing()) {
 		struct gli_texture_object *to = gli_get_texture_object();
@@ -297,38 +298,37 @@ static void facet_complete(unsigned size, bool facet_is_inverted, unsigned color
 	assert(gpuOK == err); (void)err;
 }
 
-static bool unused(unsigned count)
+static bool unused(void)
 {
-	(void)count;
 	return false;
 }
 
-static bool is_colorer_line_strip(unsigned count)
+static bool is_colorer_line_strip(void)
 {
 	return (count & 1) == 0;
 }
 
-static bool is_colorer_polygon(unsigned count)
+static bool is_colorer_polygon(void)
 {
 	return count == 0;
 }
 
-static bool is_colorer_triangle_strip_or_fan(unsigned count)
+static bool is_colorer_triangle_strip_or_fan(void)
 {
 	return count == prim + 2;
 }
 
-static bool is_colorer_triangles(unsigned count)
+static bool is_colorer_triangles(void)
 {
 	return count == prim+prim+prim + 2;
 }
 
-static bool is_colorer_quad_strip(unsigned count)
+static bool is_colorer_quad_strip(void)
 {
 	return count == prim+prim + 3;
 }
 
-static bool is_colorer_quads(unsigned count)
+static bool is_colorer_quads(void)
 {
 	return count == (prim<<2) + 3;
 }
@@ -346,7 +346,7 @@ void gli_cmd_prepare(enum gli_DrawMode mode_)
 	vec_idx = 0;
 	count = 0;
 	prim = 0;
-	typedef bool colorer_func(unsigned);
+	typedef bool colorer_func(void);
 	static colorer_func *colorer_funcs[] = {
 		unused, is_colorer_line_strip, unused, unused,
 		is_colorer_triangle_strip_or_fan, is_colorer_triangle_strip_or_fan, is_colorer_triangles,
@@ -367,7 +367,7 @@ void gli_cmd_vertex(int32_t const *v)
 	cmdVec[vec_idx].u.geom.c3d[2] = clip_coords[3];	// we use W as Z for gpu940 (which then must use Z toward depths)
 	cmdVec[vec_idx].same_as = 0;
 	// Now compute vertex colors
-	bool is_colorer = is_colorer_func(count);
+	bool is_colorer = is_colorer_func();
 	bool const need_color = gli_smooth() || is_colorer;
 	GLfixed const *c;
 	if (need_color) {
@@ -378,6 +378,8 @@ void gli_cmd_vertex(int32_t const *v)
 		CLAMP(g, 0, 0xFFFF);
 		GLfixed b = c[2];
 		CLAMP(b, 0, 0xFFFF);
+		current_or_colorer_alpha = c[3];	// save it for later
+		CLAMP(current_or_colorer_alpha, 0, 0xFFFF);
 		cmdVec[vec_idx].u.smooth.r = Fix_gpuColor1(r, g, b);
 		cmdVec[vec_idx].u.smooth.g = Fix_gpuColor2(r, g, b);
 		cmdVec[vec_idx].u.smooth.b = Fix_gpuColor3(r, g, b);
