@@ -66,18 +66,18 @@ uint64_t __udivti3(uint64_t n, uint64_t d);
 #endif
 static inline int32_t Fix_uinv(uint32_t v) {
 #	if defined(GP2X) || !defined(SOFT_DIVS) || !defined(GPU) || SOFT_DIVS == 0
-	return ~0UL/v;
+	return (~(int32_t)0)/v;
 #	else
-	return __udivsi3(~0UL, v);
+	return __udivsi3((~(int32_t)0), v);
 #	endif
 }
 static inline int32_t Fix_inv(int32_t v) {
 #	if defined(GP2X) || !defined(SOFT_DIVS) || !defined(GPU) || SOFT_DIVS == 0
-	if (v>0) return ~0UL/(uint32_t)v;
-	else return -(~0UL/(uint32_t)-v);
+	if (v>0) return (~(int32_t)0)/(uint32_t)v;
+	else return -((~(int32_t)0)/(uint32_t)-v);
 #	else
-	if (v>0) return __udivsi3(~0UL, (uint32_t)v);
-	else return -__udivsi3(~0UL, (uint32_t)-v);
+	if (v>0) return __udivsi3((~(int32_t)0), (uint32_t)v);
+	else return -__udivsi3((~(int32_t)0), (uint32_t)-v);
 #	endif
 }
 
