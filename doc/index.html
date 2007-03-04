@@ -137,7 +137,7 @@ only the writing functions were different.
 </p><p>
 	Then came the idea of an OpenGL-ES implementation, at first as a way to
 allow homebrew coders to create new apps that they could then keep with them
-as they move on other platforms. In addition, OpenGL-ES has a well-known API
+as they move on to other platforms. In addition, OpenGL-ES has a well-known API
 that would dispense gpu940 of a proper documentation. Of course this require
 z-buffer, which was not implemented by then, but was planned anyway. And this
 API would prevent the use of some fancy features of gpu940 (like mixing
@@ -165,7 +165,7 @@ these parameters values. Vincent-gl does the same thing, and probably MESA too
 in some extents.  I decided to do the same, so I removed all the pre-defined 
 rendering functions and replaced them by a kind of "just in time compiler" for 
 ARM (very presumptuous name for a routine that almost merely concatenate 
-predefined assembly snipets), and a general purpose C function for the PC.
+predefined assembly snippets), and a general purpose C function for the PC.
 </p><p>
 	At the same time, I started to realize that the real value of gpu940 was to 
 implement OpenGL, so I modified several specific rendering methods which were 
@@ -175,16 +175,16 @@ OpenGL (eg. shadows rendering became blending).
 	I also started to look for a proof of concept to demonstrate the ability of 
 the GPU. I had to port something, preferably a well known OpenGL game, simple 
 enough to not knock down the GPU on its knees, because the only OpenGL 
-application I ported thus far, glxgears, run only at around 15 fps. I first 
-tried glBattalion, but despite being visually poor, this game make use of a 
-large amount of distinct OpenGL API services that are seldom used and that I 
-didn't want to implement just for this demonstration. That's when I had a look 
-to Egoboo's source code. Like recent games, Egoboo is designed to use only the 
-bare minimum of OpenGL (actually, it's a Direct3D port), that is a polygon 
-mapping rasterizer with z-buffer and blend. It only took minutes to obtain the 
-first version compiled with gpu940's libGl. Of course it revealed many bugs 
-and required many other modifications than just linking with gpu940, but this 
-is another story.
+application I ported thus far, glxgears, run only at around 15 fps (it now 
+run at around 30 fps). I first tried glBattalion, but despite being visually 
+poor, this game make use of a large amount of distinct OpenGL API services 
+that are seldom used and that I didn't want to implement just for this 
+demonstration. That's when I had a look to Egoboo's source code. Like recent 
+games, Egoboo is designed to use only the bare minimum of OpenGL (actually, 
+it's a Direct3D port), that is a polygon mapping rasterizer with z-buffer and 
+blend. It only took minutes to obtain the first version compiled with gpu940's 
+libGl. Of course it revealed many bugs and required many other modifications 
+than just linking with gpu940, but this is another story.
 </p><p>
 	From this, the future of gpu940 appears to be closer and closer from OpenGL 
 requirements. Rendering commands should match OpenGL commands in order to 
@@ -507,13 +507,16 @@ a following <b>gpuCmdVector</b>. As this feature is merely used for debuging,
 no fancy rendering are available (like OpenGl width, antialias, or even light 
 or textured (!) point).
 </p><p>
-	<b>gpuLINE</b> is nor implemented yet.
+	<b>gpuLINE</b> draw a line between the two following <b>gpuCmdVector</b>. 
+The rendering mode depends on the current rendering mode (set with 
+<b>gpuMODE</b>), which is detailed below.
 </p><p>
 	<b>gpuFACET</b> is the more complex command, and the heart of GPU. It draw 
 a (convex) polygon of any size (from 3 to 16 vertexes). It first perform 
 culling, then projection and drawing. The type of rendering is controlled by 
-the separate <b>gpuMODE</b> command. This command must be followed by as many 
-<i>gpuCmdVector</i> as defined in the facet's <i>size</i>.
+the current rendering mode (set independently with the <b>gpuMODE</b> 
+command). This command must be followed by as many <i>gpuCmdVector</i> as 
+defined in the facet's <i>size</i>.
 </p><p>
 	Not really a command by itself, the <i>gpuCmdVector</i> structure needs a 
 proper explanation. The first field of this structure, <i>same_as</i>, can be 
@@ -558,8 +561,8 @@ OpenGL depth-test operators are available, plus the special <i>gpu_z_off</i>
 which disable depth test (and is the default).  Also, two flags can mask the 
 writing of pixel or depth values (all these &quot;with or without&quot; made a 
 code generator mandatory). All these parameters form the JIT cache key : this 
-is best to avoid changing these rendering parameters too often so that the 
-JIT cache is valid as long as possible.
+is best to avoid changing these rendering parameters too often so that the JIT 
+cache is valid as long as possible.
 </p><p>
 	Note that keyed rendering is an unknown feature for OpenGL. Instead, OpenGL 
 can use an alpha component in the texture, which is far more expensive.  
@@ -1158,8 +1161,8 @@ server state. As a consequence, to GL apps can not share the GPU.</li>
 is a creation of OpenGL-ES. Some of the other types are supported via quick 
 and dirty wrappers.</li>
 	<li><b>Evaluators :</b> are not implemented.</li>
-	<li><b>GL_LINES, GL_LINE_STRIP, GL_LINE_LOOP :</b> are not implemented, but 
-should be.</li>
+	<li><b>GL_LINE_LOOP :</b> are the same as GL_LINE_STRIP, ie. the ending 
+line that loops is not draw.</li>
 	<li><b>GL_POLYGON :</b> are not implement but will certainly be before 
 long.</li>
 	<li><b>Polygon edges :</b> are not implemented.</li>
