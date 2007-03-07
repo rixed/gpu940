@@ -99,7 +99,7 @@ static void mult_matrix(GLfixed const *mat)
 
 static void scale_vec(int32_t vec[4], int32_t s)
 {
-	for (unsigned i=0; i<3; i++) {
+	for (unsigned i=0; i<4; i++) {
 		vec[i] = Fix_mul(vec[i], s);
 	}
 }
