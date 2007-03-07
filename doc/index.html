@@ -1218,7 +1218,9 @@ possible to have different material properties for front and back faces.</li>
 as expected.</li>
 	<li><b>Blending :</b> DST_COLOR is unusable since we have no alpha buffer.  
 Also, blending results are not compliant because we do not scale color 
-components but just shift/add them.</li>
+components but just shift/add them. Also, the blending function parameters 
+are unused : the only implemented blending function correspond to the pair 
+(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA).</li>
 	<li><b>Color mask :</b> it's not possible to disable individual components.  
 This is all the color or nothing.</li>
 </ul>
@@ -1375,9 +1377,9 @@ variable in Egoboo2x for an example on how to apply this trick.
 </p>
 <h4>Blending is all wrong&nbsp;!</h4>
 <p>
-	Guessing a good shift pair for the <i>blend_coef</i> facet parameter from 
-OpenGL blending settings and alpha parameters is an exercise that has good 
-chances to fail. So, blending effects may not look as expected.
+	Guessing a good shift pair for the <i>blend_coef</i> rendering mode 
+parameter from OpenGL blending settings and alpha parameters is an exercise 
+that has good chances to fail. So, blending effects may not look as expected.
 </p><p>
 	In order to obtain a similar rendering from the original application, you 
 may need to tweak the blending function and alpha values until the libGL 
