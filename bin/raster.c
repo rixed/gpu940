@@ -121,7 +121,7 @@ void raster_gen(void)
 			uint32_t previous = *w_;
 			uint32_t p = (previous&0x00ff00ff)>>(ctx.rendering.mode.named.blend_coef<=8 ? 8-ctx.rendering.mode.named.blend_coef : 0);
 			uint32_t c = (color&0x00ff00ff)>>(ctx.rendering.mode.named.blend_coef>8 ? ctx.rendering.mode.named.blend_coef-8 : 0);
-			uint32_t merge = ((p>>1) + (c>>1)) & 0x00ff00ff;
+			uint32_t merge = ((p + c)>>1) & 0x00ff00ff;
 			p = (previous&0xff00ff00)>>(ctx.rendering.mode.named.blend_coef<=8 ? 8-ctx.rendering.mode.named.blend_coef : 0);
 			c = (color&0xff00ff00)>>(ctx.rendering.mode.named.blend_coef>8 ? ctx.rendering.mode.named.blend_coef-8 : 0);
 			color = merge | (((p>>1) + (c>>1)) & 0xff00ff00);

@@ -626,7 +626,7 @@ static void intens(void)
 		*gen_dst++ = 0x53a000ff | (tmp1<<12);
 		// 1110 0011 1100 rcol rcol 0000 1111 1111 ie "bic rcol, rcol, #0xff" ie put new Y into color
 		*gen_dst++ = 0xe3c000ff | (rcol<<16) | (rcol<<12);
-		// 1110 0001 1000 rcol rcol 0000 0000 tmp1 ie "orr rcol, rcol, tmp1" FIXME: we must not change rcol when flat shading, or we must use a copy.
+		// 1110 0001 1000 rcol rcol 0000 0000 tmp1 ie "orr rcol, rcol, tmp1"
 		*gen_dst++ = 0xe1800000 | (rcol<<16) | (rcol<<12) | tmp1;
 		unsigned const constp_di = load_constp(CONSTP_DI, tmp1);	// TODO: if nb_pixels_per_loop>1, use another tmp and put this out of loop
 		// 1110 0000 1000 varI varI 0000 0000 _DI_ ie "add varI, varI, constDI" FIXME: when we can skip pixels, increment later (similar to u,v)
@@ -713,13 +713,13 @@ static void write_combine(void)	// come here with previous color in r0
 	} else if (ctx.rendering.mode.named.blend_coef < 8) {
 		// 1110 0000 1000 tmp4 tmp2 shif t010 tmp2 ie "add tmp2, tmp4, tmp2, lsr #(8-blend)" tmp2 = tmp2>>(8-blend_coef) + tmp4	
 		*gen_dst++ = 0xe0800020 | (tmp4<<16) | (tmp2<<12) | ((8-ctx.rendering.mode.named.blend_coef)<<7) | tmp2;
-		// 1110 0000 1001 tmp1 rcol shif t010 rcol ie "adds rcol, tmp1, rcol, lsr #(8-blend)" rcol = rcol>>(8-blend_coef) + tmp1 (with carry for higher bit)
-		*gen_dst++ = 0xe0900020 | (tmp1<<16) | (vars[VARP_OUTCOLOR].rnum<<12) | ((8-ctx.rendering.mode.named.blend_coef)<<7) | vars[VARP_OUTCOLOR].rnum;
+		// 1110 0000 1001 rcol rcol shif t010 tmp1 ie "adds rcol, rcol, tmp1, lsr #(8-blend)" rcol = rcol + tmp1>>(8-blend_coef) (with carry for higher bit)
+		*gen_dst++ = 0xe0900020 | (vars[VARP_OUTCOLOR].rnum<<16) | (vars[VARP_OUTCOLOR].rnum<<12) | ((8-ctx.rendering.mode.named.blend_coef)<<7) | tmp1;
 	} else {
 		// 1110 0000 1000 tmp2 tmp2 shif t010 tmp4 ie "add tmp2, tmp2, tmp4, lsr #(blend-8)" tmp2 = tmp2 + tmp4>>(blend-8)
 		*gen_dst++ = 0xe0800020 | (tmp2<<16) | (tmp2<<12) | ((ctx.rendering.mode.named.blend_coef-8)<<7) | tmp4;
-		// 1110 0000 1001 rcol rcol shif t010 tmp1 ie "adds rcol, rcol, tmp1, lsr #(blend-8)" rcol = rcol + tmp1>>(blend-8) (with carry for higher bit)
-		*gen_dst++ = 0xe0900020 | (vars[VARP_OUTCOLOR].rnum<<16) | (vars[VARP_OUTCOLOR].rnum<<12) | ((ctx.rendering.mode.named.blend_coef-8)<<7) | tmp1;
+		// 1110 0000 1001 tmp1 rcol shif t010 rcol ie "adds rcol, tmp1, rcol, lsr #(blend-8)" rcol = rcol>>(blend-8) + tmp1 (with carry for higher bit)
+		*gen_dst++ = 0xe0900020 | tmp1 | (vars[VARP_OUTCOLOR].rnum<<12) | ((ctx.rendering.mode.named.blend_coef-8)<<7) | (vars[VARP_OUTCOLOR].rnum<<12);
 	}
 	// 1110 0000 0000 tmp3 tmp2 0000 1010 tmp2 ie "and tmp2, tmp3, tmp2, lsr #1"
 	*gen_dst++ = 0xe00000a0 | (tmp3<<16) | (tmp2<<12) | tmp2;
@@ -838,7 +838,8 @@ static void bloc_def_func(void (*cb)(unsigned))
 	// Peek color
 	switch ((gpuRenderingType)ctx.rendering.mode.named.rendering_type) {
 		case rendering_flat:
-			if (ctx.rendering.mode.named.write_out && ctx.rendering.mode.named.use_intens) cb(PEEK_FLAT);
+			// if intens or blend, we modify the rcols, so that we have to load them at each start of loop
+			if (ctx.rendering.mode.named.write_out && (ctx.rendering.mode.named.use_intens || ctx.rendering.mode.named.blend_coef)) cb(PEEK_FLAT);
 			break;
 		case rendering_text:
 			if (ctx.rendering.mode.named.write_out || ctx.rendering.mode.named.use_key) {
@@ -1011,7 +1012,7 @@ static void write_reg_preload(void)
 
 static void peek_flat(void)
 {
-	// We have a reg for the flat color : CONTP_COLOR. Set all VARP_OUTCOLOR to this.
+	// We have a reg for the flat color : CONSTP_COLOR. Set all VARP_OUTCOLOR to this.
 	assert(vars[CONSTP_COLOR].rnum != -1);
 	for (unsigned r=0; r<sizeof_array(regs); r++) {
 		if (regs[r].var == VARP_OUTCOLOR) {
