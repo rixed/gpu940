@@ -46,7 +46,7 @@ static unsigned vec_idx;
 static unsigned count;	// count vertexes between begin and end
 static unsigned prim;	// count primitives between begin and end
 static bool (*is_colorer_func)(void);	// tells wether te count vertex is the colorer of the prim primitive (flatshading)
-static GLfixed current_or_colorer_alpha;
+static GLfixed colorer_alpha;
 
 static struct iovec const iov_poly[] = {
 	{ .iov_base = &cmdFacet, .iov_len = sizeof(cmdFacet) },
@@ -218,7 +218,7 @@ static void set_mode_and_color(uint32_t *color, unsigned nb_vec, unsigned colore
 {
 	cmdMode.mode.named.use_intens = 0;
 	cmdMode.mode.named.use_key = 0;
-	GLfixed alpha = current_or_colorer_alpha;
+	GLfixed alpha = colorer_alpha;
 	// Set facet rendering type and color if needed
 	if (gli_texturing()) {
 		struct gli_texture_object *to = gli_get_texture_object();
@@ -378,11 +378,13 @@ void gli_cmd_vertex(int32_t const *v)
 		CLAMP(g, 0, 0xFFFF);
 		GLfixed b = c[2];
 		CLAMP(b, 0, 0xFFFF);
-		current_or_colorer_alpha = c[3];	// save it for later
-		CLAMP(current_or_colorer_alpha, 0, 0xFFFF);
 		cmdVec[vec_idx].u.smooth.r = Fix_gpuColor1(r, g, b);
 		cmdVec[vec_idx].u.smooth.g = Fix_gpuColor2(r, g, b);
 		cmdVec[vec_idx].u.smooth.b = Fix_gpuColor3(r, g, b);
+		if (is_colorer) {
+			colorer_alpha = c[3];	// save it for later
+			CLAMP(colorer_alpha, 0, 0xFFFF);
+		}
 	} // else will be set later
 	if (gli_texturing()) {
 		// We cannot use both colors and texture. Convert colors to a luminosity.
