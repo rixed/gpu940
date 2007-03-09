@@ -22,7 +22,9 @@
 #include <inttypes.h>
 #include <stdbool.h>
 #include <unistd.h>
-
+#ifdef __cplusplus 
+extern "C" {
+#endif
 // GL types
 typedef enum { GL_FALSE, GL_TRUE } GLboolean;
 typedef unsigned GLenum;
@@ -331,5 +333,7 @@ static inline void glVertex3xv(GLfixed const *v)
 
 // Quick and dirty definitions to help porting of openGl apps using floats
 #include "GL/gl_float.h"
-
+#ifdef __cplusplus
+}
+#endif
 #endif

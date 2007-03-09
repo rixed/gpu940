@@ -22,6 +22,9 @@
 #include <stdbool.h>
 #include <stdlib.h>
 #include <sys/uio.h>
+#ifdef __cplusplus
+extern "C" {
+#endif
 #include <gcc.h>
 #include <fixmath.h>
 #ifndef GP2X
@@ -305,4 +308,7 @@ gpuErr gpuShowBuf(struct gpuBuf *buf, bool can_wait);
 struct buffer_loc const *gpuBuf_get_loc(struct gpuBuf const *buf);
 void gpuWaitDisplay(void);
 
+#ifdef __cplusplus
+}
+#endif
 #endif
