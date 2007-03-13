@@ -782,7 +782,7 @@ static void transf_draw_pic(struct gpuBuf *pic_txt, FixVec *pic_vec, enum draw_w
 		gpuErr err = gpuWritev(cmdvec, sizeof_array(cmdvec), true); (void)err;
 		assert(gpuOK == err);
 	} else {	// SHADOWS
-		pic_mode.mode.named.blend_coef = 8;
+		pic_mode.mode.named.blend_coef = 2;
 		pic_mode.mode.named.perspective = 0;
 		int32_t L[3] = {
 			camera.pos[0] - camera.transf.rot[0][2] + camera.transf.rot[0][1],

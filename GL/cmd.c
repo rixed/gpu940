@@ -255,15 +255,18 @@ static void set_mode_and_color(uint32_t *color, unsigned nb_vec, unsigned colore
 		cmdMode.mode.named.rendering_type = rendering_flat;
 	}
 	// Use blending ?
-	if (gli_enabled(GL_BLEND) && alpha < 0xF000) {
-		cmdMode.mode.named.blend_coef = 0xF - (alpha>>12);
+	if (gli_enabled(GL_BLEND)) {
+		cmdMode.mode.named.blend_coef = 4 - ((alpha+0x2000)>>14);
 	} else {
 		cmdMode.mode.named.blend_coef = 0;
 	}
 	// Optionnaly ask for z-buffer
 	cmdMode.mode.named.z_mode = get_depth_mode();
-	cmdMode.mode.named.write_out = gli_color_mask_all && (!depth_test() || gli_depth_func != GL_NEVER);
+	cmdMode.mode.named.write_out = gli_color_mask_all && (!depth_test() || gli_depth_func != GL_NEVER) && cmdMode.mode.named.blend_coef != 4;
 	cmdMode.mode.named.write_z = depth_test() && gli_depth_mask;
+	if (!cmdMode.mode.named.write_out && !cmdMode.mode.named.write_z) {
+		return;
+	}
 	// Send to GPU
 	static uint32_t prev_rendering_flags = ~0;
 	gpuErr err;

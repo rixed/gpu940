@@ -118,13 +118,22 @@ void raster_gen(void)
 		}
 		// Blend
 		if (ctx.rendering.mode.named.blend_coef) {
-			uint32_t previous = *w_;
-			uint32_t p = (previous&0x00ff00ff)>>(ctx.rendering.mode.named.blend_coef<=8 ? 8-ctx.rendering.mode.named.blend_coef : 0);
-			uint32_t c = (color&0x00ff00ff)>>(ctx.rendering.mode.named.blend_coef>8 ? ctx.rendering.mode.named.blend_coef-8 : 0);
-			uint32_t merge = ((p + c)>>1) & 0x00ff00ff;
-			p = (previous&0xff00ff00)>>(ctx.rendering.mode.named.blend_coef<=8 ? 8-ctx.rendering.mode.named.blend_coef : 0);
-			c = (color&0xff00ff00)>>(ctx.rendering.mode.named.blend_coef>8 ? ctx.rendering.mode.named.blend_coef-8 : 0);
-			color = merge | (((p>>1) + (c>>1)) & 0xff00ff00);
+			uint32_t p = *w_;
+			uint64_t p_alpha = p & 0xFCFCFCFFU;
+//			if (ctx.rendering.mode.named.blend_coef < 4) {
+				p_alpha = ((uint64_t)p_alpha*ctx.rendering.mode.named.blend_coef) >> 2;
+//			}
+			uint64_t c_alpha = color & 0xFCFCFCFFU;
+//			if (ctx.rendering.mode.named.blend_coef != 0) {
+				c_alpha = ((uint64_t)c_alpha*(4-ctx.rendering.mode.named.blend_coef)) >> 2;
+//			}
+			uint64_t unsat = (uint32_t)p_alpha + (uint32_t)c_alpha;	// actually we need 32bits + carry
+			color = (uint32_t)unsat;
+			// Saturation is required only when blend mode is not alpha/one_minus_alpha nor zero/...
+//			if (unsat & 0x000000100ULL) color |= 0x000000FFU;
+//			if (unsat & 0x000010000ULL) color |= 0x0000FF00U;
+//			if (unsat & 0x001000000ULL) color |= 0x00FF0000U;
+//			if (unsat & 0x100000000ULL) color |= 0xFF000000U;
 		}
 		// Poke
 		if (ctx.rendering.mode.named.write_out) {

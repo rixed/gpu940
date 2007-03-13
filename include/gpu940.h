@@ -208,7 +208,7 @@ typedef union {
 		uint32_t use_key:1;
 		uint32_t use_intens:1;
 		uint32_t perspective:1;
-		uint32_t blend_coef:4;	// if 0, opaque. If 15, much blend (16 would mean keep current value)
+		uint32_t blend_coef:3;	// alpha of the previously stored color. 0 -> incoming color is opaque (no blend), 4 -> incoming color is totaly invisible (no write_out)
 		uint32_t write_out:1;
 		uint32_t write_z:1;
 	} named;
