@@ -257,7 +257,7 @@ void glTexSubImage2D_nocheck(struct gli_texture_object *to, GLint level, GLint x
 			}
 		}
 	}
-	to->mean_alpha = sum_alpha / nb_alpha;
+	to->mean_alpha = nb_alpha ? sum_alpha / nb_alpha : 255;
 	if (to->mean_alpha < 250) to->have_mean_alpha = true;
 	pixel_reader_dtor(&reader);
 }
