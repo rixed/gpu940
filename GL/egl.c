@@ -91,7 +91,7 @@ void glClose(void)
 	(void)gli_begend_end();
 	(void)gli_fog_end();
 	for (unsigned i=0; i<sizeof_array(buffers); i++) {
-		gpuFree(buffers[i].out);
+		if (buffers[i].out) gpuFree(buffers[i].out);
 		if (buffers[i].depth) gpuFree(buffers[i].depth);
 	}
 	gpuClose();
