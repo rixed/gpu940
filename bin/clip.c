@@ -53,7 +53,6 @@ static void vec_ctor(gpuVector *new, gpuVector *prev, gpuVector *next, unsigned 
 			Fix_mul(ratio, (next->cmd->u.all_params[u] - prev->cmd->u.all_params[u]));
 	}
 	new->clipFlag = (prev->clipFlag & next->clipFlag) | (1<<p);
-	assert(new->clipFlag);
 	new->proj = 0;
 }
 
@@ -199,7 +198,6 @@ static void proj_new_vec(gpuVector *v)
 	int32_t const dproj = ctx.view.dproj;
 	int32_t c2d;
 	int32_t inv_z = Fix_inv(z);
-	assert(0 != v->clipFlag);
 	switch (v->clipFlag & 0xa) {
 		case 0x2:	// right
 			c2d = ctx.view.clipMax[0]<<16;
