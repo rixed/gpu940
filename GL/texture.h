@@ -51,9 +51,10 @@ struct gli_texture_object {
 	bool need_key, have_mean_alpha;
 };
 // Reserve this color for the key color. I didn't like This blue anyway.
-#define KEY_RED 0
-#define KEY_GREEN 0
-#define KEY_BLUE 255
+#define KEY_RED 0U
+#define KEY_GREEN 0U
+#define KEY_BLUE 255U
+#define KEY_ALPHA 255U
 
 int gli_texture_begin(void);
 void gli_texture_end(void);

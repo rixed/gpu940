@@ -227,7 +227,7 @@ static void set_mode_and_color(uint32_t *color, unsigned nb_vec, unsigned colore
 		cmdMode.mode.named.rendering_type = rendering_text;
 		if (to->need_key) {
 			cmdMode.mode.named.use_key = 1;
-			*color = gpuColor(KEY_RED, KEY_GREEN, KEY_BLUE);
+			*color = gpuColorAlpha(KEY_RED, KEY_GREEN, KEY_BLUE, KEY_ALPHA);
 		}
 		if (to->have_mean_alpha) {
 			alpha = Fix_mul(alpha, to->mean_alpha);

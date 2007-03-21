@@ -36,8 +36,8 @@ struct pixel_reader {
 			uint8_t b, g, r, a;	// little endian only
 		} c;
 		uint32_t u32;
-#		define READER_KEY_COLOR ((255U<<24)|(KEY_RED<<16)|(KEY_GREEN<<8)|(KEY_BLUE))	/* FIXME: little endian only */
-#		define ALMOST_READER_KEY_COLOR ((255U<<24)|(KEY_RED<<16)|(KEY_GREEN<<8)|(KEY_BLUE-1))
+#		define READER_KEY_COLOR ((KEY_ALPHA<<24U)|(KEY_RED<<16U)|(KEY_GREEN<<8U)|(KEY_BLUE))	/* FIXME: little endian only */
+#		define ALMOST_READER_KEY_COLOR ((KEY_ALPHA<<24U)|(KEY_RED<<16U)|(KEY_GREEN<<8U)|(KEY_BLUE-1U))
 	} color;
 	uint8_t const *pixels;
 };
@@ -246,14 +246,15 @@ void glTexSubImage2D_nocheck(struct gli_texture_object *to, GLint level, GLint x
 			pixel_read_next(&reader);
 			if (reader.color.c.a < 5) {	// bellow 5, we consider this is not blending but keying
 				to->need_key = true;
-				dest[y+x] = to->is_resident ? gpuColor(KEY_RED, KEY_GREEN, KEY_BLUE) : READER_KEY_COLOR;
+				dest[y+x] = to->is_resident ? gpuColorAlpha(KEY_RED, KEY_GREEN, KEY_BLUE, KEY_ALPHA) : READER_KEY_COLOR;
 			} else {
 				sum_alpha += reader.color.c.a;
 				nb_alpha ++;
 				if (reader.color.u32 == READER_KEY_COLOR) {	// don't allow the use of our key color
 					reader.color.u32 = ALMOST_READER_KEY_COLOR;
 				}
-				dest[y+x] = to->is_resident ? gpuColor(reader.color.c.r, reader.color.c.g, reader.color.c.b) : reader.color.u32;
+				dest[y+x] = to->is_resident ?
+					gpuColorAlpha(reader.color.c.r, reader.color.c.g, reader.color.c.b, reader.color.c.a) : reader.color.u32;
 			}
 		}
 	}

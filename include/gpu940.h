@@ -287,21 +287,22 @@ static inline uint32_t gpuColor(unsigned r, unsigned g, unsigned b) {
 	return (r<<16)|(g<<8)|(b);
 #endif
 }
+// Place the 3 bits of alpha in position 16+3 (YUV) or 24+3 (RGB)
 static inline uint32_t gpuColorAlpha(unsigned r, unsigned g, unsigned b, unsigned a) {
-	return gpuColor(r, g, b);/* | (a << (3+
+	return gpuColor(r, g, b) | ((((a + 0x20)&0x1F0U)>>3) << (
 #ifdef GP2X
 		16
 #else
 		24
 #endif
-	));*/
+	));
 }
 static inline uint32_t gpuColor_comp2uint(int32_t c[3]) {
 #ifdef GP2X
 	uint32_t y = (c[0] & 0xff00);
 	uint32_t u = (c[1] & 0xff00);
 	uint32_t v = (c[2] & 0xff00);
-	return (v<<16)|(y<<8)|u|(y>>8);
+	return (v<<16)/*|(y<<8)*/|u|(y>>8);
 #else
 	uint32_t r = (c[0] & 0xff00);
 	uint32_t g = (c[1] & 0xff00);

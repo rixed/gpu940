@@ -105,20 +105,19 @@ void raster_gen(void)
 			int y = color&0xff;
 			y += (param[2]>>22);
 			SAT8(y);
-			color = (color&0xff00ff00) | (y<<16) | y;
+			color = (color&0xFFFFFF00) | y;
 #		else
-			int r = (color>>16)+(param[2]>>16);
+			int r = ((color>>16)&255)+(param[2]>>16);
 			int g = ((color>>8)&255)+(param[2]>>16);
 			int b = (color&255)+(param[2]>>16);
 			SAT8(r);
 			SAT8(g);
 			SAT8(b);
-			color = (r<<16)|(g<<8)|b;
+			color = (color & 0xFF000000) | (r<<16)|(g<<8)|b;
 #		endif
 		}
 		// Blend
 		unsigned blend = ctx.rendering.mode.named.blend_coef;
-#if 0
 		if (ctx.rendering.mode.named.use_txt_blend) {	// color holds blend coef in bits 3,4,5 of unused byte
 			blend = (color >> (
 #			ifdef GP2X
@@ -128,7 +127,6 @@ void raster_gen(void)
 #			endif
 				+ 3)) & 0x3;
 		}
-#endif
 		if (blend) {
 			uint32_t p = *w_;
 			uint64_t p_alpha = p & 0xFCFCFCFFU;
