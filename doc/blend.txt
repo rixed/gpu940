@@ -1,0 +1,74 @@
+- Le nouveau blend est un poil plus lent que l'ancien (sans la saturation) :
+
+; si alpha est variable (de 0 à 4 inclus)
+; ou constant et différent de 4 et de 0 :
+; dans le cas alpha/one_minus_alpha (pas de saturation nécéssaire)
+
+and Rpa, Rprev, Rmask (0xFF00FCFF)
+and Rca, Rcolo, Rmask
+mov Ralpha, #constante
+umull Rlo, Rhi, Rpa, Ralpha	; 4 cycles
+mov Ralpha, #(4-constante)
+umlal Rlo, Rhi, Rca, Ralpha	; 4 cycles
+mov Rlo, Rlo, lsr #2
+orr Rlo, Rlo, Rhi, lsl #30
+; Rlo contient color (14 cycles)
+
+; si alpha est constant, et égal à 4 -> c'est complètement transparent,
+; il n'y a rien du tout a afficher
+
+; si alpha est constant et égal à 0 -> c'est complètement opaque,
+; le blend ne sert a rien
+
+Actuellement, on blend en 9 cycles.
+Mais avantages de cette nouvelle méthode :
+
+- Ça marche aussi en YUV, pour le cas alpha/one_minus_alpha ;
+
+- On peut avoir un alpha variable, c'est à dire le prendre dans une texture ;
+  (les textures n'ont alors plus la paramètre 'mean_alpha' - par contre on
+  continue d'utiliser une key-color, sauf que c'est un key-alpha : 4)
+
+Pour les autres fonctions de blend : alors se pose le problème de la non 
+linéarité du YUV, et il faut corriger Y par 16*(1-alpha-beta) (alpha et beta 
+pris ici entre 0 et 1), et U et V par 128*(1-alpha-beta) (même remarque), 
+sachant que les résultats de ces additions sont garantis compris entre 
+0 et 255 (donc on peut paralléliser l'opération sans craindre les débordements 
+  d'une valeur sur les autres), à condition que alpha+beta soit compris entre 
+0 et 1. En général, ce n'est pas le cas, et on a alpha ou beta = 1. Dans ce 
+  cas (outre qu'il ne faut pas multiplier par 1 :-)), on ne peut pas 
+paralléliser (attention : on ne peut pas saturer avant de corriger : dans ce 
+cas la correction n'a plus de sens - le résultat corrigé pourrait être < à 
+255 et ne pas nécessiter de saturation).
+
+Heureusement, même dans ce cas alpha+beta<2, donc la somme de Ca et Pa 
+(color*beta + previous*alpha) ne déborde que de 1 bits au pire. On peut donc 
+calculer ça dans Rlo comme ci-dessus (MUL+décalage) (à condition de masquer 
+par 0xFF00F8FF au lieu de 0xFF00FCFF pour nettoyer ce qui deviendra le 9ème 
+bit), puis ajouter la couleur dont l'alpha vaut 1 (en 64bits), puis corriger 
+comme vu ci dessus (avec la garanti que le résultat sera positif et tiendra 
+sur 9 bits, donc on peut paralléliser) puis enfin saturer (en utilisant les 
+9èmes bits). Ceci donnerait quelquechose comme ça si beta=1 :
+
+and Rpa, Rprev, Rmask (0xFF00F8FF)
+and Rca, Rcolo, Rmask (0xFF00FEFF suffirait, mais ainsi on économise un registre)
+mov Ralpha, #constante
+umull Rlo, Rhi, Rpa, Ralpha	; 4 cycles
+mov Rlo, Rlo, lsr #2
+orr Rlo, Rlo, Rhi, lsl #30
+adds Rlo, Rlo, Rca
+; garder le carry pour la saturation plus tard
+movc Rhi, #1
+; on corrige Y par +16*(1-alpha-1)=-16*alpha
+sub Rlo, Rlo, Ralpha, lsl #2
+; on corrige U par -128*alpha
+sub Rlo, Rlo, Ralpha, lsl #(5+8)
+; on corrige V (dont le 9ème bit est dans le carry) par -128*alpha
+subs Rlo, Rlo, Ralpha, lsl #(5+8+8+8)
+sbc Rhi, Rhi, #0
+; 15 cycles jusqu'ici
+; et maintenant saturer Rhi,Rlo
+
+
+
+pas fameux tout ca.
