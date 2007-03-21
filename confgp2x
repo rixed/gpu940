@@ -1,4 +1,4 @@
 #!/bin/sh
 . gp2xenv.sh
-./configure --enable-gp2x --host=arm-linux
+./configure --enable-gp2x --host=arm-linux --prefix=/tmp/usr/local/gpu940
 make clean

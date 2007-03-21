@@ -30,19 +30,9 @@ load940_SOURCES = load940.c
 stop940_SOURCES = stop940.c
 
 if GP2X
-
-## For official SDK
-#OBJCOPY = $(GP2XDEVDIR)/bin/arm-gp2x-linux-objcopy
-#OBJDUMP = $(GP2XDEVDIR)/bin/arm-gp2x-linux-objdump
-## For devkitGP2X
-#OBJCOPY = $(GP2XDEVDIR)/bin/arm-linux-objcopy
-#OBJDUMP = $(GP2XDEVDIR)/bin/arm-linux-objdump
-## For gp2xsdk
-OBJCOPY = $(GP2XDEVDIR)/bin/gp2x-objcopy
-OBJDUMP = $(GP2XDEVDIR)/bin/gp2x-objdump
 gpu940: $(gpu940_OBJECTS) script.ld $(top_srcdir)/console/libconsole.a $(top_srcdir)/perftime/libperftime.a
-#	$(LD) -o $@.elf $(LDFLAGS) -L$(top_srcdir)/console -L$(top_srcdir)/perftime -L$(top_srcdir)/lib -L$(GP2XDEVDIR)/lib/gcc/arm-gp2x-linux/3.4.6 -T script.ld -N -s
-	$(LD) -o $@.elf $(LDFLAGS) -L$(top_srcdir)/console -L$(top_srcdir)/perftime -L$(top_srcdir)/lib -L$(GP2XDEVDIR)/lib/gcc/arm-linux/4.0.2 -T script.ld -N -s
+	@if ! test -e $(OBJCOPY) || ! test -e $(OBJDUMP) ; then echo "Define (and export) OBJCOPY and OBJDUMP envvars!" ; fi
+	$(LD) -o $@.elf $(LDFLAGS) -L$(top_srcdir)/console -L$(top_srcdir)/perftime -L$(top_srcdir)/lib -L$(GP2XDEVDIR)/lib/gcc/arm-gp2x-linux/3.4.6 -L$(GP2XDEVDIR)/lib/gcc/arm-linux/4.0.2 -T script.ld -N -s
 	$(OBJCOPY) --output-target binary --only-section upper32 $@.elf $@
 bench940: bench.o bench.ld
 	$(LD) -o $@.elf $(LDFLAGS) -T bench.ld -N -s
@@ -54,5 +44,4 @@ gpu940.source: gpu940
 
 clean-local:
 	rm -f writeoffs offsets.S gpu940.elf bench940.elf
-
 endif

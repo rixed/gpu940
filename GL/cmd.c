@@ -29,6 +29,7 @@ static gpuCmdMode cmdMode = {
 	.mode = {
 		.named = {
 			.perspective = 0,
+			.use_txt_blend = 0,
 		},
 	},
 };
@@ -255,18 +256,18 @@ static void set_mode_and_color(uint32_t *color, unsigned nb_vec, unsigned colore
 		cmdMode.mode.named.rendering_type = rendering_flat;
 	}
 	// Use blending ?
+	unsigned blend_coef = 0;
 	if (gli_enabled(GL_BLEND)) {
-		cmdMode.mode.named.blend_coef = 4 - ((alpha+0x2000)>>14);
-	} else {
-		cmdMode.mode.named.blend_coef = 0;
+		blend_coef = 4 - ((alpha+0x2000)>>14);
 	}
-	// Optionnaly ask for z-buffer
+	// z-buffer and masks
 	cmdMode.mode.named.z_mode = get_depth_mode();
-	cmdMode.mode.named.write_out = gli_color_mask_all && (!depth_test() || gli_depth_func != GL_NEVER) && cmdMode.mode.named.blend_coef != 4;
+	cmdMode.mode.named.write_out = gli_color_mask_all && (!depth_test() || gli_depth_func != GL_NEVER) && blend_coef != 4;
 	cmdMode.mode.named.write_z = depth_test() && gli_depth_mask;
 	if (!cmdMode.mode.named.write_out && !cmdMode.mode.named.write_z) {
 		return;
 	}
+	cmdMode.mode.named.blend_coef = blend_coef & 3;
 	// Send to GPU
 	static uint32_t prev_rendering_flags = ~0;
 	gpuErr err;
@@ -371,9 +372,8 @@ void gli_cmd_vertex(int32_t const *v)
 	cmdVec[vec_idx].same_as = 0;
 	// Now compute vertex colors
 	bool is_colorer = is_colorer_func();
-	bool const need_color = gli_smooth() || is_colorer;
-	GLfixed const *c;
-	if (need_color) {
+	GLfixed const *c = NULL;
+	if (gli_smooth() || is_colorer) {
 		c = get_color(eye_coords);
 		GLfixed r = c[0];
 		CLAMP(r, 0, 0xFFFF);
@@ -391,7 +391,7 @@ void gli_cmd_vertex(int32_t const *v)
 	} // else will be set later
 	if (gli_texturing()) {
 		// We cannot use both colors and texture. Convert colors to a luminosity.
-		if (need_color) {
+		if (c) {
 			int32_t text_i = ((( c[0] + c[1] + c[1] + c[2]) >> 2) - 0xFFFF) << 7;
 			cmdVec[vec_idx].u.text.i = text_i;
 		} // else will be set later

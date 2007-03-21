@@ -21573,7 +21573,7 @@ done
 
 ###AC_CHECK_LIB(SDL, SDL_Init,, AC_MSG_ERROR([SDL is required]))
 
-                                                                                                    ac_config_files="$ac_config_files Makefile bin/Makefile lib/Makefile sample/Makefile include/Makefile include/GL/Makefile perftime/Makefile console/Makefile GL/Makefile GL/samples/Makefile"
+                                                                                          ac_config_files="$ac_config_files Makefile bin/Makefile lib/Makefile sample/Makefile include/Makefile perftime/Makefile console/Makefile GL/Makefile GL/samples/Makefile"
 
 cat >confcache <<\_ACEOF
 # This file is a shell script that caches the results of configure
@@ -22150,7 +22150,6 @@ do
   "lib/Makefile" ) CONFIG_FILES="$CONFIG_FILES lib/Makefile" ;;
   "sample/Makefile" ) CONFIG_FILES="$CONFIG_FILES sample/Makefile" ;;
   "include/Makefile" ) CONFIG_FILES="$CONFIG_FILES include/Makefile" ;;
-  "include/GL/Makefile" ) CONFIG_FILES="$CONFIG_FILES include/GL/Makefile" ;;
   "perftime/Makefile" ) CONFIG_FILES="$CONFIG_FILES perftime/Makefile" ;;
   "console/Makefile" ) CONFIG_FILES="$CONFIG_FILES console/Makefile" ;;
   "GL/Makefile" ) CONFIG_FILES="$CONFIG_FILES GL/Makefile" ;;

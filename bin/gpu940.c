@@ -230,6 +230,7 @@ static void ctx_reset(void) {
 	ctx.rendering.mode.named.rendering_type = rendering_flat;
 	ctx.rendering.mode.named.use_key = 0;
 	ctx.rendering.mode.named.use_intens = 0;
+	ctx.rendering.mode.named.use_txt_blend = 0;
 	ctx.rendering.mode.named.perspective = 1;	// so that we don't have to prepare a JIT
 	ctx.rendering.mode.named.blend_coef = 0;
 	ctx.rendering.mode.named.write_out = 1;
@@ -459,6 +460,15 @@ static void do_mode(void)
 {
 	gpuCmdMode const *const mode = (gpuCmdMode *)get_cmd();
 	ctx.rendering.mode.flags = mode->mode.flags;
+	// To avoid some tests here and there and reduce the number of flags combinations, clear unused flags
+	if (ctx.rendering.mode.named.rendering_type != rendering_text) {
+		ctx.rendering.mode.named.use_txt_blend = 0;
+		if (ctx.rendering.mode.named.rendering_type == rendering_smooth) {
+			ctx.rendering.mode.named.use_intens = 0;
+		}
+	} else if (ctx.rendering.mode.named.use_txt_blend) {
+		ctx.rendering.mode.named.blend_coef = 0;
+	}
 	next_cmd(sizeof(*mode));
 	reset_prepared_jit();
 }

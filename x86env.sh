@@ -6,3 +6,5 @@ export CFLAGS="-O2 -g2 -DSOFT_DIVS=1"
 export LDFLAGS=""
 export CC=colorgcc
 unset LD
+unset OBJCOPY
+unset OBJDUMP

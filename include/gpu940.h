@@ -206,9 +206,10 @@ typedef union {
 		uint32_t rendering_type:2;
 		uint32_t z_mode:3;
 		uint32_t use_key:1;
-		uint32_t use_intens:1;
+		uint32_t use_intens:1;	// when texturing, do we use intens to light polygons ?
+		uint32_t use_txt_blend:1;	// when texturing, do we use texture alpha instead of blend_coef ?
 		uint32_t perspective:1;
-		uint32_t blend_coef:3;	// alpha of the previously stored color. 0 -> incoming color is opaque (no blend), 4 -> incoming color is totaly invisible (no write_out)
+		uint32_t blend_coef:2;	// alpha of the previously stored color. 0 -> incoming color is opaque (no blend), 4 -> incoming color is totaly invisible (no write_out)
 		uint32_t write_out:1;
 		uint32_t write_z:1;
 	} named;
@@ -281,10 +282,19 @@ static inline uint32_t gpuColor(unsigned r, unsigned g, unsigned b) {
 	uint32_t y = ((r<<9)+(g<<8)+(b<<8)+(r<<14)+(g<<15)+(b<<11)+(b<<12)+0x108000U)&0xFF0000U;
 	uint32_t u = ((b<<7)-(b<<4)-(r<<5)-(r<<2)-(r<<1)-(g<<6)-(g<<3)-(g<<1)+0x8080U)&0xFF00U;
 	uint32_t v = ((r<<23)-(r<<20)-(g<<21)-(g<<22)+(g<<17)-(b<<20)-(b<<17)+0x80800000U)&0xFF000000U;
-	return (v|y|u|(y>>16));
+	return (v/*|y*/|u|(y>>16));
 #else
 	return (r<<16)|(g<<8)|(b);
 #endif
+}
+static inline uint32_t gpuColorAlpha(unsigned r, unsigned g, unsigned b, unsigned a) {
+	return gpuColor(r, g, b);/* | (a << (3+
+#ifdef GP2X
+		16
+#else
+		24
+#endif
+	));*/
 }
 static inline uint32_t gpuColor_comp2uint(int32_t c[3]) {
 #ifdef GP2X
