@@ -160,7 +160,6 @@ static void draw_trapeze(void) {
 // nb DIVs = 2 + 3*nb_sizes+2*nb_scan_lines
 void draw_poly_persp(void) {
 	unsigned previous_target = perftime_target();
-	// TODO: disable use_intens if rendering_smooth
 	perftime_enter(PERF_POLY, "poly");
 	// compute decliveness related parameters
 	ctx.poly.decliveness = 0;

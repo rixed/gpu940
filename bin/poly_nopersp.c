@@ -165,9 +165,7 @@ static void draw_trapeze(void)
 void draw_poly_nopersp(void)
 {
 	unsigned previous_target = perftime_target();
-	// TODO: disable use_intens if rendering_smooth
 	perftime_enter(PERF_POLY, "poly");
-	ctx.poly.nc_log = ctx.location.buffer_loc[gpuOutBuffer].width_log;
 	// bounding box
 	gpuVector const *v, *c_vec;
 	v = ctx.points.first_vector;
@@ -198,14 +196,14 @@ void draw_poly_nopersp(void)
 			if (! dc_ok) {
 				int32_t const num = ctx.trap.side[side].end_v->c2d[0] - ctx.trap.side[side].c;
 				dnc = Fix_abs(dnc);
-				ctx.trap.side[side].dc = Fix_div(num, dnc);
+				int32_t const inv_dnc = Fix_inv(dnc);
+				ctx.trap.side[side].dc = Fix_mul(num, inv_dnc);
 				// compute alpha_params used for vector parameters
-				int32_t const inv_dalpha = Fix_inv(dnc);
 				for (unsigned p=sizeof_array(ctx.line.dparam); p--; ) {
 					int32_t const P0 = ctx.trap.side[side].start_v->cmd->u.geom.param[p];
 					int32_t const PN = ctx.trap.side[side].end_v->cmd->u.geom.param[p];
 					ctx.trap.side[side].param[p] = P0;
-					ctx.trap.side[side].param_alpha[p] = Fix_mul(PN-P0, inv_dalpha);
+					ctx.trap.side[side].param_alpha[p] = Fix_mul(PN-P0, inv_dnc);
 				}
 			}
 		}
