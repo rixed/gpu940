@@ -25,7 +25,7 @@
  * Data Definitions
  */
 
-static struct matrix_stack modelview_ms, projection_ms;
+struct matrix_stack modelview_ms, projection_ms;
 static enum gli_MatrixMode matrix_mode;
 static GLfixed const gli_matrix_id[16] = {
 	0x10000, 0, 0, 0,

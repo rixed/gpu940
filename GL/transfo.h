@@ -23,6 +23,7 @@ struct matrix_stack {
 	unsigned size;
 	GLfixed (*mat)[16];
 };
+extern struct matrix_stack modelview_ms, projection_ms;
 
 extern GLint gli_viewport_x, gli_viewport_y;
 extern GLsizei gli_viewport_width, gli_viewport_height;

@@ -16,6 +16,7 @@
  * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
  */
 #include "gli.h"
+#include <string.h>
 
 /*
  * Data Definitions
@@ -156,6 +157,13 @@ void glGetFixedv(GLenum pname, GLfixed *params)
 	switch ((enum gli_ParamName)pname) {
 		case GL_LINE_WIDTH:
 			params[0] = gli_line_width;
+			break;
+		case GL_MODELVIEW_MATRIX:
+			memcpy(params, modelview_ms.mat + modelview_ms.top, sizeof(*modelview_ms.mat));
+			break;
+		case GL_PROJECTION_MATRIX:
+			memcpy(params, projection_ms.mat + projection_ms.top, sizeof(*projection_ms.mat));
+			break;
 		default:
 			break;
 	}
