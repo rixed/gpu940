@@ -696,16 +696,27 @@ static void poke_z_nopersp(void)
 static void write_combine(void)	// come here with previous color in r0
 {
 	unsigned const tmp1 = 0, tmp2 = 1, tmp3 = 2, tmp4 = 3;
-	write_mov_immediate(tmp3, 0xFF00FCFFU);
+	write_mov_immediate(tmp3, 0xFF00FCFFU);	// instead of anding, use 0xff0300 to bit-clear the values. Advandate : write_mov_immediate will reduce to 2 instructions
 	// 1110 0000 0000 tmp1 tmp1 0000 0000 tmp3 ie "and tmp1, tmp1, tmp3" ie tmp1 = tmp1 & mask
 	*gen_dst++ = 0xe0000000 | (tmp1<<16) | (tmp1<<12) | tmp3;
 	// 1110 0000 0000 rcol tmp4 0000 0000 tmp3 ie "and rcol, rcol, tmp3" ie rcol = rcol & mask
 	*gen_dst++ = 0xe0000000 | (vars[VARP_OUTCOLOR].rnum<<16) | (vars[VARP_OUTCOLOR].rnum<<12) | tmp3;
-	// FIXME: of course, as blend_coef can be 1, 2 or 3 there are many faster way to compute rcol !
-	write_mov_immediate(tmp3, ctx.rendering.mode.named.blend_coef);
+	if (ctx.rendering.mode.named.use_txt_blend) {	// blend is in incoming color
+		write_mov_immediate(tmp3, 0x7);
+		// 1110 0000 0000 tmp3 tmp3 1001 1010 rcol ie "and tmp3, tmp3, rcol, lsr #19"
+		*gen_dst++ = 0xe00009a0 | (tmp3<<16) | (tmp3<<12) | vars[VARP_OUTCOLOR].rnum;
+	} else {	// blend is constant blend in blend_coef
+		// FIXME: of course, as blend_coef can be 1, 2 or 3 there are many faster way to compute rcol !
+		write_mov_immediate(tmp3, ctx.rendering.mode.named.blend_coef);
+	}
 	// 1110 0000 1000 tmp4 tmp2 tmp3 1001 tmp1 ie "umull tmp2, tmp4, tmp1, tmp3" ie (tmp2(lo),tmp4(hi)) = tmp1*tmp3
 	*gen_dst++ = 0xe0800090 | (tmp4<<16) | (tmp2<<12) | (tmp3<<8) | tmp1;
-	write_mov_immediate(tmp3, 4-ctx.rendering.mode.named.blend_coef);
+	if (ctx.rendering.mode.named.use_txt_blend) {
+		// 1110 0010 0110 tmp3 tmp3 0000 0000 0100 ie "rsb tmp3, tmp3, #4"
+		*gen_dst++ = 0xe2600004 | (tmp3<<16) | (tmp3<<12);
+	} else {
+		write_mov_immediate(tmp3, 4-ctx.rendering.mode.named.blend_coef);
+	}
 	// 1110 0000 1010 tmp4 tmp2 tmp3 1001 rcol ie "umlal tmp2, tmp4, rcol, tmp3" ie (tmp2(lo),tmp4(hi)) += rcol*tmp3
 	*gen_dst++ = 0xe0a00090 | (tmp4<<16) | (tmp2<<12) | (tmp3<<8) | vars[VARP_OUTCOLOR].rnum;
 	// 1110 0001 1010 0000 rcol 0001 0010 tmp2 ie "mov rcol, tmp2, lsr #2" ie rcol = (tmp2(lo),tmp4(hi)) >> 2
@@ -736,7 +747,7 @@ static void combine_nopersp(void)
 	// 1110 0101 1001 varW tmp1 0000 0000 0000 ie "ldr tmp1, [varW]
 	*gen_dst++ = 0xe5900000 | (vars[VARP_W].rnum<<16) | (tmp1<<12);
 	write_combine();
-	if (!ctx.rendering.mode.named.use_key && ctx.rendering.mode.named.z_mode == gpu_z_off) {
+	if (!may_skip_poke()) {	// so we can inc rW here
 		// 1110 0100 1000 varW rcol 0000 0000 0100 ie "str rcol, [rW], #0x4"
 		*gen_dst++ = 0xe4800004 | (vars[VARP_W].rnum<<16) | (vars[VARP_OUTCOLOR].rnum<<12);
 	} else {
@@ -761,7 +772,7 @@ static void next_persp(void)
 static void next_nopersp(void)
 {
 	do_patch(next_pixel);
-	if (ctx.rendering.mode.named.use_key || ctx.rendering.mode.named.z_mode != gpu_z_off) {	// we still have not incremented VARP_W
+	if (may_skip_poke()) {	// we still have not incremented VARP_W
 		assert(nb_pixels_per_loop = 1);
 		// 1110 0010 1000 varW varW 0000 0000 0100 ie "add varW, varW, #4"
 		*gen_dst++ = 0xe2800004 | (vars[VARP_W].rnum<<16) | (vars[VARP_W].rnum<<12);
