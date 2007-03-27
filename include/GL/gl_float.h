@@ -40,8 +40,10 @@ typedef double GLclampd;
 
 #define F2X_LOG 16
 #define f2x(x) ((x)*(1<<F2X_LOG))
+#define x2f(x) (((GLfloat)x)/(1<<F2X_LOG))
 #define i2x(x) ((x)<<F2X_LOG)
 #define i2x_color(x) ((x)>>(F2X_LOG-1))
+#define ub2x_color(x) ((x)<<(F2X_LOG-8))
 
 static inline void glVertex2i(GLint x, GLint y)
 {
@@ -254,6 +256,10 @@ static inline void glColor4iv(GLint const *v)
 {
 	glColor4x(i2x_color(v[0]), i2x_color(v[1]), i2x_color(v[2]), i2x_color(v[3]));
 }
+static inline void glColor4ubv(GLubyte const *v)
+{
+	glColor4x(ub2x_color(v[0]), ub2x_color(v[1]), ub2x_color(v[2]), ub2x_color(v[3]));
+}
 static inline void glColor3f(GLfloat red, GLfloat green, GLfloat blue)
 {
 	glColor3x(f2x(red), f2x(green), f2x(blue));
@@ -377,10 +383,13 @@ static inline void glTexEnvf(GLenum target, GLenum pname, GLfloat param)
 #include <assert.h>
 static inline void glGetFloatv(GLenum pname, GLfloat *params_)
 {
-	GLfixed params[4];
+	GLfixed params[16];
 	glGetFixedv(pname, params);
 	if (pname == GL_LINE_WIDTH) {
 		params_[0] = params[0];
+	} else if (pname == GL_MODELVIEW_MATRIX) {
+		unsigned i;
+		for (i=0; i<16; i++) params_[i] = x2f(params[i]);
 	} else {	// TODO
 		assert(0);
 	}
@@ -389,6 +398,11 @@ static inline void glGetFloatv(GLenum pname, GLfloat *params_)
 static inline void glAlphaFunc(GLenum func, GLclampf ref)
 {
 	glAlphaFuncx(func, f2x(ref));
+}
+
+static inline void glDepthRange(GLclampd near, GLclampd far)
+{
+	glDepthRangex(f2x(near), f2x(far));
 }
 
 #undef f2x

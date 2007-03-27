@@ -196,6 +196,12 @@ enum gli_TexEnv { GL_TEXTURE_ENV_MODE, GL_TEXTURE_ENV_COLOR };
 enum gli_TexEnvMode { GL_MODULATE, GL_DECAL, GL_REPLACE };
 void glTexEnvx(GLenum target, GLenum pname, GLfixed param);
 void glTexEnvxv(GLenum target, GLenum pname, GLfixed const *params);
+enum gli_TexInternalFormat {	// Not used, but defined anyway to cheat programs
+	/*GL_ALPHA,*/ GL_ALPHA4, GL_ALPHA8, GL_ALPHA12, GL_ALPHA16, /*GL_LUMINANCE,*/ GL_LUMINANCE4, GL_LUMINANCE8, GL_LUMINANCE12, GL_LUMINANCE16,
+	/*GL_LUMINANCE_ALPHA,*/ GL_LUMINANCE4_ALPHA4, GL_LUMINANCE6_ALPHA2, GL_LUMINANCE8_ALPHA8, GL_LUMINANCE12_ALPHA4, GL_LUMINANCE12_ALPHA12,
+	GL_LUMINANCE16_ALPHA16, GL_INTENSITY, GL_INTENSITY4, GL_INTENSITY8, GL_INTENSITY12, GL_INTENSITY16, GL_R3_G3_B2, /*GL_RGB,*/ GL_RGB4,
+	GL_RGB5, GL_RGB8, GL_RGB10, GL_RGB12, GL_RGB16, /*GL_RGBA,*/ GL_RGBA2, GL_RGBA4, GL_RGB5_A1, GL_RGBA8, GL_RGB10_A2, GL_RGBA12, GL_RGBA16
+};
 enum gli_TexFormat { GL_ALPHA, GL_RGB, GL_RGBA, GL_LUMINANCE, GL_LUMINANCE_ALPHA };
 enum gli_TexType { GL_UNSIGNED_SHORT_5_6_5=0x1000 /* avoid collision with gli_Types */, GL_UNSIGNED_SHORT_4_4_4_4, GL_UNSIGNED_SHORT_5_5_5_1 };
 void glTexImage2D(GLenum target, GLint level, GLint internalformat, GLsizei width, GLsizei height, GLint border, GLenum format, GLenum type, GLvoid const *pixels);
@@ -215,6 +221,11 @@ void glFogx(GLenum pname, GLfixed param);
 void glFogxv(GLenum pname, GLfixed const *params);
 
 // Frame Buffer Operations
+enum gli_Buffer {
+	GL_NONE=0x100 /* avoid collision with gli_CullFace */,
+	GL_FRONT_LEFT, GL_FRONT_RIGHT, GL_BACK_LEFT, GL_BACK_RIGHT, GL_LEFT, GL_RIGHT,
+	/*GL_FRONT, GL_BACK, GL_FRONT_AND_BACK,*/ GL_AUX0 };
+void glDrawBuffer(GLenum buf);
 void glScissor(GLint x, GLint y, GLsizei width, GLsizei height);
 enum gli_Func { GL_NEVER, GL_LESS, GL_EQUAL, GL_LEQUAL, GL_GREATER, GL_NOTEQUAL, GL_GEQUAL, GL_ALWAYS };
 void glAlphaFuncx(GLenum func, GLclampx ref);

@@ -70,6 +70,14 @@ int gli_framebuf_begin(void)
 
 extern inline void gli_framebuf_end(void);
 
+void glDrawBuffer(GLenum buf)
+{
+	if ((buf < GL_NONE || buf > GL_AUX0) && buf != GL_FRONT && buf != GL_BACK && buf != GL_FRONT_AND_BACK) {
+		return gli_set_error(GL_INVALID_VALUE);
+	}
+	// TODO
+}
+
 void glScissor(GLint x, GLint y, GLsizei width, GLsizei height)
 {
 	if (width < 0 || height < 0) {
