@@ -58,7 +58,7 @@ void glEnd(void)
 	if (! in_begend) {
 		return gli_set_error(GL_INVALID_OPERATION);
 	}
-	// as we do not support GL_POLYGON, we have nothing special to do here.
+	gli_cmd_submit();
 	in_begend = false;
 }
 

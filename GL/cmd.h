@@ -21,6 +21,7 @@
 static inline int gli_cmd_begin(void) { return 0; }
 static inline void gli_cmd_end(void) {}
 void gli_cmd_prepare(enum gli_DrawMode mode_);
+void gli_cmd_submit(void);
 void gli_cmd_vertex(int32_t const *v);
 void gli_facet_array(enum gli_DrawMode mode, GLint first, unsigned count);
 void gli_points_array(GLint first, unsigned count);

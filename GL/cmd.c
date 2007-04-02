@@ -42,8 +42,8 @@ static gpuCmdPoint cmdPoint = {
 static gpuCmdLine cmdLine = {
 	.opcode = gpuLINE,
 };
-static gpuCmdVector cmdVec[4];
-static unsigned vec_idx;
+static gpuCmdVector cmdVec[8];	// Note: if you change its size, also change iov_poly
+static unsigned vec_idx;	// used to address cmdVec. Not necessarily equal to count
 static unsigned count;	// count vertexes between begin and end
 static unsigned prim;	// count primitives between begin and end
 static bool (*is_colorer_func)(void);	// tells wether te count vertex is the colorer of the prim primitive (flatshading)
@@ -55,6 +55,10 @@ static struct iovec const iov_poly[] = {
 	{ .iov_base = cmdVec+1, .iov_len = sizeof(*cmdVec) },
 	{ .iov_base = cmdVec+2, .iov_len = sizeof(*cmdVec) },
 	{ .iov_base = cmdVec+3, .iov_len = sizeof(*cmdVec) },
+	{ .iov_base = cmdVec+4, .iov_len = sizeof(*cmdVec) },
+	{ .iov_base = cmdVec+5, .iov_len = sizeof(*cmdVec) },
+	{ .iov_base = cmdVec+6, .iov_len = sizeof(*cmdVec) },
+	{ .iov_base = cmdVec+7, .iov_len = sizeof(*cmdVec) },
 };
 static struct iovec const iov_point[] = {
 	{ .iov_base = &cmdPoint, .iov_len = sizeof(cmdPoint) },
@@ -161,7 +165,7 @@ static void point_complete(void)
 static void set_current_texture(struct gli_texture_object *to)
 {
 	gpuErr err;
-	assert(to->has_data && to->was_bound);
+	assert(to->has_data);
 	// if its not resident, load it.
 	if (! to->is_resident) {
 		to->img_res = gpuAlloc(to->mipmaps[0].width_log, 1U<<to->mipmaps[0].height_log, false);
@@ -360,6 +364,12 @@ void gli_cmd_prepare(enum gli_DrawMode mode_)
 	is_colorer_func = colorer_funcs[mode_];
 }
 
+void gli_cmd_submit(void)
+{
+	if (mode != GL_POLYGON) return;
+	if (vec_idx > 2) facet_complete(vec_idx, false, 0);
+}
+
 void gli_cmd_vertex(int32_t const *v)
 {
 	// TODO : precalc P*M
@@ -432,8 +442,15 @@ void gli_cmd_vertex(int32_t const *v)
 				line_complete(0);
 			}
 			break;
-		case GL_POLYGON:	// deserve special treatment as the colorer is not the last vertex but the first
-			assert(0);	// TODO (beware of iov struct size)
+		case GL_POLYGON:
+			vec_idx++;
+			if (vec_idx >= sizeof_array(cmdVec)) {	// split the polygon into several polygons
+				facet_complete(vec_idx, false, 0);
+				cmdVec[1] = cmdVec[sizeof_array(cmdVec)-1];
+				vec_idx = 2;
+				count = 2;
+			}
+			break;
 		case GL_TRIANGLE_STRIP:
 			if (count < 3) {
 				vec_idx ++;
