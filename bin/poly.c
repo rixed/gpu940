@@ -68,7 +68,7 @@ static void draw_trapeze_frac(int32_t dnc) {
 	// compute next z_alpha
 	ctx.poly.z_den += (int64_t)dnc*ctx.poly.z_dden;
 	ctx.poly.z_num += (int64_t)dnc*ctx.poly.z_dnum;
-	if (ctx.poly.z_den) ctx.poly.z_alpha = ctx.poly.z_num/(ctx.poly.z_den>>16);	// FIXME: use Fix_div
+	if (ctx.poly.z_den>>16) ctx.poly.z_alpha = ctx.poly.z_num/(ctx.poly.z_den>>16);
 	// now compute next c and params
 	next_params_frac(0, dnc);
 	next_params_frac(1, dnc);
@@ -88,7 +88,7 @@ static void draw_trapeze_int(void) {
 	// compute next z_alpha
 	ctx.poly.z_den += (int64_t)ctx.poly.z_dden<<16;	// wrong if !complete_scan_line
 	ctx.poly.z_num += (int64_t)ctx.poly.z_dnum<<16;
-	if (ctx.poly.z_den) ctx.poly.z_alpha = ctx.poly.z_num/(ctx.poly.z_den>>16);
+	if (ctx.poly.z_den>>16) ctx.poly.z_alpha = ctx.poly.z_num/(ctx.poly.z_den>>16);
 	// now compute next c and params
 	next_params_int(0);
 	next_params_int(1);
@@ -208,7 +208,7 @@ void draw_poly_persp(void) {
 		SWAP(int32_t, m[0], m[1]);
 		ctx.line.dw <<= ctx.location.buffer_loc[gpuOutBuffer].width_log;
 	}
-	if (m[0]) ctx.poly.decliveness = (((int64_t)m[1])<<16)/m[0];
+	if (m[0]) ctx.poly.decliveness = Fix_div(m[1], m[0]);
 	// compute all nc_declived
 	v = ctx.points.first_vector;
 	do {
@@ -277,7 +277,8 @@ void draw_poly_persp(void) {
 				int64_t n = ctx.poly.z_num + (((int64_t)ctx.poly.z_dnum*dnc));	// 32.32
 				int64_t d = ctx.poly.z_den + (((int64_t)ctx.poly.z_dden*dnc));	// 32.32
 				ctx.trap.side[side].z_alpha_start = ctx.poly.z_alpha;
-				int32_t z_alpha_end = d ? n/(d>>16) : ctx.poly.z_alpha;
+				d >>= 16;
+				int32_t z_alpha_end = d ? n/d : ctx.poly.z_alpha;
 				int32_t const dalpha = z_alpha_end - ctx.trap.side[side].z_alpha_start;
 				if (dalpha) inv_dalpha = Fix_inv(dalpha);
 				for (unsigned p=sizeof_array(ctx.line.dparam); p--; ) {
