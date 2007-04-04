@@ -408,8 +408,9 @@ void gli_cmd_vertex(int32_t const *v)
 		// Set U and V (scaled to actual texture size)
 		// FIXME: we should not send scaled coord to GPU. It would be simplier if GPU scale itself according to selected texture.
 		struct gli_texture_object *to = gli_get_texture_object();
-		cmdVec[vec_idx].u.text.u = gli_current_texcoord[0] << to->mipmaps[0].width_log;
-		cmdVec[vec_idx].u.text.v = gli_current_texcoord[1] << to->mipmaps[0].height_log;
+		// TODO: handle TexCoord wrapp properly
+		cmdVec[vec_idx].u.text.u = (gli_current_texcoord[0] & 0xFFFFU) << to->mipmaps[0].width_log;
+		cmdVec[vec_idx].u.text.v = (gli_current_texcoord[1] & 0xFFFFU) << to->mipmaps[0].height_log;
 	}
 	// Add zb parameter if needed
 	if (z_param_needed()) {
