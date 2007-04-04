@@ -408,17 +408,20 @@ void gli_cmd_vertex(int32_t const *v)
 		// Set U and V (scaled to actual texture size)
 		// FIXME: we should not send scaled coord to GPU. It would be simplier if GPU scale itself according to selected texture.
 		struct gli_texture_object *to = gli_get_texture_object();
-		// TODO: handle TexCoord wrapp properly
-		cmdVec[vec_idx].u.text.u = (gli_current_texcoord[0] & 0xFFFFU) << to->mipmaps[0].width_log;
-		cmdVec[vec_idx].u.text.v = (gli_current_texcoord[1] & 0xFFFFU) << to->mipmaps[0].height_log;
+		cmdVec[vec_idx].u.text.u = gli_current_texcoord[0] << to->mipmaps[0].width_log;
+		cmdVec[vec_idx].u.text.v = gli_current_texcoord[1] << to->mipmaps[0].height_log;
 	}
 	// Add zb parameter if needed
 	if (z_param_needed()) {
 		// TODO: f-n and f+n are constant with depth_range
-		int32_t const z_scale = Fix_div(gli_depth_range_far - gli_depth_range_near, clip_coords[3]<<1);
-		int32_t const z_offset = (gli_depth_range_far + gli_depth_range_near) >> 1;
-		int32_t const z_scaled = Fix_mul(clip_coords[2], z_scale);
-		cmdVec[vec_idx].u.geom.param[3] = z_scaled + z_offset;
+		if (clip_coords[3] == 0) {
+			cmdVec[vec_idx].u.geom.param[3] = INT32_MAX;
+		} else {
+			int32_t const z_scale = Fix_div(gli_depth_range_far - gli_depth_range_near, clip_coords[3]<<1);
+			int32_t const z_offset = (gli_depth_range_far + gli_depth_range_near) >> 1;
+			int32_t const z_scaled = Fix_mul(clip_coords[2], z_scale);
+			cmdVec[vec_idx].u.geom.param[3] = z_scaled + z_offset;
+		}
 	}
 	count ++;
 	// FIXME: call an advance_facet() func pointer set in prepare facet to avoid this switch ?
