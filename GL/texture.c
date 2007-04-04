@@ -27,7 +27,7 @@
 static struct gli_texture_unit texture_units[GLI_MAX_TEXTURE_UNITS];
 static struct gli_texture_object default_texture;
 static GLuint active_texture_unit;	// idx in textures
-#define NB_MAX_TEXOBJ 128
+#define NB_MAX_TEXOBJ 1024
 static struct gli_texture_object *binds[NB_MAX_TEXOBJ];
 struct pixel_reader {
 	void (*read_func)(struct pixel_reader *);
