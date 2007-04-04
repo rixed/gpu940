@@ -189,8 +189,8 @@ void glClearColorx(GLclampx red, GLclampx green, GLclampx blue, GLclampx alpha)
 
 void glClearDepthx(GLclampx depth)
 {
-	CLAMP(depth, 0, 0xFFFF);
-	gli_clear_depth = depth;	// TODO: normalize
+	CLAMP(depth, 0, 0x10000);
+	gli_clear_depth = depth;
 }
 
 void glClearStencil(GLint s)

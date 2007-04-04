@@ -406,4 +406,5 @@ static inline void glDepthRange(GLclampd near, GLclampd far)
 }
 
 #undef f2x
+#undef x2f
 #endif
