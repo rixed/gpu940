@@ -24,9 +24,8 @@
  * Data Definitions
  */
 
-static struct gli_texture_unit texture_units[GLI_MAX_TEXTURE_UNITS];
+struct gli_texture_unit gli_texture_unit;
 static struct gli_texture_object default_texture;
-static GLuint active_texture_unit;	// idx in textures
 #define NB_MAX_TEXOBJ 1024
 static struct gli_texture_object *binds[NB_MAX_TEXOBJ];
 struct pixel_reader {
@@ -48,8 +47,8 @@ struct pixel_reader {
 
 static int texture_unit_ctor(struct gli_texture_unit *tu)
 {
-	tu->s = tu->t = tu->r = 0;
-	tu->q = 0x10000;
+	tu->texcoord[0] = tu->texcoord[1] = tu->texcoord[2] = 0;
+	tu->texcoord[3] = 0x10000;
 	tu->bound = 0;
 	tu->env_mode = GL_MODULATE;
 	tu->env_color[0] = tu->env_color[1] = tu->env_color[2] = tu->env_color[3] = 0;
@@ -270,10 +269,7 @@ void glTexSubImage2D_nocheck(struct gli_texture_object *to, GLint level, GLint x
 int gli_texture_begin(void)
 {
 	texture_object_ctor(&default_texture);
-	for (unsigned i=0; i<sizeof_array(texture_units); i++) {
-		if (0 != texture_unit_ctor(texture_units+i)) return -1;
-	}
-	active_texture_unit = 0;
+	if (0 != texture_unit_ctor(&gli_texture_unit)) return -1;
 	binds[0] = &default_texture;
 	for (unsigned b=1; b<sizeof_array(binds); b++) binds[b] = NULL;
 	return 0;
@@ -281,9 +277,7 @@ int gli_texture_begin(void)
 
 void gli_texture_end(void)
 {
-	for (unsigned i=0; i<sizeof_array(texture_units); i++) {
-		texture_unit_dtor(texture_units+i);
-	}
+	texture_unit_dtor(&gli_texture_unit);
 	texture_object_dtor(&default_texture);
 	for (unsigned b=1; b<sizeof_array(binds); b++) {
 		if (binds[b]) {
@@ -293,14 +287,9 @@ void gli_texture_end(void)
 	}
 }
 
-struct gli_texture_unit *gli_get_texture_unit(void)
-{
-	return texture_units + active_texture_unit;
-}
-
 struct gli_texture_object *gli_get_texture_object(void)
 {
-	return binds[gli_get_texture_unit()->bound];
+	return binds[gli_texture_unit.bound];
 }
 
 void glTexParameterx(GLenum target, GLenum pname, GLfixed param)
@@ -308,6 +297,7 @@ void glTexParameterx(GLenum target, GLenum pname, GLfixed param)
 	if (target != GL_TEXTURE_2D || /*pname < GL_TEXTURE_MIN_FILTER ||*/ pname > GL_TEXTURE_WRAP_T) {
 		return gli_set_error(GL_INVALID_ENUM);
 	}
+	param >>= 16;
 	switch ((enum gli_TexParam)pname) {
 		case GL_TEXTURE_MIN_FILTER:
 			if (param < GL_NEAREST || param > GL_LINEAR_MIPMAP_LINEAR) {
@@ -343,10 +333,11 @@ void glTexEnvx(GLenum target, GLenum pname, GLfixed param)
 	if (target != GL_TEXTURE_ENV || pname != GL_TEXTURE_ENV_MODE) {
 		return gli_set_error(GL_INVALID_ENUM);
 	}
+	param >>= 16;
 	if ((param < GL_MODULATE || param > GL_REPLACE) && param != GL_BLEND) {
 		return gli_set_error(GL_INVALID_ENUM);
 	}
-	gli_get_texture_unit()->env_mode = param;
+	gli_texture_unit.env_mode = param;
 }
 
 void glTexEnvxv(GLenum target, GLenum pname, GLfixed const *params)
@@ -360,23 +351,18 @@ void glTexEnvxv(GLenum target, GLenum pname, GLfixed const *params)
 	if (pname != GL_TEXTURE_ENV_COLOR) {
 		return gli_set_error(GL_INVALID_ENUM);
 	}
-	struct gli_texture_unit *const tu = gli_get_texture_unit();
-	for (unsigned i=0; i<sizeof_array(tu->env_color); i++) {
-		tu->env_color[i] = params[i];
-		CLAMP(tu->env_color[i], 0, 0x10000);
+	for (unsigned i=0; i<sizeof_array(gli_texture_unit.env_color); i++) {
+		gli_texture_unit.env_color[i] = params[i];
+		CLAMP(gli_texture_unit.env_color[i], 0, 0x10000);
 	}
 }
 
 void glMultiTexCoord4x(GLenum target, GLfixed s, GLfixed t, GLfixed r, GLfixed q)
 {
-	if (/*target < GL_TEXTURE0 ||*/ target > GL_TEXTURE0+GLI_MAX_TEXTURE_UNITS) {
+	if (target != GL_TEXTURE0) {
 		return gli_set_error(GL_INVALID_ENUM);
 	}
-	struct gli_texture_unit *const tu = &texture_units[target-GL_TEXTURE0];
-	tu->s = s;
-	tu->t = t;
-	tu->r = r;
-	tu->q = q;
+	glTexCoord4x(s, t, r, q);
 }
 
 void glTexImage2D(GLenum target, GLint level, GLint internalformat, GLsizei width, GLsizei height, GLint border, GLenum format, GLenum type, GLvoid const *pixels)
@@ -463,7 +449,7 @@ void glBindTexture(GLenum target, GLuint texture)
 	if (!binds[texture]) {
 		binds[texture] = texture_object_new();
 	}
-	gli_get_texture_unit()->bound = texture;
+	gli_texture_unit.bound = texture;
 	binds[texture]->was_bound = true;
 }
 
@@ -477,20 +463,17 @@ void glDeleteTextures(GLsizei n, GLuint const *textures)
 		if (textures[n] >= sizeof_array(binds) || !binds[textures[n]]) continue;
 		texture_object_del(binds[textures[n]]);
 		binds[textures[n]] = NULL;
-		for (unsigned i=0; i<sizeof_array(texture_units); i++) {
-			if (texture_units[i].bound == textures[n]) {
-				texture_units[i].bound = 0;
-			}
+		if (gli_texture_unit.bound == textures[n]) {
+			gli_texture_unit.bound = 0;
 		}
 	}
 }
 
 void glActiveTexture(GLenum texture)
 {
-	if (/*texture < GL_TEXTURE0 ||*/ texture > GL_TEXTURE0+GLI_MAX_TEXTURE_UNITS) {
+	if (texture != GL_TEXTURE0) {
 		return gli_set_error(GL_INVALID_ENUM);
 	}
-	active_texture_unit = texture-GL_TEXTURE0;
 }
 
 void glGenTextures(GLsizei n, GLuint *textures)

@@ -25,7 +25,6 @@
 
 GLfixed gli_current_color[4];
 GLfixed gli_current_normal[3];
-GLfixed gli_current_texcoord[4];
 static struct gli_light lights[GLI_MAX_LIGHTS];
 static struct gli_material material;
 static GLfixed ambient[4];
@@ -89,8 +88,6 @@ int gli_colors_begin(void)
 	gli_current_color[0] = gli_current_color[1] = gli_current_color[2] = gli_current_color[3] = 0x10000;
 	gli_current_normal[0] = gli_current_normal[1] = 0;
 	gli_current_normal[2] = 0x10000;
-	gli_current_texcoord[0] = gli_current_texcoord[1] = gli_current_texcoord[2] = 0;
-	gli_current_texcoord[3] = 0x10000;
 	nb_enabled_lights = 0;
 	nb_simple_lights = 0;
 	for (unsigned i=0; i<sizeof_array(lights); i++) {

@@ -52,7 +52,7 @@ int main(void) {
 		fprintf(stderr, "Cannot alloc buf for texture\n");
 		return EXIT_FAILURE;
 	}
-	if (gpuOK != gpuLoadImg(gpuBuf_get_loc(txtBuf), pascale, 0)) {
+	if (gpuOK != gpuLoadImg(gpuBuf_get_loc(txtBuf), pascale)) {
 		fprintf(stderr, "Cannot load texture.\n");
 		return EXIT_FAILURE;
 	}

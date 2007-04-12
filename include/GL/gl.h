@@ -49,8 +49,8 @@ GLboolean glSwapBuffers(void);
 // Primitives
 
 // Vertex Arrays
-#define GL_TEXTURE0 0
-#define GL_TEXTURE1 1
+#define GL_TEXTURE0 0	// We have only one texture unit
+#define GL_TEXTURE1 1	// But we define some more constants because valid unused code may need them
 #define GL_TEXTURE2 2
 #define GL_TEXTURE3 3
 enum gli_Types { GL_FLOAT, GL_UNSIGNED_BYTE, GL_UNSIGNED_SHORT, GL_UNSIGNED_INT, GL_FIXED, GL_BYTE, GL_SHORT };
@@ -86,7 +86,6 @@ void glViewport(GLint x, GLint y, GLsizei width, GLsizei height);
 // Color and Lighting
 extern GLfixed gli_current_color[4];
 extern GLfixed gli_current_normal[3];
-extern GLfixed gli_current_texcoord[4];
 static inline void glColor4x(GLfixed red, GLfixed green, GLfixed blue, GLfixed alpha)
 {
 	gli_current_color[0] = red;
@@ -115,41 +114,6 @@ static inline void glNormal3x(GLfixed nx, GLfixed ny, GLfixed nz)
 static inline void glNormal3xv(GLfixed const *v)
 {
 	glNormal3x(v[0], v[1], v[2]);
-}
-static inline void glTexCoord4x(GLfixed s, GLfixed t, GLfixed r, GLfixed q)
-{
-	gli_current_texcoord[0] = s;
-	gli_current_texcoord[1] = t;
-	gli_current_texcoord[2] = r;
-	gli_current_texcoord[3] = q;
-}
-static inline void glTexCoord1x(GLfixed s)
-{
-	glTexCoord4x(s, 0, 0, 1<<16);
-}
-static inline void glTexCoord2x(GLfixed s, GLfixed t)
-{
-	glTexCoord4x(s, t, 0, 1<<16);
-}
-static inline void glTexCoord3x(GLfixed s, GLfixed t, GLfixed r)
-{
-	glTexCoord4x(s, t, r, 1<<16);
-}
-static inline void glTexCoord1xv(GLfixed const *v)
-{
-	glTexCoord4x(v[0], 0, 0, 1<<16);
-}
-static inline void glTexCoord2xv(GLfixed const *v)
-{
-	glTexCoord4x(v[0], v[1], 0, 1<<16);
-}
-static inline void glTexCoord3xv(GLfixed const *v)
-{
-	glTexCoord4x(v[0], v[1], v[2], 1<<16);
-}
-static inline void glTexCoord4xv(GLfixed const *v)
-{
-	glTexCoord4x(v[0], v[1], v[2], v[3]);
 }
 #define GL_LIGHT0 1
 #define GL_LIGHT1 2
@@ -211,6 +175,53 @@ void glDeleteTextures(GLsizei n, GLuint const *textures);
 void glActiveTexture(GLenum texture);
 void glGenTextures(GLsizei n, GLuint *textures);
 GLboolean glIsTexture(GLuint texture);
+struct gli_matrix_stack {
+	unsigned top;
+	unsigned size;
+	GLfixed (*mat)[16];
+};
+extern struct gli_texture_unit {
+	enum gli_TexEnvMode env_mode;
+	GLfixed env_color[4];
+	struct gli_matrix_stack ms;
+	GLuint bound;
+	GLfixed texcoord[4];
+} gli_texture_unit;
+static inline void glTexCoord4x(GLfixed s, GLfixed t, GLfixed r, GLfixed q)
+{
+	gli_texture_unit.texcoord[0] = s;
+	gli_texture_unit.texcoord[1] = t;
+	gli_texture_unit.texcoord[2] = r;
+	gli_texture_unit.texcoord[3] = q;
+}
+static inline void glTexCoord1x(GLfixed s)
+{
+	glTexCoord4x(s, 0, 0, 1<<16);
+}
+static inline void glTexCoord2x(GLfixed s, GLfixed t)
+{
+	glTexCoord4x(s, t, 0, 1<<16);
+}
+static inline void glTexCoord3x(GLfixed s, GLfixed t, GLfixed r)
+{
+	glTexCoord4x(s, t, r, 1<<16);
+}
+static inline void glTexCoord1xv(GLfixed const *v)
+{
+	glTexCoord4x(v[0], 0, 0, 1<<16);
+}
+static inline void glTexCoord2xv(GLfixed const *v)
+{
+	glTexCoord4x(v[0], v[1], 0, 1<<16);
+}
+static inline void glTexCoord3xv(GLfixed const *v)
+{
+	glTexCoord4x(v[0], v[1], v[2], 1<<16);
+}
+static inline void glTexCoord4xv(GLfixed const *v)
+{
+	glTexCoord4x(v[0], v[1], v[2], v[3]);
+}
 
 // Fog
 enum gli_FogPname { GL_FOG_MODE, GL_FOG_DENSITY, GL_FOG_START, GL_FOG_END, GL_FOG_COLOR };

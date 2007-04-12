@@ -151,7 +151,7 @@ static uint32_t color_GL2gpu(int32_t const *c)
 	unsigned b = c[2]>>8;
 	CLAMP(r, 0, 0xFF);
 	CLAMP(g, 0, 0xFF);
-	CLAMP(b, 0, 0xFF);	
+	CLAMP(b, 0, 0xFF);
 	return gpuColor(r, g, b);
 }
 
@@ -170,7 +170,7 @@ static void set_current_texture(struct gli_texture_object *to)
 	if (! to->is_resident) {
 		to->img_res = gpuAlloc(to->mipmaps[0].width_log, 1U<<to->mipmaps[0].height_log, false);
 		if (! to->img_res) return gli_set_error(GL_OUT_OF_MEMORY);
-		err = gpuLoadImg(gpuBuf_get_loc(to->img_res), to->img_nores, 0);
+		err = gpuLoadImg(gpuBuf_get_loc(to->img_res), to->img_nores);
 		assert(gpuOK == err); (void)err;
 		free(to->img_nores);
 		to->img_nores = NULL;
@@ -408,8 +408,8 @@ void gli_cmd_vertex(int32_t const *v)
 		// Set U and V (scaled to actual texture size)
 		// FIXME: we should not send scaled coord to GPU. It would be simplier if GPU scale itself according to selected texture.
 		struct gli_texture_object *to = gli_get_texture_object();
-		cmdVec[vec_idx].u.text.u = gli_current_texcoord[0] << to->mipmaps[0].width_log;
-		cmdVec[vec_idx].u.text.v = gli_current_texcoord[1] << to->mipmaps[0].height_log;
+		cmdVec[vec_idx].u.text.u = gli_texture_unit.texcoord[0] << to->mipmaps[0].width_log;
+		cmdVec[vec_idx].u.text.v = gli_texture_unit.texcoord[1] << to->mipmaps[0].height_log;
 	}
 	// Add zb parameter if needed
 	if (z_param_needed()) {

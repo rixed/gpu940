@@ -25,7 +25,7 @@
  * Data Definitions
  */
 
-struct matrix_stack modelview_ms, projection_ms;
+struct gli_matrix_stack modelview_ms, projection_ms;
 static enum gli_MatrixMode matrix_mode;
 static GLfixed const gli_matrix_id[16] = {
 	0x10000, 0, 0, 0,
@@ -42,7 +42,7 @@ GLsizei gli_viewport_width, gli_viewport_height;
  * Private Functions
  */
 
-static struct matrix_stack *get_ms(enum gli_MatrixMode mode)
+static struct gli_matrix_stack *get_ms(enum gli_MatrixMode mode)
 {
 	switch (mode) {
 		case GL_MODELVIEW:
@@ -50,7 +50,7 @@ static struct matrix_stack *get_ms(enum gli_MatrixMode mode)
 		case GL_PROJECTION:
 			return &projection_ms;
 		case GL_TEXTURE:
-			return &gli_get_texture_unit()->ms;
+			return &gli_texture_unit.ms;
 		default:
 			assert(0);
 			return NULL;
@@ -83,7 +83,7 @@ static void GCCunused do_matrix(FixMat *mat, GLfixed const *m)
 
 static void mult_matrix(GLfixed const *mat)
 {
-	struct matrix_stack *const ms = get_ms(matrix_mode);
+	struct gli_matrix_stack *const ms = get_ms(matrix_mode);
 	GLfixed (*const dest)[16] = ms->mat + ms->top;
 	GLfixed res[16];
 	for (unsigned c=0; c<4; c++) {
@@ -146,7 +146,7 @@ static void frustum_ortho(int frustrum, GLfixed left, GLfixed right, GLfixed bot
  * Public Functions
  */
 
-int gli_matrix_stack_ctor(struct matrix_stack *ms, unsigned size)
+int gli_matrix_stack_ctor(struct gli_matrix_stack *ms, unsigned size)
 {
 	assert(size > 0);
 	ms->size = size;
@@ -157,7 +157,7 @@ int gli_matrix_stack_ctor(struct matrix_stack *ms, unsigned size)
 	return 0;
 }
 
-void gli_matrix_stack_dtor(struct matrix_stack *ms)
+void gli_matrix_stack_dtor(struct gli_matrix_stack *ms)
 {
 	return free(ms->mat);
 }
@@ -181,7 +181,7 @@ extern inline void gli_state_end(void);
 
 void gli_multmatrix(enum gli_MatrixMode mode, int32_t dest[4], int32_t const src[4])
 {
-	struct matrix_stack *const ms = get_ms(mode);
+	struct gli_matrix_stack *const ms = get_ms(mode);
 	GLfixed (*const topmat)[16] = ms->mat + ms->top;
 	for (unsigned i=0; i<4; i++) {
 		dest[i] = 0;
@@ -193,7 +193,7 @@ void gli_multmatrix(enum gli_MatrixMode mode, int32_t dest[4], int32_t const src
 
 void gli_multmatrixU(enum gli_MatrixMode mode, int32_t dest[3], int32_t const src[3])
 {
-	struct matrix_stack *const ms = get_ms(mode);
+	struct gli_matrix_stack *const ms = get_ms(mode);
 	GLfixed (*const topmat)[16] = ms->mat + ms->top;
 	for (unsigned i=0; i<3; i++) {
 		dest[i] = 0;
@@ -214,7 +214,7 @@ void glMatrixMode(GLenum mode)
 
 void glPushMatrix(void)
 {
-	struct matrix_stack *const ms = get_ms(matrix_mode);
+	struct gli_matrix_stack *const ms = get_ms(matrix_mode);
 	if (ms->top >= ms->size) {
 		gli_set_error(GL_STACK_OVERFLOW);
 		return;
@@ -225,7 +225,7 @@ void glPushMatrix(void)
 
 void glPopMatrix(void)
 {
-	struct matrix_stack *const ms = get_ms(matrix_mode);
+	struct gli_matrix_stack *const ms = get_ms(matrix_mode);
 	if (ms->top == 0) {
 		gli_set_error(GL_STACK_UNDERFLOW);
 		return;
@@ -235,14 +235,14 @@ void glPopMatrix(void)
 
 void glLoadMatrixx(GLfixed const *m)
 {
-	struct matrix_stack *const ms = get_ms(matrix_mode);
+	struct gli_matrix_stack *const ms = get_ms(matrix_mode);
 	GLfixed (*const mat)[16] = ms->mat + ms->top;
 	memcpy(mat, m, sizeof(*mat));
 }
 
 void glLoadIdentity(void)
 {
-	struct matrix_stack *const ms = get_ms(matrix_mode);
+	struct gli_matrix_stack *const ms = get_ms(matrix_mode);
 	memcpy(ms->mat[ms->top], gli_matrix_id, sizeof(*ms->mat));
 }
 
@@ -286,7 +286,7 @@ void glMultMatrixx(GLfixed const *m)
 
 void glScalex(GLfixed x, GLfixed y, GLfixed z)
 {
-	struct matrix_stack *const ms = get_ms(matrix_mode);
+	struct gli_matrix_stack *const ms = get_ms(matrix_mode);
 	GLfixed (*const mat)[16] = ms->mat + ms->top;
 	scale_vec(mat[0], x);
 	scale_vec(mat[4], y);

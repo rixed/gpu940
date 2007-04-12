@@ -18,15 +18,6 @@
 #ifndef GL_TEXTURE_H_061010
 #define GL_TEXTURE_H_061010
 
-struct gli_texture_unit {
-//	GLboolean enabled;	useless ?
-	enum gli_TexEnvMode env_mode;
-	GLfixed env_color[4];
-	GLuint bound;
-	struct matrix_stack ms;
-	GLfixed s, t, r, q;
-};
-
 struct gli_texture_object {
 	// target is always GL_TEXTURE_2D
 	// State :
@@ -58,7 +49,6 @@ struct gli_texture_object {
 
 int gli_texture_begin(void);
 void gli_texture_end(void);
-struct gli_texture_unit *gli_get_texture_unit(void);
 struct gli_texture_object *gli_get_texture_object(void);
 
 #endif
