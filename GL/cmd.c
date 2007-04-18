@@ -162,25 +162,29 @@ static void point_complete(void)
 	assert(gpuOK == err); (void)err;
 }
 
-static void set_current_texture(struct gli_texture_object *to)
+static void set_current_texture(struct gli_texture_object *to, int level)
 {
 	gpuErr err;
-	assert(to->has_data);
+	struct gli_mipmap_data *mm;
+	do {
+		mm = to->mipmaps + level;
+	} while (! mm->has_data && --level>=0);	// level not changed if has_data
+	assert(level > 0);
 	// if its not resident, load it.
-	if (! to->is_resident) {
-		to->img_res = gpuAlloc(to->mipmaps[0].width_log, 1U<<to->mipmaps[0].height_log, false);
-		if (! to->img_res) return gli_set_error(GL_OUT_OF_MEMORY);
-		err = gpuLoadImg(gpuBuf_get_loc(to->img_res), to->img_nores);
+	if (! mm->is_resident) {
+		mm->img_res = gpuAlloc(mm->width_log, 1U<<mm->height_log, false);
+		if (! mm->img_res) return gli_set_error(GL_OUT_OF_MEMORY);
+		err = gpuLoadImg(gpuBuf_get_loc(mm->img_res), mm->img_nores);
 		assert(gpuOK == err); (void)err;
-		free(to->img_nores);
-		to->img_nores = NULL;
-		to->is_resident = true;
+		free(mm->img_nores);
+		mm->img_nores = NULL;
+		mm->is_resident = true;
 	}
 	// then, compare with actual tex buffer. if not the same, send SetBuf cmd.
 	static uint32_t last_address = 0, last_width;
-	struct buffer_loc const *loc = gpuBuf_get_loc(to->img_res);
+	struct buffer_loc const *loc = gpuBuf_get_loc(mm->img_res);
 	if (loc->address != last_address || loc->width_log != last_width) {
-		err = gpuSetBuf(gpuTxtBuffer, to->img_res, true);
+		err = gpuSetBuf(gpuTxtBuffer, mm->img_res, true);
 		assert(gpuOK == err); (void)err;
 		last_address = loc->address;
 		last_width = loc->width_log;
@@ -227,14 +231,15 @@ static void set_mode_and_color(uint32_t *color, unsigned nb_vec, unsigned colore
 	// Set facet rendering type and color if needed
 	if (gli_texturing()) {
 		struct gli_texture_object *to = gli_get_texture_object();
-		set_current_texture(to);
+		int level = 0;	// TODO: choose a proper level of detail if requested by MIN_FILTER
+		set_current_texture(to, level);
 		cmdMode.mode.named.rendering_type = rendering_text;
-		if (to->need_key) {
+		if (to->mipmaps[level].need_key) {
 			cmdMode.mode.named.use_key = 1;
 			*color = gpuColorAlpha(KEY_RED, KEY_GREEN, KEY_BLUE, KEY_ALPHA);
 		}
-		if (to->have_mean_alpha) {
-			alpha = Fix_mul(alpha, to->mean_alpha);
+		if (to->mipmaps[level].have_mean_alpha) {
+			alpha = Fix_mul(alpha, to->mipmaps[level].mean_alpha);
 		}
 #		define ALMOST_0 (0x2000<<7)
 		if (! gli_smooth()) {	// copy colorer intens

@@ -66,29 +66,37 @@ static int texture_object_ctor(struct gli_texture_object *to)
 	to->min_filter = GL_NEAREST_MIPMAP_LINEAR;
 	to->max_filter = GL_LINEAR;
 	to->wrap_s = to->wrap_t = GL_REPEAT;
-	to->has_data = false;
 	to->was_bound = false;
-	to->need_key = false;
-	to->have_mean_alpha = false;
+	for (unsigned l=0; l<sizeof_array(to->mipmaps); l++) {
+		to->mipmaps[l].has_data = false;
+		to->mipmaps[l].need_key = false;
+		to->mipmaps[l].have_mean_alpha = false;
+	}
 	return 0;
+}
+
+static void free_mipmap_datas(struct gli_mipmap_data *mm)
+{
+	if (! mm->has_data) return;
+	if (mm->is_resident) {
+		gpuFree(mm->img_res);	// no need to keep it any longer
+	} else {
+		free(mm->img_nores);
+	}
+	mm->has_data = false;
+	mm->need_key = false;
+	mm->have_mean_alpha = false;
 }
 
 static void free_to_datas(struct gli_texture_object *to)
 {
-	if (! to->has_data) return;
-	if (to->is_resident) {
-		gpuFree(to->img_res);	// no need to keep it any longer
-	} else {
-		free(to->img_nores);
+	for (unsigned l=0; l<sizeof_array(to->mipmaps); l++) {
+		free_mipmap_datas(to->mipmaps + l);
 	}
-	to->has_data = false;
-	to->need_key = false;
-	to->have_mean_alpha = false;
 }
 
 static void texture_object_dtor(struct gli_texture_object *to)
 {
-	if (! to->has_data) return;
 	free_to_datas(to);
 }
 
@@ -225,12 +233,13 @@ static void pixel_read_next(struct pixel_reader *reader)
 
 void glTexSubImage2D_nocheck(struct gli_texture_object *to, GLint level, GLint xoffset, GLint yoffset, GLsizei width, GLsizei height, GLenum format, GLenum type, GLvoid const *pixels)
 {
-	assert(to->has_data);
+	struct gli_mipmap_data *const mm = to->mipmaps + level;
+	assert(mm->has_data);
 	uint32_t *dest;
-	if (to->is_resident) {	// destination is GPU memory, so we must write gpuColors
-		dest = gli_get_texture_address(to->img_res);
+	if (mm->is_resident) {	// destination is GPU memory, so we must write gpuColors
+		dest = gli_get_texture_address(mm->img_res);
 	} else {	// destination is malloced rgb array
-		dest = to->img_nores;
+		dest = mm->img_nores;
 	}
 	struct pixel_reader reader;
 	pixel_reader_ctor(&reader, format, type, pixels);
@@ -244,21 +253,21 @@ void glTexSubImage2D_nocheck(struct gli_texture_object *to, GLint level, GLint x
 		for (int x=xoffset; x < xoffset+width; x++) {
 			pixel_read_next(&reader);
 			if (reader.color.c.a < 5) {	// bellow 5, we consider this is not blending but keying
-				to->need_key = true;
-				dest[y+x] = to->is_resident ? gpuColorAlpha(KEY_RED, KEY_GREEN, KEY_BLUE, KEY_ALPHA) : READER_KEY_COLOR;
+				mm->need_key = true;
+				dest[y+x] = mm->is_resident ? gpuColorAlpha(KEY_RED, KEY_GREEN, KEY_BLUE, KEY_ALPHA) : READER_KEY_COLOR;
 			} else {
 				sum_alpha += reader.color.c.a;
 				nb_alpha ++;
 				if (reader.color.u32 == READER_KEY_COLOR) {	// don't allow the use of our key color
 					reader.color.u32 = ALMOST_READER_KEY_COLOR;
 				}
-				dest[y+x] = to->is_resident ?
+				dest[y+x] = mm->is_resident ?
 					gpuColorAlpha(reader.color.c.r, reader.color.c.g, reader.color.c.b, reader.color.c.a) : reader.color.u32;
 			}
 		}
 	}
-	to->mean_alpha = nb_alpha ? sum_alpha / nb_alpha : 255;
-	if (to->mean_alpha < 250) to->have_mean_alpha = true;
+	mm->mean_alpha = nb_alpha ? sum_alpha / nb_alpha : 255;
+	if (mm->mean_alpha < 250) mm->have_mean_alpha = true;
 	pixel_reader_dtor(&reader);
 }
 
@@ -378,8 +387,9 @@ void glTexImage2D(GLenum target, GLint level, GLint internalformat, GLsizei widt
 	}
 	if (
 		border != 0 ||
-		level < 0 || level > 0 /*TODO: mipmapping*/ ||
-		width < 0 || height < 0 || width > GLI_MAX_TEXTURE_SIZE || height > GLI_MAX_TEXTURE_SIZE ||
+		level < 0 || level >= GLI_MAX_TEXTURE_SIZE_LOG+1 ||
+		width < 0 || height < 0 ||
+		(width<<level) > GLI_MAX_TEXTURE_SIZE || (height<<level) > GLI_MAX_TEXTURE_SIZE ||
 		!is_power_of_2(width) || !is_power_of_2(height)
 	) {
 		return gli_set_error(GL_INVALID_VALUE);
@@ -393,14 +403,15 @@ void glTexImage2D(GLenum target, GLint level, GLint internalformat, GLsizei widt
 	}
 	// if we already had data for this texture, free it
 	struct gli_texture_object *to = gli_get_texture_object();
-	free_to_datas(to);	// will free non resident as well as resident datas, and set has_data to false
+	struct gli_mipmap_data *const mm = to->mipmaps + level;
+	free_mipmap_datas(mm);	// free datas for this mipmap (if any)
+	mm->height_log = Fix_log2(height);
+	mm->width_log = Fix_log2(width);
 	// allocate memory for non-resident (malloc)
-	to->img_nores = malloc(width*height*sizeof(*to->img_nores));
-	if (! to->img_nores) return gli_set_error(GL_OUT_OF_MEMORY);
-	to->has_data = true;
-	to->is_resident = false;
-	to->mipmaps[level].height_log = Fix_log2(height);
-	to->mipmaps[level].width_log = Fix_log2(width);
+	mm->img_nores = malloc(width*height*sizeof(*mm->img_nores));
+	if (! mm->img_nores) return gli_set_error(GL_OUT_OF_MEMORY);
+	mm->has_data = true;
+	mm->is_resident = false;
 	if (pixels) {
 		glTexSubImage2D_nocheck(to, level, 0, 0, width, height, format, type, pixels);
 	}
@@ -420,7 +431,7 @@ void glTexSubImage2D(GLenum target, GLint level, GLint xoffset, GLint yoffset, G
 	}
 	struct gli_texture_object *to = gli_get_texture_object();
 	if (
-		level < 0 || level > 0 /*TODO: mipmapping*/ ||
+		level < 0 || level >= GLI_MAX_TEXTURE_SIZE_LOG+1 ||
 		xoffset < 0 || xoffset+width > (1<<to->mipmaps[level].width_log) ||
 		yoffset < 0 || yoffset+height > (1<<to->mipmaps[level].height_log) ||
 		width < 0 || height < 0
@@ -428,7 +439,7 @@ void glTexSubImage2D(GLenum target, GLint level, GLint xoffset, GLint yoffset, G
 		return gli_set_error(GL_INVALID_VALUE);
 	}
 	if (
-		! to->has_data ||
+		! to->mipmaps[level].has_data ||
 		(type == GL_UNSIGNED_SHORT_5_6_5 && format != GL_RGB) ||
 		((type == GL_UNSIGNED_SHORT_4_4_4_4 || type == GL_UNSIGNED_SHORT_5_5_5_1) && format != GL_RGBA)
 	) {

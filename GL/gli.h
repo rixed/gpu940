@@ -28,7 +28,8 @@
 #define GLI_MAX_TEXTURE_STACK_DEPTH 2	// at least 2
 #define GLI_MAX_LIGHTS 8	// at least 8
 #define GLI_STENCIL_BITS 0
-#define GLI_MAX_TEXTURE_SIZE (1<<10)
+#define GLI_MAX_TEXTURE_SIZE_LOG 10
+#define GLI_MAX_TEXTURE_SIZE (1<<GLI_MAX_TEXTURE_SIZE_LOG)
 
 #define CLAMP(x, min, max) do { if (x<=min) x=min; else if (x>=max) x=max; } while(0)
 
