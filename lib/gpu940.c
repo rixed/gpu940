@@ -24,6 +24,7 @@
 #include <assert.h>
 #include <unistd.h>
 #include "gpu940.h"
+#include "mm.h"
 
 /*
  * Data Definitions
@@ -109,6 +110,7 @@ gpuErr gpuOpen(void)
 	static gpuCmdReset reset = { .opcode = gpuRESET };
 	gpuErr err = gpuWrite(&reset, sizeof(reset), true);
 	if (gpuOK != err) return err;
+	gpuMMInit();
 	while (shared->frame_count != 0) ;
 	return gpuOK;
 #	undef MMAP_OFFSET

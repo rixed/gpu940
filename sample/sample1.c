@@ -70,9 +70,9 @@ int main(void) {
 	};
 	gpuCmdVector vectors[sizeof_array(vec3d)] = {
 		{ .same_as = 0, .u = { .text = { .i=16<<16, .u=0, .v=0, .zb=0 }, }, },
-		{ .same_as = 0, .u = { .text = { .i=0<<16, .u=255<<16, .v=0, .zb=0 }, }, },
-		{ .same_as = 0, .u = { .text = { .i=16<<16, .u=255<<16, .v=255<<16, .zb=0 }, }, },
-		{ .same_as = 0, .u = { .text = { .i=32<<16, .u=0, .v=255<<16, .zb=0 }, }, },
+		{ .same_as = 0, .u = { .text = { .i=0<<16, .u=1<<16, .v=0, .zb=0 }, }, },
+		{ .same_as = 0, .u = { .text = { .i=16<<16, .u=1<<16, .v=1<<16, .zb=0 }, }, },
+		{ .same_as = 0, .u = { .text = { .i=32<<16, .u=0, .v=1<<16, .zb=0 }, }, },
 	};
 	gpuCmdMode mode = {
 		.opcode = gpuMODE,

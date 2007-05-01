@@ -162,14 +162,9 @@ static void point_complete(void)
 	assert(gpuOK == err); (void)err;
 }
 
-static void set_current_texture(struct gli_texture_object *to, int level)
+static void set_current_texture(struct gli_mipmap_data *mm)
 {
 	gpuErr err;
-	struct gli_mipmap_data *mm;
-	do {
-		mm = to->mipmaps + level;
-	} while (! mm->has_data && --level>=0);	// level not changed if has_data
-	assert(level > 0);
 	// if its not resident, load it.
 	if (! mm->is_resident) {
 		mm->img_res = gpuAlloc(mm->width_log, 1U<<mm->height_log, false);
@@ -223,6 +218,15 @@ static gpuZMode get_depth_mode(void)
 	return needed;
 }
 
+static bool require_mipmap(enum gli_TexFilter filter)
+{
+	return
+		filter == GL_NEAREST_MIPMAP_NEAREST ||
+		filter == GL_NEAREST_MIPMAP_LINEAR ||
+		filter == GL_LINEAR_MIPMAP_NEAREST ||
+		filter == GL_LINEAR_MIPMAP_LINEAR;
+}
+
 static void set_mode_and_color(uint32_t *color, unsigned nb_vec, unsigned colorer)
 {
 	cmdMode.mode.named.use_intens = 0;
@@ -231,8 +235,17 @@ static void set_mode_and_color(uint32_t *color, unsigned nb_vec, unsigned colore
 	// Set facet rendering type and color if needed
 	if (gli_texturing()) {
 		struct gli_texture_object *to = gli_get_texture_object();
-		int level = 0;	// TODO: choose a proper level of detail if requested by MIN_FILTER
-		set_current_texture(to, level);
+		unsigned level = 0;
+		// FIXME: this is not satisfactory
+		if (nb_vec > 1 && require_mipmap(to->min_filter) && cmdVec[0].u.geom.c3d[2] != 0) {
+			unsigned nb_texels = (cmdVec[1].u.text.u - cmdVec[0].u.text.u) << to->mipmaps[level].width_log;	// TODO: check its width for u
+			unsigned nb_pixels = Fix_div(cmdVec[1].u.geom.c3d[0] - cmdVec[0].u.geom.c3d[0], cmdVec[0].u.geom.c3d[2]);
+			while (nb_texels > nb_pixels && level < sizeof_array(to->mipmaps)-1 && to->mipmaps[level+1].has_data) {
+				level ++;
+				nb_texels >>= 1;
+			}
+		}
+		set_current_texture(to->mipmaps + level);
 		cmdMode.mode.named.rendering_type = rendering_text;
 		if (to->mipmaps[level].need_key) {
 			cmdMode.mode.named.use_key = 1;
@@ -410,11 +423,9 @@ void gli_cmd_vertex(int32_t const *v)
 			int32_t text_i = ((( c[0] + c[1] + c[1] + c[2]) >> 2) - 0xFFFF) << 7;
 			cmdVec[vec_idx].u.text.i = text_i;
 		} // else will be set later
-		// Set U and V (scaled to actual texture size)
-		// FIXME: we should not send scaled coord to GPU. It would be simplier if GPU scale itself according to selected texture.
-		struct gli_texture_object *to = gli_get_texture_object();
-		cmdVec[vec_idx].u.text.u = gli_texture_unit.texcoord[0] << to->mipmaps[0].width_log;
-		cmdVec[vec_idx].u.text.v = gli_texture_unit.texcoord[1] << to->mipmaps[0].height_log;
+		// Set U and V (GPU will scale to actual texture size)
+		cmdVec[vec_idx].u.text.u = gli_texture_unit.texcoord[0];
+		cmdVec[vec_idx].u.text.v = gli_texture_unit.texcoord[1];
 	}
 	// Add zb parameter if needed
 	if (z_param_needed()) {

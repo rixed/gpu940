@@ -49,9 +49,8 @@ static LIST_HEAD(fc_list);
 static struct buf_cache {
 	struct list_head cache_list;
 	struct gpuBuf buf;
-} *buf_cache = NULL;
+} buf_cache[4096];
 static LIST_HEAD(cache_list);
-static unsigned cache_size = 0;	// in struct buf_cache unit
 
 static unsigned my_frame_count = 0;
 
@@ -60,17 +59,7 @@ static unsigned my_frame_count = 0;
  */
 
 static struct gpuBuf *buf_new(void) {
-	if (list_empty(&cache_list)) {	// must alloc more cache
-		unsigned new_cache_size = (cache_size + 64)*4;
-		void *new_cache = realloc(buf_cache, new_cache_size*sizeof(*buf_cache));
-		assert(!buf_cache || new_cache == buf_cache);
-		// hopefully, the cache_list was empty : no need to update pointer if buf_cache moves
-		buf_cache = new_cache;
-		for (unsigned i=cache_size; i<new_cache_size; i++) {
-			list_add_tail(&buf_cache[i].cache_list, &cache_list);
-		}
-		cache_size = new_cache_size;
-	}
+	if (list_empty(&cache_list)) return NULL;
 	struct buf_cache *bc = list_entry(cache_list.next, struct buf_cache, cache_list);
 	list_del(&bc->cache_list);
 	return &bc->buf;
@@ -117,6 +106,7 @@ struct gpuBuf *gpuAlloc_(unsigned width_log, unsigned height) {
 	}
 	if (next_free + size > ADDRESS_MAX) return NULL;
 	struct gpuBuf *new = buf_new();
+	if (! new) return NULL;
 	new->loc.address = next_free;
 	new->loc.width_log = width_log;
 	new->loc.height = height;
@@ -129,6 +119,12 @@ struct gpuBuf *gpuAlloc_(unsigned width_log, unsigned height) {
 /*
  * Public Functions
  */
+
+void gpuMMInit(void) {
+	for (unsigned i=0; i<sizeof_array(buf_cache); i++) {
+		list_add_tail(&buf_cache[i].cache_list, &cache_list);
+	}
+}
 
 struct gpuBuf *gpuAlloc(unsigned width_log, unsigned height, bool can_wait) {
 	struct gpuBuf *buf;
