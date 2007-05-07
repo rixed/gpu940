@@ -375,16 +375,22 @@ int cull_poly(void)
 	if (ctx.poly.cmd->cull_mode == 0) {
 		goto cull_end;
 	}
-	gpuVector *v = ctx.points.first_vector;
-	unsigned nb_v = 0;
+	/* To find out if the facet is backfacing, we compute the sign of the area of the whole polygon.
+	 * If V0 to VN are the N vertices of the facet, the area is proportional to :
+	 * V0xV1y-V0yV1x + V1xV2y-V1yV2x + V2xV3y-V2yV3x + ... + VNxV0y-VNyV0x
+	 * Which can be written with fewer muls :
+	 * V0x(V1y-VNy) + V1x(V2y-V0y) + V2x(V3y-V1y) + ... + Vnx(V(n+1)y-V(n-1)y) + ... + VNx(V0y-V(N-1)y)
+	 */
+	gpuVector *vm = ctx.points.first_vector;	// V(n-1)
+	gpuVector *v = vm->next;	// Vn
+	gpuVector *vp = v->next;	// V(n+1)
 	int32_t a = 0;
 	do {
-		gpuVector *v_next = nb_v < 2 ? v->next : ctx.points.first_vector;
-		a += Fix_mul(v->c2d[0]>>1, v_next->c2d[1]>>1);	// FIXME: 2 may not be enought for greater screen size
-		a -= Fix_mul(v_next->c2d[0]>>1, v->c2d[1]>>1);
-		v = v_next;
-		nb_v ++;
-	} while (nb_v < 3);	
+		a += Fix_mul(v->c2d[0]>>2, (vp->c2d[1]-vm->c2d[1])>>2);
+		vm = v;
+		v = vp;
+		vp = vp->next;
+	} while (vm != ctx.points.first_vector);
 	if (a == 0) {
 		goto cull_end;
 	}
