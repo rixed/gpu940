@@ -20,7 +20,7 @@
 
 static inline uint32_t texture_color(struct buffer_loc const *loc, int32_t u, int32_t v) {
 	// height of a texture location must be a power of two
-	return shared->buffers[loc->address + ((u>>16)&ctx.location.txt_mask) + (((v>>16)&ctx.location.txt_mask)<<loc->width_log)];
+	return shared->buffers[loc->address + ((u>>(16-loc->width_log))&ctx.location.txt_width_mask) + (((v>>(16-ctx.location.txt_height_log))&ctx.location.txt_height_mask)<<loc->width_log)];
 }
 
 #endif

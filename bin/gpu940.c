@@ -187,7 +187,8 @@ static void reset_clipPlanes(void) {
 	Fix_normalize(ctx.view.clipPlanes[4].normal);
 }
 
-static int32_t next_power_of_2(int32_t x) {
+#if 0
+static uint32_t next_power_of_2(uint32_t x) {
 	// TODO: on ARM use CLZ
 	x--;
 	x |= x >> 1;
@@ -197,6 +198,14 @@ static int32_t next_power_of_2(int32_t x) {
 	x |= x >> 16;
 	x++;
 	return x;
+}
+#endif
+
+static uint32_t next_log_2(uint32_t x) {
+	uint32_t ret = 0;
+	assert(! (x & (1U<<31)));
+	while (x > (1U<<ret)) ret++;
+	return ret;
 }
 
 static void ctx_code_buf_reset(void)
@@ -215,7 +224,7 @@ static void ctx_code_reset(void)
 
 static void ctx_reset(void) {
 	my_memset(&ctx, 0, sizeof ctx);
-	ctx.location.buffer_loc[gpuOutBuffer].width_log = next_power_of_2(SCREEN_WIDTH+6);
+	ctx.location.buffer_loc[gpuOutBuffer].width_log = next_log_2(SCREEN_WIDTH+6);
 	ctx.location.buffer_loc[gpuOutBuffer].height = SCREEN_HEIGHT+6;
 	ctx.view.winPos[0] = GPU_DEFAULT_WINPOS0;
 	ctx.view.winPos[1] = GPU_DEFAULT_WINPOS1;
@@ -358,16 +367,18 @@ static void do_setBuf(void)
 		goto dsb_quit;
 	}
 	my_memcpy(&ctx.location.buffer_loc[setBuf->type], &setBuf->loc, sizeof(*ctx.location.buffer_loc));
-	if (ctx.location.buffer_loc[setBuf->type].width_log > 18) {
+	if (ctx.location.buffer_loc[setBuf->type].width_log > 15) {
 		set_error_flag(gpuEPARAM);
 		goto dsb_quit;
 	}
 	if (setBuf->type == gpuTxtBuffer) {
-		if ((1U<<setBuf->loc.width_log) != setBuf->loc.height) {
+		ctx.location.txt_width_mask = (1U<<setBuf->loc.width_log)-1;
+		ctx.location.txt_height_mask = setBuf->loc.height-1;
+		ctx.location.txt_height_log = next_log_2(setBuf->loc.height);
+		if ((1U<<ctx.location.txt_height_log) != setBuf->loc.height) {
 			set_error_flag(gpuEPARAM);
 			goto dsb_quit;
 		}
-		ctx.location.txt_mask = (1<<ctx.location.buffer_loc[gpuTxtBuffer].width_log)-1;
 		reset_prepared_jit();
 	} else if (setBuf->type == gpuOutBuffer) {
 		ctx.location.out_start = location_winPos(gpuOutBuffer, 0, 0);
