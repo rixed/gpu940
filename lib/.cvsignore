@@ -9,3 +9,4 @@ text.lo
 mm.lo
 mm.o
 fixtrig.lo
+input.lo

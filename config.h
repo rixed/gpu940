@@ -14,13 +14,16 @@
 #define HAVE_INTTYPES_H 1
 
 /* Define to 1 if you have the `SDL' library (-lSDL). */
-/* #undef HAVE_LIBSDL */
+#define HAVE_LIBSDL 1
+
+/* Define to 1 if you have the `X11' library (-lX11). */
+#define HAVE_LIBX11 1
 
 /* Define to 1 if you have the <memory.h> header file. */
 #define HAVE_MEMORY_H 1
 
 /* Define to 1 if you have a working `mmap' system call. */
-/* #undef HAVE_MMAP */
+#define HAVE_MMAP 1
 
 /* Define to 1 if you have the `munmap' function. */
 #define HAVE_MUNMAP 1

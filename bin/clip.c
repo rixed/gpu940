@@ -46,11 +46,11 @@ static void vec_ctor(gpuVector *new, gpuVector *prev, gpuVector *next, unsigned 
 	int32_t ha = Fix_abs(prev->h);
 	int32_t hb = Fix_abs(next->h);
 	int32_t ratio = 1<<16, hahb = ha+hb;
-	if (hahb) ratio = ((int64_t)ha<<16)/(ha+hb);	// FIXME: use Fix_div
+	if (hahb) ratio = Fix_div(ha, hahb);
 	for (unsigned u=sizeof_array(new->cmd->u.all_params); u--; ) {
 		new->cmd->u.all_params[u] = 
 			prev->cmd->u.all_params[u] +
-			Fix_mul(ratio, (next->cmd->u.all_params[u] - prev->cmd->u.all_params[u]));
+			Fix_mul(ratio, next->cmd->u.all_params[u] - prev->cmd->u.all_params[u]);
 	}
 	new->clipFlag = (prev->clipFlag & next->clipFlag) | (1<<p);
 	new->proj = 0;
