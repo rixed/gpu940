@@ -65,7 +65,7 @@ static struct gpuBuf *grab_menu_texture(void) {
 	}
 	(void)munmap(menupic, GP2X_MENU_SIZE);
 	(void)close(fbdev);
-	if (gpuOK != gpuLoadImg(gpuBuf_get_loc(menu_texture), resized, 0)) {
+	if (gpuOK != gpuLoadImg(gpuBuf_get_loc(menu_texture), resized)) {
 		assert(0);
 	}
 	(void)free(resized);
