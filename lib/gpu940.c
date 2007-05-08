@@ -25,6 +25,7 @@
 #include <unistd.h>
 #include "gpu940.h"
 #include "mm.h"
+#include "input.h"
 
 /*
  * Data Definitions
@@ -97,6 +98,7 @@ gpuErr gpuOpen(void)
 #	else
 #		define MMAP_OFFSET 0
 #	endif
+	if (0 != gpuInputInit()) return gpuESYS;
 	shared_fd = open(CMDFILE, O_RDWR);
 	if (-1 == shared_fd) return gpuESYS;
 	int pg_size = getpagesize();

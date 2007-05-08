@@ -14,7 +14,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include "GL/gl.h"
+#include "../../include/GL/gl.h"
 #include "fixmath.h"
 
 static GLuint TexObj[2];

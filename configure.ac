@@ -6,7 +6,9 @@ AC_INIT(gpu940, 1.1, rixed@happyleptic.org)
 AC_CONFIG_SRCDIR([bin/gpu940.c])
 AM_INIT_AUTOMAKE
 AC_ARG_ENABLE(gp2x,compile specifically for gp2x,[CFLAGS="$CFLAGS -DGP2X"],[
+	LDFLAGS="$LDFLAGS -lpthread"
 	AC_CHECK_LIB(SDL, SDL_Init,, AC_MSG_ERROR([SDL is required]))
+	AC_CHECK_LIB(X11, XOpenDisplay,, AC_MSG_ERROR([X11 libs are required]))
 ])
 AM_CONDITIONAL(GP2X, [echo $CFLAGS|grep '\-DGP2X'>/dev/null])
 HOST_CC=gcc
@@ -37,7 +39,6 @@ AC_C_VOLATILE
 # Checks for library functions.
 AC_FUNC_MMAP
 AC_CHECK_FUNCS([getpagesize munmap])
-###AC_CHECK_LIB(SDL, SDL_Init,, AC_MSG_ERROR([SDL is required]))
 
 AC_CONFIG_FILES([
 	Makefile

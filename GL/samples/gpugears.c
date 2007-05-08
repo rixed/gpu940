@@ -31,7 +31,7 @@
 #include <sys/time.h>
 #include <unistd.h>
 #include <assert.h>
-#include "GL/gl.h"
+#include "../../include/GL/gl.h"
 #include "fixmath.h"
 
 /* return current time (in seconds) */

@@ -85,6 +85,8 @@ static void show_out_buf(void) {
 	gpuErr err = gpuShowBuf(outBuf, true); (void)err;
 	assert(gpuOK == err);
 	gpuFreeFC(outBuf, 1);
+	// We insert here a quick and dirty exit test
+	if (GPU_PRESS_START == gpuInput()) exit(0);
 }
 
 static void set_dproj(unsigned dproj) {

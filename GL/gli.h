@@ -19,7 +19,7 @@
 #define GLI_H_061009
 
 #include <stdbool.h>
-#include "GL/gl.h"
+#include "../include/GL/gl.h"
 #include "gpu940.h"
 
 #define GLI_MAX_TEXTURE_UNITS 1	// at least 1

@@ -319,6 +319,44 @@ gpuErr gpuShowBuf(struct gpuBuf *buf, bool can_wait);
 struct buffer_loc const *gpuBuf_get_loc(struct gpuBuf const *buf);
 void gpuWaitDisplay(void);
 
+enum gpuInput {
+	GPU_INPUT_NONE,
+	GPU_JOY_CENTER,
+	GPU_JOY_UP,
+	GPU_JOY_UP_LEFT,
+	GPU_JOY_LEFT,
+	GPU_JOY_DOWN_LEFT,
+	GPU_JOY_DOWN,
+	GPU_JOY_DOWN_RIGHT,
+	GPU_JOY_RIGHT,
+	GPU_JOY_UP_RIGHT,
+	GPU_PRESS_CLICK,
+	GPU_PRESS_A,
+	GPU_PRESS_B,
+	GPU_PRESS_X,
+	GPU_PRESS_Y,
+	GPU_PRESS_START,
+	GPU_PRESS_SELECT,
+	GPU_PRESS_LEFT,
+	GPU_PRESS_RIGHT,
+	GPU_PRESS_VOL_HI,
+	GPU_PRESS_VOL_LO,
+	GPU_RELEASE_CLICK,
+	GPU_RELEASE_A,
+	GPU_RELEASE_B,
+	GPU_RELEASE_X,
+	GPU_RELEASE_Y,
+	GPU_RELEASE_START,
+	GPU_RELEASE_SELECT,
+	GPU_RELEASE_LEFT,
+	GPU_RELEASE_RIGHT,
+	GPU_RELEASE_VOL_HI,
+	GPU_RELEASE_VOL_LO,
+};
+
+enum gpuInput gpuInput(void);
+
+
 #ifdef __cplusplus
 }
 #endif
