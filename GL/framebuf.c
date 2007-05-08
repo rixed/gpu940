@@ -171,7 +171,8 @@ void glClear(GLbitfield mask)
 		gli_clear(gpuOutBuffer, gli_clear_colors);
 	}
 	if (mask & GL_DEPTH_BUFFER_BIT) {
-		gli_clear(gpuZBuffer, &gli_clear_depth);
+		int32_t max = INT32_MAX;
+		gli_clear(gpuZBuffer, &max/*gli_clear_depth*/);
 	}
 }
 

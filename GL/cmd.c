@@ -240,10 +240,11 @@ static void set_mode_and_color(uint32_t *color, unsigned nb_vec, unsigned colore
 		if (nb_vec > 1 && require_mipmap(to->min_filter) && cmdVec[0].u.geom.c3d[2] != 0) {
 			unsigned nb_texels = (cmdVec[1].u.text.u - cmdVec[0].u.text.u) << to->mipmaps[level].width_log;	// TODO: check its width for u
 			unsigned nb_pixels = Fix_div(cmdVec[1].u.geom.c3d[0] - cmdVec[0].u.geom.c3d[0], cmdVec[0].u.geom.c3d[2]);
-			while (nb_texels > nb_pixels && level < sizeof_array(to->mipmaps)-1 && to->mipmaps[level+1].has_data) {
-				level ++;
-				nb_texels >>= 1;
-			}
+			level = 3;
+//			while (nb_texels > nb_pixels && level < sizeof_array(to->mipmaps)-1 && to->mipmaps[level+1].has_data) {
+//				level ++;
+//				nb_texels >>= 1;
+//			}
 		}
 		set_current_texture(to->mipmaps + level);
 		cmdMode.mode.named.rendering_type = rendering_text;
@@ -286,6 +287,7 @@ static void set_mode_and_color(uint32_t *color, unsigned nb_vec, unsigned colore
 	cmdMode.mode.named.z_mode = get_depth_mode();
 	cmdMode.mode.named.write_out = gli_color_mask_all && (!depth_test() || gli_depth_func != GL_NEVER) && blend_coef != 4;
 	cmdMode.mode.named.write_z = depth_test() && gli_depth_mask;
+	assert((cmdMode.mode.named.z_mode != gpu_z_off || cmdMode.mode.named.write_z) == z_param_needed());
 	if (!cmdMode.mode.named.write_out && !cmdMode.mode.named.write_z) {
 		return;
 	}
@@ -428,15 +430,15 @@ void gli_cmd_vertex(int32_t const *v)
 		cmdVec[vec_idx].u.text.v = gli_texture_unit.texcoord[1];
 	}
 	// Add zb parameter if needed
-	if (z_param_needed()) {
+	if (1||z_param_needed()) {
 		// TODO: f-n and f+n are constant with depth_range
 		if (clip_coords[3] == 0) {
 			cmdVec[vec_idx].u.geom.param[3] = INT32_MAX;
 		} else {
-			int32_t const z_scale = Fix_div(gli_depth_range_far - gli_depth_range_near, clip_coords[3]<<1);
-			int32_t const z_offset = (gli_depth_range_far + gli_depth_range_near) >> 1;
-			int32_t const z_scaled = Fix_mul(clip_coords[2], z_scale);
-			cmdVec[vec_idx].u.geom.param[3] = z_scaled + z_offset;
+//			int32_t const z_scale = Fix_div((gli_depth_range_far - gli_depth_range_near)>>1, clip_coords[3]);
+//			int32_t const z_offset = (gli_depth_range_far + gli_depth_range_near) >> 1;
+//			int32_t const z_scaled = Fix_mul(clip_coords[2], z_scale);
+			cmdVec[vec_idx].u.geom.param[3] = clip_coords[3];//z_scaled + z_offset;
 		}
 	}
 	count ++;
