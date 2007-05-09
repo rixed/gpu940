@@ -73,7 +73,7 @@ void raster_gen(void)
 		// ZBuffer
 		if (ctx.rendering.mode.named.z_mode != gpu_z_off) {
 			int32_t const zb = *(w_ + ctx.code.out2zb);
-			if (! zpass(param[3], ctx.rendering.mode.named.z_mode, zb)) goto next_pixel;
+			if (! zpass(param[0], ctx.rendering.mode.named.z_mode, zb)) goto next_pixel;
 		}
 		// Peek color
 		uint32_t color;
@@ -82,7 +82,7 @@ void raster_gen(void)
 				color = ctx.code.color;
 				break;
 			case rendering_text:
-				color = texture_color(&ctx.location.buffer_loc[gpuTxtBuffer], param[0], param[1]);
+				color = texture_color(&ctx.location.buffer_loc[gpuTxtBuffer], param[1], param[2]);
 				if (ctx.rendering.mode.named.use_key) {
 					if (color == ctx.code.color) goto next_pixel;
 				}
@@ -90,9 +90,9 @@ void raster_gen(void)
 			case rendering_smooth:
 				color =
 #				ifdef GP2X
-					((param[2]&0xFF00)<<16)|((param[0]&0xFF00)<<8)|(param[1]&0xFF00)|((param[0]&0xFF00)>>8);
+					((param[3]&0xFF00)<<16)|((param[1]&0xFF00)<<8)|(param[2]&0xFF00)|((param[1]&0xFF00)>>8);
 #				else
-					((param[0]&0xFF00)<<8)|(param[1]&0xFF00)|((param[2]&0xFF00)>>8);
+					((param[1]&0xFF00)<<8)|(param[2]&0xFF00)|((param[3]&0xFF00)>>8);
 #				endif
 				break;
 			default:
@@ -103,13 +103,13 @@ void raster_gen(void)
 		if (ctx.rendering.mode.named.use_intens) {
 #		ifdef GP2X	// gp2x uses YUV
 			int y = color&0xff;
-			y += (param[2]>>22);
+			y += (param[3]>>22);
 			SAT8(y);
 			color = (color&0xFFFFFF00) | y;
 #		else
-			int r = ((color>>16)&255)+(param[2]>>16);
-			int g = ((color>>8)&255)+(param[2]>>16);
-			int b = (color&255)+(param[2]>>16);
+			int r = ((color>>16)&255)+(param[3]>>16);
+			int g = ((color>>8)&255)+(param[3]>>16);
+			int b = (color&255)+(param[3]>>16);
 			SAT8(r);
 			SAT8(g);
 			SAT8(b);
@@ -140,7 +140,7 @@ void raster_gen(void)
 			*w_ = color;
 		}
 		if (ctx.rendering.mode.named.write_z) {
-			*(w_ + ctx.code.out2zb) = param[3];
+			*(w_ + ctx.code.out2zb) = param[0];
 		}
 		// Next pixel
 next_pixel:

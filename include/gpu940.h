@@ -171,17 +171,17 @@ typedef struct {
 typedef struct {
 	// no need for opcode because this cmd always follow facet, point and line.
 	uint32_t same_as;	// x,y and z are the same that this last vector. 0 means this same as this one, which of course allways stands true.
-	// Params are : x,y,z,  r?,g?,b?|u?,v?, i?,zb?
+	// Params are : x,y,z,  r,g,b|u,v,i
 	union {
-		int32_t all_params[3+GPU_NB_PARAMS];
+		int32_t all_params[2+GPU_NB_PARAMS];
 		struct {
-			int32_t x, y, z, r, g, b, zb;
+			int32_t x, y, z, r, g, b;
 		} smooth;
 		struct {
-			int32_t x, y, z, u, v, i, zb;
+			int32_t x, y, z, u, v, i;
 		} text;
 		struct {
-			int32_t c3d[3], param[GPU_NB_PARAMS];
+			int32_t c3d[2], param[GPU_NB_PARAMS];	// here we actualy have the 3 components in c3d (z is both a param and a c3d)
 		} geom;
 	} u;
 } gpuCmdVector;

@@ -398,7 +398,7 @@ void gli_cmd_vertex(int32_t const *v)
 	gli_multmatrix(GL_PROJECTION, clip_coords, eye_coords);
 	cmdVec[vec_idx].u.geom.c3d[0] = ((int64_t)clip_coords[0] * gli_viewport_width/2) >> 8;	// FIXME: set dproj = 1
 	cmdVec[vec_idx].u.geom.c3d[1] = -((int64_t)clip_coords[1] * gli_viewport_height/2) >> 8;	// gpu940 uses Y toward bottom
-	cmdVec[vec_idx].u.geom.c3d[2] = clip_coords[3];	// we use W as Z for gpu940 (which then must use Z toward depths)
+	cmdVec[vec_idx].u.geom.param[0] = clip_coords[3];	// we use W as Z for gpu940 (which then must use Z toward depths)
 	cmdVec[vec_idx].same_as = 0;
 	// Now compute vertex colors
 	bool is_colorer = is_colorer_func();
@@ -428,18 +428,6 @@ void gli_cmd_vertex(int32_t const *v)
 		// Set U and V (GPU will scale to actual texture size)
 		cmdVec[vec_idx].u.text.u = gli_texture_unit.texcoord[0];
 		cmdVec[vec_idx].u.text.v = gli_texture_unit.texcoord[1];
-	}
-	// Add zb parameter if needed
-	if (1||z_param_needed()) {
-		// TODO: f-n and f+n are constant with depth_range
-		if (clip_coords[3] == 0) {
-			cmdVec[vec_idx].u.geom.param[3] = INT32_MAX;
-		} else {
-//			int32_t const z_scale = Fix_div((gli_depth_range_far - gli_depth_range_near)>>1, clip_coords[3]);
-//			int32_t const z_offset = (gli_depth_range_far + gli_depth_range_near) >> 1;
-//			int32_t const z_scaled = Fix_mul(clip_coords[2], z_scale);
-			cmdVec[vec_idx].u.geom.param[3] = clip_coords[3];//z_scaled + z_offset;
-		}
 	}
 	count ++;
 	// FIXME: call an advance_facet() func pointer set in prepare facet to avoid this switch ?
