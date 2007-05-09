@@ -123,15 +123,9 @@ static int x11_begin(void)
 		fprintf(stderr, "Cannot find gpu940 window\n");
 		goto err1;
 	}
-/*	int ret = XGrabKeyboard(display, gpu_win, False, GrabModeAsync, GrabModeSync, CurrentTime);
-	if (Success != ret) {
-		fprintf(stderr, "Cannot grab x11 key : %d\n", ret);
-		goto err2;
-	}*/
 	XAutoRepeatOff(display);
 	XSelectInput(display, gpu_win, KeyPressMask|KeyReleaseMask/*FocusChangeMask*/);
 	return 0;
-err2:
 err1:
 	XCloseDisplay(display);
 err0:
@@ -190,6 +184,7 @@ static enum gpuInput xev2gpuev(int keycode, bool pressed)
 			return joy_event();
 		}
 	}
+	return GPU_INPUT_NONE;
 }
 
 static enum gpuInput x11_event(void)

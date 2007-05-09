@@ -61,6 +61,7 @@ static gpuVector *new_vec(gpuVector *prev, gpuVector *next, unsigned p)
 {
 	static gpuCmdVector cmdVectors[MAX_FACET_SIZE+2*GPU_NB_CLIPPLANES];	// used as a place to store cmds that are not in cmdbuf
 	assert(ctx.points.nb_vectors < sizeof_array(ctx.points.vectors));
+	assert(! Fix_same_sign(prev->h, next->h));
 	gpuVector *new = ctx.points.vectors + ctx.points.nb_vectors;
 	new->cmd = cmdVectors + ctx.points.nb_vectors;
 	vec_ctor(new, prev, next, p);
@@ -75,7 +76,7 @@ static void compute_h(gpuVector *v, gpuPlane const *const plane)
 {
 	v->h = 0;
 	for (unsigned c=3; c--; ) {
-		if (0 == plane->normal[c]) continue;
+		//if (0 == plane->normal[c]) continue;
 		v->h += Fix_mul(plane->normal[c], v->cmd->u.geom.c3d[c] - plane->origin[c]);
 	}
 	if (0 == v->h) v->h = 1;
