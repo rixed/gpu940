@@ -511,19 +511,22 @@ static void peek_text(void)	// we always peek, so we can increment our params he
 	unsigned const max_p = in_bh ? 1 : nb_pixels_per_loop;
 	for (unsigned p=0; p < max_p; p++) {
 		unsigned const rcol = outcolor_rnum(p);
+		// FIXME: maintenant U et V sont normalisés à 1., donc il faut non pas asr#16 mais asr#(16-width/height).
+		// Puisque c'est width_log/height_log qu'on emploie, ne plus stoquer le masque : à part ici dans le code
+		// préca on n'en n'a aucun besoin de ce masque.
 		write_mov_immediate(tmp2, ctx.location.txt_width_mask);	// TODO: out of loop ?
-		// 1110 0000 0000 tmp2 tmp1 1000 0100 varU ie "and tmp1, tmp2, varp_u, asr #16" ie tmp1 = U
-		*gen_dst++ = 0xe0000840 | (tmp2<<16) | (tmp1<<12) | vars[VARP_U].rnum;
+		// 1110 0000 0000 tmp2 tmp1 shif t100 varU ie "and tmp1, tmp2, varp_u, asr #(16-width_log)" ie tmp1 = U
+		*gen_dst++ = 0xe0000040 | (tmp2<<16) | (tmp1<<12) | ((16-ctx.location.buffer_loc[gpuTxtBuffer].width_log)<<7) | vars[VARP_U].rnum;
 		if (ctx.location.txt_width_mask != ctx.location.txt_height_mask) {
 			write_mov_immediate(tmp2, ctx.location.txt_height_mask);
 		}
-		// 1110 0000 0000 tmp2 tmp3 1000 0100 varV ie "and tmp3, tmp2, varp_v, asr #16" ie tmp3 = V
-		*gen_dst++ = 0xe0000840 | (tmp2<<16) | (tmp3<<12) | vars[VARP_V].rnum;
+		// 1110 0000 0000 tmp2 tmp3 shif t100 varV ie "and tmp3, tmp2, varp_v, asr #(16-height_log)" ie tmp3 = V
+		*gen_dst++ = 0xe0000040 | (tmp2<<16) | (tmp3<<12) | ((16-ctx.location.txt_height_log)<<7) | vars[VARP_V].rnum;
 		// load constp_du, possibly in tmp2
 		unsigned const constp_du = load_constp(CONSTP_DU, tmp2);	// TODO: out of loop ?
 		// 1110 0000 1000 varU varU 0000 0000 _DU_ ie "add varp_u, varp_u, constp_du"
 		*gen_dst++ = 0xe0800000 | (vars[VARP_U].rnum<<16) | (vars[VARP_U].rnum<<12) | constp_du;
-		// 1110 0000 1000 tmp1 tmp1 txtw w000 tmp3 ie "add tmp1, tmp1, tmp3, lsl #txt_width" tmp1 = VU
+		// 1110 0000 1000 tmp1 tmp1 txtw w000 tmp3 ie "add tmp1, tmp1, tmp3, lsl #width_log" tmp1 = VU
 		*gen_dst++ = 0xe0800000 | (tmp1<<16) | (tmp1<<12) | (ctx.location.buffer_loc[gpuTxtBuffer].width_log<<7) | tmp3;
 		// load constp_txt, possibly in tmp2
 		unsigned const constp_txt = load_constp(CONSTP_TEXT, tmp2);	// TODO: out of loop ?
@@ -542,14 +545,14 @@ static void peek_text_cond(void)	// this peek is conditionnal : inc our params e
 	unsigned const tmp1 = 0, tmp2 = 1, tmp3 = 2;
 	unsigned const rcol = outcolor_rnum(0);
 	write_mov_immediate(tmp2, ctx.location.txt_width_mask);
-	// 1110 0000 0000 tmp2 tmp1 1000 0100 varU ie "and tmp1, tmp2, varp_u, asr #16" ie tmp1 = U
-	*gen_dst++ = 0xe0000840 | (tmp2<<16) | (tmp1<<12) | vars[VARP_U].rnum;
+	// 1110 0000 0000 tmp2 tmp1 shif t100 varU ie "and tmp1, tmp2, varp_u, asr #(16-width_log)" ie tmp1 = U
+	*gen_dst++ = 0xe0000040 | (tmp2<<16) | (tmp1<<12) | ((16-ctx.location.buffer_loc[gpuTxtBuffer].width_log)<<7) | vars[VARP_U].rnum;
 	if (ctx.location.txt_width_mask != ctx.location.txt_height_mask) {
 		write_mov_immediate(tmp2, ctx.location.txt_height_mask);
 	}
-	// 1110 0000 0000 tmp2 tmp3 1000 0100 varV ie "and tmp3, tmp2, varp_v, asr #16" ie tmp3 = V
-	*gen_dst++ = 0xe0000840 | (tmp2<<16) | (tmp3<<12) | vars[VARP_V].rnum;
-	// 1110 0000 1000 tmp1 tmp1 txtw w000 tmp3 ie "add tmp1, tmp1, tmp3, lsl #txt_width" tmp1 = VU
+	// 1110 0000 0000 tmp2 tmp3 shif t100 varV ie "and tmp3, tmp2, varp_v, asr #(16-height_log)" ie tmp3 = V
+	*gen_dst++ = 0xe0000040 | (tmp2<<16) | (tmp3<<12) | ((16-ctx.location.txt_height_log)<<7) | vars[VARP_V].rnum;
+	// 1110 0000 1000 tmp1 tmp1 txtw w000 tmp3 ie "add tmp1, tmp1, tmp3, lsl #width_log" tmp1 = VU
 	*gen_dst++ = 0xe0800000 | (tmp1<<16) | (tmp1<<12) | (ctx.location.buffer_loc[gpuTxtBuffer].width_log<<7) | tmp3;
 	// load constp_txt, possibly in tmp2
 	unsigned const constp_txt = load_constp(CONSTP_TEXT, tmp2);
