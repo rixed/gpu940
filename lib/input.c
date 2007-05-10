@@ -221,7 +221,7 @@ int gpuInputInit(void)
 #	ifndef GP2X
 	ret = x11_begin();
 #	else
-	ret = -1;
+	ret = 0;
 #	endif
 	if (0 != ret) return ret;
 	atexit(my_end);
