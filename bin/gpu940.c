@@ -557,46 +557,9 @@ static void fetch_command(void)
 	perftime_enter(previous_target, NULL);
 }
 
-#define FULL_THROTTLE   8
-#define VERY_FAST       7
-#define REASONABLY_FAST 6
-#define MODERABLY_FAST  5
-#define ECONOMIC        4
-#define MODERATED       3
-#define QUITE_SLOW      2
-#define BLOATED         1
-#define SLOW_AS_HELL    0
-void set_speed(unsigned s)
-{
-#ifdef GP2X
-	static unsigned previous_speed = ~0U;
-	static struct {
-		unsigned mhz;
-		unsigned magik;
-	} speeds[FULL_THROTTLE+1] = {
-		{ 50, 0x6503 },
-		{ 75, 0x4902 },
-		{ 100, 0x6502 },
-		{ 125, 0x3c01 },
-		{ 150, 0x4901 },
-		{ 175, 0x3F04 },
-		{ 200, 0x4904 },
-		{ 225, 0x5304 },
-		{ 250, 0x5D04 }
-	};
-	if (previous_speed == s) return;
-	gp2x_regs16[0x0910>>1] = speeds[s].magik;
-	while (gp2x_regs16[0x0902>>1] & 1) ;
-	console_setcolor(3); console_write_uint(29, 0, 3, speeds[s].mhz);
-	previous_speed = s;
-#else
-	(void)s;
-#endif
-}
 static void run(void)
 {
 #ifdef GP2X
-	unsigned wait = 0;
 #endif
 	perftime_enter(PERF_WAITCMD, "idle");
 	while (1) {
@@ -605,24 +568,11 @@ static void run(void)
 #endif
 		if (shared->cmds_end == shared->cmds_begin) {
 #ifdef GP2X
-#define TIME_FOR_A_BREAK 0x1000000
-			if (wait == TIME_FOR_A_BREAK) {
-				set_speed(SLOW_AS_HELL);
-			}
-			if (wait <= TIME_FOR_A_BREAK) {
-				wait ++;
-			}
 			for (register volatile int i=100; i>0; i--) ;	// halt before reading RAM again
 #else
 			(void)sched_yield();
 #endif
 		} else {
-#ifdef GP2X
-			if (wait >= TIME_FOR_A_BREAK) {
-				set_speed(FULL_THROTTLE);
-			}
-			wait = 0;
-#endif
 			fetch_command();
 		}
 	}
@@ -696,7 +646,6 @@ void mymain(void)
 	console_begin();
 	console_setup();
 	console_enable();
-	set_speed(FULL_THROTTLE);
 	run();
 	console_end();
 quit:;
