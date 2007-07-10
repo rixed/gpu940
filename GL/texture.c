@@ -80,8 +80,10 @@ static void free_mipmap_datas(struct gli_mipmap_data *mm)
 	if (! mm->has_data) return;
 	if (mm->is_resident) {
 		gpuFree(mm->img_res);	// no need to keep it any longer
+		mm->img_res = NULL;
 	} else {
 		free(mm->img_nores);
+		mm->img_nores = NULL;
 	}
 	mm->has_data = false;
 	mm->need_key = false;
@@ -459,6 +461,7 @@ void glBindTexture(GLenum target, GLuint texture)
 	// when texture = 0, we just bind to it.
 	if (!binds[texture]) {
 		binds[texture] = texture_object_new();
+		if (!binds[texture]) return;
 	}
 	gli_texture_unit.bound = texture;
 	binds[texture]->was_bound = true;
