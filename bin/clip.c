@@ -208,6 +208,15 @@ static void proj_new_vec(gpuVector *v)
 			break;
 		default:
 			c2d = Fix_mul(x<<dproj, inv_z);
+			// The above mul may be wrong. In this case, instead of
+			// discarding the point we 'clamp' it to the edge. This have the
+			// advantage of fixing minor errors (but may display wrong shapes
+			// in case of integer overflow).
+			if (c2d < ctx.view.clipMin[0]<<16) {
+				c2d = ctx.view.clipMin[0]<<16;
+			} else if (c2d > ctx.view.clipMax[0]<<16) {
+				c2d = ctx.view.clipMax[0]<<16;
+			}
 			break;
 	}
 	v->c2d[0] = c2d + (ctx.view.winWidth<<15);
@@ -220,6 +229,11 @@ static void proj_new_vec(gpuVector *v)
 			break;
 		default:
 			c2d = Fix_mul(y<<dproj, inv_z);
+			if (c2d < ctx.view.clipMin[1]<<16) {
+				c2d = ctx.view.clipMin[1]<<16;
+			} else if (c2d > ctx.view.clipMax[1]<<16) {
+				c2d = ctx.view.clipMax[1]<<16;
+			}
 			break;
 	}
 	v->c2d[1] = c2d + (ctx.view.winHeight<<15);
